@@ -1,0 +1,6 @@
+# Scripts y SQL siempre con fin de línea LF (corren dentro de contenedores Linux)
+*.sh   text eol=lf
+*.sql  text eol=lf
+*.conf text eol=lf
+Dockerfile text eol=lf
+*.yml  text eol=lf

@@ -1,0 +1,79 @@
+# Rumbo · base de datos
+#   db          → primario (lectura/escritura) + archivado continuo de WAL con pgBackRest
+#   db-replica  → réplica en espera activa (streaming), solo lectura, lista para promover
+# Uso:  cp .env.example .env  (y poner claves reales)  →  docker compose up -d --build
+
+name: ${COMPOSE_PROJECT_NAME:-rumbo}
+
+x-postgres: &postgres
+  build:
+    context: .
+    dockerfile: postgres/Dockerfile
+  image: rumbo-postgres:17
+  restart: unless-stopped
+  shm_size: 256mb
+  stop_grace_period: 60s
+  networks: [rumbo_db]
+
+services:
+  db:
+    <<: *postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: rumbo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--data-checksums --auth-local=peer --auth-host=scram-sha-256"
+      RUMBO_MIGRATOR_PASSWORD: ${RUMBO_MIGRATOR_PASSWORD:?Falta RUMBO_MIGRATOR_PASSWORD}
+      RUMBO_APP_PASSWORD: ${RUMBO_APP_PASSWORD:?Falta RUMBO_APP_PASSWORD}
+      RUMBO_CALLFLOW_PASSWORD: ${RUMBO_CALLFLOW_PASSWORD:?Falta RUMBO_CALLFLOW_PASSWORD}
+      RUMBO_REPLICACION_PASSWORD: ${RUMBO_REPLICACION_PASSWORD:?Falta RUMBO_REPLICACION_PASSWORD}
+      PGBACKREST_REPO1_CIPHER_PASS: ${PGBACKREST_REPO1_CIPHER_PASS:?Falta PGBACKREST_REPO1_CIPHER_PASS}
+    volumes:
+      - datos:/var/lib/postgresql/data
+      - respaldos:/var/lib/pgbackrest
+      - spool:/var/spool/pgbackrest
+      # Producción: certificado real (Let's Encrypt u otro)
+      # - /etc/rumbo/ssl:/etc/postgresql/ssl:ro
+    ports:
+      # Solo en la máquina local. Nunca exponer 5432 a internet.
+      - "127.0.0.1:${DB_PUERTO:-5432}:5432"
+    healthcheck:
+      # Por TCP: durante la inicialización el servidor temporal solo escucha en el socket,
+      # así el contenedor no se declara sano hasta que migraciones y primer respaldo terminen.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d rumbo -q"]
+      interval: 5s
+      timeout: 3s
+      retries: 60
+      start_period: 300s
+
+  db-replica:
+    <<: *postgres
+    user: postgres
+    entrypoint: ["/usr/local/bin/replica-entrypoint.sh"]
+    environment:
+      PRIMARIO_HOST: db
+      RUMBO_REPLICACION_PASSWORD: ${RUMBO_REPLICACION_PASSWORD:?Falta RUMBO_REPLICACION_PASSWORD}
+      PGBACKREST_REPO1_CIPHER_PASS: ${PGBACKREST_REPO1_CIPHER_PASS}
+    volumes:
+      - replica_datos:/var/lib/postgresql/data
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${DB_REPLICA_PUERTO:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -q"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 120s
+
+volumes:
+  datos:
+  respaldos:
+  spool:
+  replica_datos:
+
+networks:
+  rumbo_db:
+    name: ${COMPOSE_PROJECT_NAME:-rumbo}_db
