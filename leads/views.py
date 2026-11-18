@@ -7,6 +7,7 @@ Las acciones responden con el bloque #ficha actualizado (HTMX) o redirigen (sin 
 Permisos: los decide la base. Un asesor solo ve (RLS) y solo puede tocar (funciones SQL) sus
 leads. Aquí además se ocultan los botones que su rol no puede usar.
 """
+import datetime as dt
 import json
 
 from django.contrib import messages
@@ -300,6 +301,39 @@ def alertas_contador(request):
     alertas_json = (json.dumps(detalle, ensure_ascii=True)
                     .replace("<", r"\u003c").replace(">", r"\u003e").replace("&", r"\u0026"))
     return render(request, "leads/_alertas_contador.html", {"total": len(filas), "alertas_json": alertas_json})
+
+
+# ─────────────────────────────── SCRUM-44 · Métricas del piloto ───────────────────────────────
+
+MOTIVOS_REASIGNACION = {
+    "reintentos_agotados": "Intentos agotados", "sin_primera_llamada": "No llamó a tiempo",
+    "asesor_inactivo": "Asesor inactivo", "cola_horario": "Desde la cola de fuera de horario", "manual": "Manual (supervisor)",
+}
+
+
+@require_http_methods(["GET"])
+@con_rol(*SUPERVISION)
+def metricas(request):
+    hoy = timezone.localdate()
+    try:
+        desde = dt.date.fromisoformat(request.GET.get("desde", ""))
+    except ValueError:
+        desde = hoy - dt.timedelta(days=6)
+    try:
+        hasta = dt.date.fromisoformat(request.GET.get("hasta", ""))
+    except ValueError:
+        hasta = hoy
+    if hasta < desde:
+        desde, hasta = hasta, desde
+    zona = timezone.get_current_timezone()
+    inicio = dt.datetime.combine(desde, dt.time.min, zona)
+    fin = dt.datetime.combine(hasta + dt.timedelta(days=1), dt.time.min, zona)
+    datos = servicios.metricas_piloto(inicio, fin)
+    datos["reasignaciones"] = [(MOTIVOS_REASIGNACION.get(m, m), n) for m, n in sorted(datos["reasignaciones"].items())]
+    return render(request, "leads/metricas.html", {
+        **datos, "desde": desde, "hasta": hasta, "rumbo": request.rumbo,
+        "webhook": servicios.errores_webhook(inicio, fin) if request.rumbo.es_admin else None,
+    })
 
 
 # ─────────────────────────────── RF-31 · Configuración ───────────────────────────────

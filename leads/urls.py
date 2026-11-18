@@ -9,6 +9,7 @@ urlpatterns = [
     path("reasignar/", views.reasignar_lote, name="reasignar_lote"),
     path("configuracion/", views.configuracion, name="configuracion"),
     path("alertas/", views.alertas, name="alertas"),
+    path("metricas/", views.metricas, name="metricas"),
     path("alertas/contador/", views.alertas_contador, name="alertas_contador"),
     path("<int:pk>/", views.ficha, name="ficha"),
     path("<int:pk>/intento/", views.registrar_intento, name="registrar_intento"),

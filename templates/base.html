@@ -23,6 +23,7 @@
             <a class="nav-link" href="{% url 'leads:lista' %}">Leads</a>
             {% if rumbo.es_supervisor %}
               <a class="nav-link" href="{% url 'cuentas:asesores' %}">Asesores</a>
+              <a class="nav-link" href="{% url 'leads:metricas' %}">Métricas</a>
               <a class="nav-link" href="{% url 'leads:alertas_contador' %}" hx-get="{% url 'leads:alertas_contador' %}" hx-trigger="load" hx-swap="outerHTML">Alertas</a>
             {% endif %}
             {% if rumbo.es_admin %}

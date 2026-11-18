@@ -9,6 +9,7 @@ rumbo/
 ├── config/              proyecto Django: settings por entorno (base, dev, prod, test), urls, celery
 ├── core/                transacción + contexto RLS por request, healthcheck, tareas generales
 ├── whatsapp/            webhook de WhatsApp Cloud API, firma, bandeja de entrada, tareas
+├── docs/                guia_de_uso.md: guía para asesores, supervisores y administradores (SCRUM-46)
 ├── leads/               modelos (managed=False), admin de solo lectura, acciones del lead y configuración
 ├── templates/ static/   Bootstrap + HTMX
 ├── docker/entrypoint.sh web | worker | beat
@@ -130,6 +131,7 @@ El asesor cambia su estado con un clic en la barra superior: **Disponible**, **P
 | `/leads/<id>/agendar/` | dueño, supervisor, admin | RF-24: agendar o reprogramar la próxima llamada sin registrar intento |
 | `/leads/configuracion/` | admin | RF-31: horario, reglas de reparto y reintentos, umbral de alertas, textos automáticos |
 | `/leads/alertas/` | supervisor, admin | RF-33: leads con la llamada atrasada más de N minutos (se actualiza cada 30 s; insignia en la barra y notificación del navegador) |
+| `/leads/metricas/` | supervisor, admin | SCRUM-44: indicadores del piloto por período (tiempo hasta la primera llamada, tasa de contacto, ventas, errores) y por asesor |
 
 - Toda escritura pasa por las funciones SQL (`leads/servicios.py`); la base valida permisos, reglas y versión. Si dos personas editan el mismo lead, la segunda recibe un aviso y la ficha se recarga.
 - Las acciones son bloques reutilizables (`leads/templates/leads/_accion_*.html`) para incluirlos en la ficha completa (SCRUM-29) y en la lista de llamadas (SCRUM-28). Responden con HTMX y también funcionan sin JavaScript.

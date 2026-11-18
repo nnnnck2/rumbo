@@ -245,3 +245,78 @@ def leer_configuracion():
     with connection.cursor() as cursor:
         cursor.execute("SELECT clave, valor FROM rumbo.configuracion")
         return {clave: (json.loads(v) if isinstance(v, str) else v) for clave, v in cursor.fetchall()}
+
+
+# ─────────────────────────────── SCRUM-44 · Métricas del piloto ───────────────────────────────
+
+# Resultados que significan que se habló con el cliente (el resto: no contesta, número inválido).
+RESULTADOS_CONTACTO = ("interesado", "no_interesado", "venta_cerrada", "llamar_despues")
+
+_SQL_METRICAS = """
+WITH leads AS (
+    SELECT l.id, l.primer_contacto_en, l.asesor_id, l.estado_asignacion,
+           (SELECT min(s.creado_en) FROM rumbo.asignacion s WHERE s.lead_id = l.id) AS asignado_primero,
+           (SELECT min(i.creado_en) FROM rumbo.intento_llamada i WHERE i.lead_id = l.id) AS primer_intento,
+           EXISTS (SELECT 1 FROM rumbo.intento_llamada i
+                   WHERE i.lead_id = l.id AND i.resultado_codigo = ANY(%(contacto)s)) AS contactado,
+           EXISTS (SELECT 1 FROM rumbo.venta v WHERE v.lead_id = l.id AND v.anulada_en IS NULL) AS vendido,
+           EXISTS (SELECT 1 FROM rumbo.mensaje_whatsapp m
+                   WHERE m.lead_id = l.id AND m.direccion = 'saliente') AS respondido
+    FROM rumbo.lead l
+    WHERE l.primer_contacto_en >= %(desde)s AND l.primer_contacto_en < %(hasta)s AND l.anonimizado_en IS NULL
+)
+SELECT {grupo} AS grupo,
+       count(*)                                                    AS leads,
+       count(primer_intento)                                       AS llamados,
+       count(*) FILTER (WHERE contactado)                          AS contactados,
+       count(*) FILTER (WHERE vendido)                             AS ventas,
+       count(*) FILTER (WHERE NOT respondido)                      AS sin_respuesta_automatica,
+       count(*) FILTER (WHERE estado_asignacion = 'en_cola')       AS en_cola,
+       percentile_cont(0.5) WITHIN GROUP (ORDER BY extract(epoch FROM primer_intento - asignado_primero) / 60)
+                                                                   AS min_asignado_a_llamada_mediana,
+       percentile_cont(0.9) WITHIN GROUP (ORDER BY extract(epoch FROM primer_intento - asignado_primero) / 60)
+                                                                   AS min_asignado_a_llamada_p90,
+       percentile_cont(0.5) WITHIN GROUP (ORDER BY extract(epoch FROM primer_intento - primer_contacto_en) / 60)
+                                                                   AS min_llegada_a_llamada_mediana
+FROM leads l
+{union}
+GROUP BY 1
+ORDER BY 1 NULLS FIRST
+"""
+
+
+def metricas_piloto(desde, hasta):
+    """Indicadores del piloto (SCRUM-44) para los leads que llegaron entre desde y hasta.
+    Devuelve {"total": {...}, "por_asesor": [...], "reasignaciones": {...}}. RLS: el supervisor
+    ve todo el equipo."""
+    params = {"desde": desde, "hasta": hasta, "contacto": list(RESULTADOS_CONTACTO)}
+    with connection.cursor() as cursor:
+        cursor.execute(_SQL_METRICAS.format(grupo="NULL::text", union=""), params)
+        cols = [c.name for c in cursor.description]
+        total = dict(zip(cols, cursor.fetchone()))
+        cursor.execute(_SQL_METRICAS.format(
+            grupo="coalesce(u.nombre, 'Sin asesor')",
+            union="LEFT JOIN rumbo.asesor a ON a.id = l.asesor_id LEFT JOIN rumbo.usuario u ON u.id = a.usuario_id"),
+            params)
+        por_asesor = [dict(zip(cols, f)) for f in cursor.fetchall()]
+        cursor.execute(
+            """SELECT s.motivo::text, count(*) FROM rumbo.asignacion s JOIN rumbo.lead l ON l.id = s.lead_id
+               WHERE s.creado_en >= %(desde)s AND s.creado_en < %(hasta)s AND s.motivo <> 'reparto'
+               GROUP BY 1""", params)
+        reasignaciones = dict(cursor.fetchall())
+    for fila in [total, *por_asesor]:
+        fila["tasa_contacto"] = round(100 * fila["contactados"] / fila["llamados"]) if fila["llamados"] else None
+        fila["tasa_llamados"] = round(100 * fila["llamados"] / fila["leads"]) if fila["leads"] else None
+    return {"total": total, "por_asesor": por_asesor, "reasignaciones": reasignaciones}
+
+
+def errores_webhook(desde, hasta):
+    """Eventos del webhook que fallaron al procesarse (solo admin los ve, RLS)."""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """SELECT count(*) FILTER (WHERE ultimo_error IS NOT NULL),
+                      count(*) FILTER (WHERE ultimo_error IS NOT NULL AND procesado_en IS NULL),
+                      count(*)
+               FROM rumbo.webhook_evento WHERE recibido_en >= %s AND recibido_en < %s""", [desde, hasta])
+        con_error, pendientes, total = cursor.fetchone()
+    return {"con_error": con_error, "pendientes": pendientes, "total": total}
