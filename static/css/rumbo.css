@@ -12,16 +12,20 @@ body { min-height: 100vh; }
 .estado-ocupado     { background: var(--bs-info); color: var(--bs-dark); }
 .estado-fuera_turno { background: var(--bs-secondary); }
 
-/* ── Identidad visual de Rumbo: verde petróleo (distinta del azul de CALLFLOW), sobria ── */
+/* ── Identidad visual: colores de Multivisa (azul marino + magenta del logo) ── */
 :root {
-  --rb-primario: #0b6e6e;
-  --rb-primario-oscuro: #08585a;
-  --rb-noche: #062b30;
-  --rb-foco: rgba(11, 110, 110, 0.25);
+  --rb-primario: #14254f;
+  --rb-primario-oscuro: #0a1633;
+  --rb-noche: #0a1633;
+  --rb-acento: #e4097f;
+  --rb-acento-oscuro: #c2006a;
+  --rb-acento-suave: #fde7f2;
+  --rb-fondo: #f4f6fb;
+  --rb-foco: rgba(20, 37, 79, 0.18);
   --bs-primary: var(--rb-primario);
-  --bs-primary-rgb: 11, 110, 110;
+  --bs-primary-rgb: 20, 37, 79;
   --bs-link-color: var(--rb-primario);
-  --bs-link-color-rgb: 11, 110, 110;
+  --bs-link-color-rgb: 20, 37, 79;
   --bs-link-hover-color: var(--rb-primario-oscuro);
   --bs-focus-ring-color: var(--rb-foco);
 }
@@ -44,68 +48,223 @@ body { min-height: 100vh; }
   --bs-btn-active-border-color: var(--rb-primario-oscuro);
 }
 .badge.text-bg-primary { background-color: var(--rb-primario) !important; }
-.form-control:focus, .form-select:focus { border-color: #7cc0bf; box-shadow: 0 0 0 .25rem var(--rb-foco); }
+.form-control:focus, .form-select:focus { border-color: #7d8bb3; box-shadow: 0 0 0 .25rem var(--rb-foco); }
 .form-check-input:checked { background-color: var(--rb-primario); border-color: var(--rb-primario); }
-
-/* ── Pantalla de ingreso (SCRUM-67): formulario a la izquierda, marca a la derecha ── */
-.pantalla-acceso { display: grid; min-height: 100vh; grid-template-columns: 1fr; }
-@media (min-width: 992px) {
-  .pantalla-acceso { grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); }
+.form-check-input:focus { border-color: #7d8bb3; box-shadow: 0 0 0 .25rem var(--rb-foco); }
+.btn-acento {
+  --bs-btn-color: #fff;
+  --bs-btn-bg: var(--rb-acento);
+  --bs-btn-border-color: var(--rb-acento);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: var(--rb-acento-oscuro);
+  --bs-btn-hover-border-color: var(--rb-acento-oscuro);
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: var(--rb-acento-oscuro);
+  --bs-btn-active-border-color: var(--rb-acento-oscuro);
+  font-weight: 500;
 }
-.panel-formulario {
+.pagination { --bs-pagination-color: var(--rb-primario); --bs-pagination-active-bg: var(--rb-primario); --bs-pagination-active-border-color: var(--rb-primario); --bs-pagination-focus-box-shadow: 0 0 0 .25rem var(--rb-foco); }
+
+/* ── Páginas internas: fondo gris azulado y barra superior blanca ── */
+body:has(.barra-rumbo) { background: var(--rb-fondo); }
+.barra-rumbo {
+  background: #fff;
+  border-bottom: 1px solid #e3e7f0;
+  box-shadow: 0 2px 10px rgba(20, 37, 79, 0.05);
+}
+.marca-barra { display: flex; align-items: center; gap: .55rem; font-weight: 700; color: var(--rb-primario); }
+.marca-barra:hover { color: var(--rb-primario); }
+.barra-rumbo .marca-rumbo { width: 30px; height: 30px; border-radius: 8px; }
+.barra-rumbo .nav-link { position: relative; color: #4a5576; font-weight: 500; }
+.barra-rumbo .nav-link:hover { color: var(--rb-primario); }
+.barra-rumbo .nav-link.active { color: var(--rb-primario); }
+@media (min-width: 768px) {
+  .barra-rumbo .nav-link { padding-left: .75rem !important; padding-right: .75rem !important; }
+  .barra-rumbo .nav-link.active::after {
+    content: ""; position: absolute; left: .75rem; right: .75rem; bottom: -.55rem;
+    height: 3px; border-radius: 3px 3px 0 0; background: var(--rb-acento);
+  }
+}
+.usuario-barra { display: inline-flex; align-items: center; gap: .45rem; color: var(--rb-primario); }
+.avatar-usuario {
+  display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--rb-primario); color: #fff; font-size: .8rem; font-weight: 600;
+}
+.titulo-pagina { font-size: 1.6rem; font-weight: 700; color: var(--rb-primario); }
+
+/* ── Lista de leads ── */
+.tarjeta-filtros, .tarjeta-tabla {
+  background: #fff;
+  border: 1px solid #e3e7f0;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(20, 37, 79, 0.06);
+}
+.tarjeta-filtros { padding: 1rem 1.1rem; }
+.tarjeta-filtros .form-label { font-weight: 500; color: #4a5576; }
+.tarjeta-tabla { overflow: hidden; }
+.campo-buscar { position: relative; }
+.campo-buscar svg { position: absolute; left: .65rem; top: 50%; transform: translateY(-50%); color: #8a93ad; pointer-events: none; }
+.campo-buscar .form-control { padding-left: 2rem; }
+.tabla-leads { --bs-table-hover-bg: #f7f8fc; }
+.tabla-leads thead th {
+  background: #f8f9fc;
+  color: #6b7491;
+  font-size: .72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  padding-top: .8rem;
+  padding-bottom: .8rem;
+  border-bottom: 1px solid #e3e7f0;
+  white-space: nowrap;
+}
+.tabla-leads td { padding-top: .75rem; padding-bottom: .75rem; border-color: #eef0f6; }
+.tabla-leads th:first-child, .tabla-leads td:first-child { padding-left: 1.1rem; }
+.tabla-leads th:last-child, .tabla-leads td:last-child { padding-right: 1.1rem; }
+.tabla-leads tbody tr:last-child td { border-bottom: 0; }
+.tabla-leads .col-check { width: 2.5rem; }
+.tabla-leads tr.fila-marcada > td { background: #eef1fa; }
+.avatar-lead {
+  flex: none; display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: 50%;
+  background: var(--rb-acento-suave); color: var(--rb-acento-oscuro); font-weight: 700;
+}
+.nombre-lead { font-weight: 600; color: var(--rb-primario); text-decoration: none; }
+.nombre-lead:hover { color: var(--rb-acento); text-decoration: underline; }
+.etiqueta-etapa {
+  display: inline-block; padding: .25rem .6rem; border-radius: 999px;
+  background: #e9edf7; color: var(--rb-primario); font-size: .78rem; font-weight: 600; white-space: nowrap;
+}
+.estado-lead { display: inline-flex; align-items: center; gap: .4rem; font-size: .85rem; white-space: nowrap; }
+.estado-lead::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #9aa3bb; }
+.estado-lead-asignado::before { background: #1f9d6b; }
+.estado-lead-en_cola::before { background: #f0a500; }
+.estado-lead-cerrado::before { background: #9aa3bb; }
+.llamada-vencida {
+  display: inline-block; padding: .2rem .55rem; border-radius: 999px;
+  background: #fde8ea; color: #b4232f; font-weight: 600; font-size: .78rem;
+}
+.llamada-pendiente { color: var(--rb-primario); font-weight: 500; }
+.barra-lote {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .6rem;
+  padding: .8rem 1.1rem; border-top: 1px solid #e3e7f0; background: #f8f9fc;
+}
+.selector-lote { min-width: 14rem; }
+.selector-lote .form-select { font-size: .875rem; padding-top: .25rem; padding-bottom: .25rem; }
+
+/* ── Pantalla de ingreso (SCRUM-67): colores de Multivisa (azul marino + magenta del logo) ── */
+.pantalla-acceso {
+  --mv-azul: #14254f;
+  --mv-azul-oscuro: #0a1633;
+  --mv-magenta: #e4097f;
+  --mv-magenta-oscuro: #c2006a;
+  --mv-foco: rgba(228, 9, 127, 0.22);
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2.5rem 1rem;
-  background: var(--bs-body-bg);
+  padding: 4.5rem 1rem 2.5rem;
+  background:
+    radial-gradient(circle at 85% 10%, rgba(228, 9, 127, 0.28), transparent 45%),
+    linear-gradient(160deg, #1d3368 0%, var(--mv-azul) 45%, var(--mv-azul-oscuro) 100%);
 }
-.formulario-acceso { width: 100%; max-width: 400px; }
-.formulario-acceso .form-control { padding: .65rem .85rem; }
-.boton-ver-clave { border-color: var(--bs-border-color); }
-.titulo-acceso { display: flex; align-items: center; gap: .6rem; margin-bottom: 2.5rem; font-weight: 600; font-size: 1.15rem; color: var(--rb-noche); }
+/* Rosa de los vientos de fondo (el "rumbo"), tenue */
+.rosa-vientos {
+  position: absolute;
+  width: 760px;
+  height: 760px;
+  right: -260px;
+  bottom: -260px;
+  color: #fff;
+  opacity: .08;
+  pointer-events: none;
+}
+.marca-esquina {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .4rem .9rem .4rem .4rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--mv-azul);
+  font-weight: 600;
+  font-size: 1.1rem;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
 .marca-rumbo {
   display: inline-grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   border-radius: 9px;
-  background: var(--rb-primario);
+  background: var(--rb-acento);
   color: #fff;
 }
-.logo-marca { width: auto; height: 40px; }
-
-.panel-marca {
+.columna-acceso {
   position: relative;
+  width: 100%;
+  max-width: 420px;
+  display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 2rem;
-  padding: 2.5rem;
-  overflow: hidden;
-  color: #fff;
-  background: linear-gradient(200deg, #0e7f7c 0%, var(--rb-primario) 40%, var(--rb-noche) 100%);
 }
-/* Rosa de los vientos de fondo (el "rumbo"), muy tenue */
-.rosa-vientos {
-  position: absolute;
-  width: 640px;
-  height: 640px;
-  right: -170px;
-  bottom: -190px;
-  color: #fff;
-  opacity: .07;
-  pointer-events: none;
-}
+/* El logo se monta sobre el borde superior de la tarjeta del formulario */
 .tarjeta-logo {
   position: relative;
+  z-index: 1;
   display: grid;
   place-items: center;
-  width: 300px;
-  height: 300px;
+  width: 190px;
+  height: 190px;
+  margin-bottom: -70px;
   border-radius: 28px;
   background: #fff;
-  box-shadow: 0 22px 50px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.30);
 }
-.logo-acceso { display: block; width: 230px; height: auto; }
-.lema-acceso { position: relative; max-width: 22rem; text-align: center; color: rgba(255, 255, 255, 0.85); }
-.lema-acceso strong { display: block; color: #fff; font-size: 1.1rem; margin-bottom: .25rem; }
+.logo-acceso { display: block; width: 150px; height: auto; }
+.tarjeta-formulario {
+  width: 100%;
+  padding: 92px 2rem 2rem;
+  border-radius: 20px;
+  border-top: 5px solid var(--mv-magenta);
+  background: #fff;
+  color: var(--mv-azul);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+}
+.tarjeta-formulario h1 { color: var(--mv-azul); font-weight: 700; }
+.tarjeta-formulario .form-label { font-weight: 500; }
+.tarjeta-formulario .form-control { padding: .65rem .85rem; }
+.tarjeta-formulario .form-control:focus { border-color: var(--mv-magenta); box-shadow: 0 0 0 .25rem var(--mv-foco); }
+.boton-ver-clave { border-color: var(--bs-border-color); color: var(--mv-azul); }
+.boton-ver-clave:hover { background: var(--mv-azul); border-color: var(--mv-azul); color: #fff; }
+.btn-ingresar {
+  --bs-btn-color: #fff;
+  --bs-btn-bg: var(--mv-magenta);
+  --bs-btn-border-color: var(--mv-magenta);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: var(--mv-magenta-oscuro);
+  --bs-btn-hover-border-color: var(--mv-magenta-oscuro);
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: var(--mv-azul);
+  --bs-btn-active-border-color: var(--mv-azul);
+  --bs-btn-focus-shadow-rgb: 228, 9, 127;
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+.lema-acceso {
+  margin: 1.5rem 0 0;
+  max-width: 22rem;
+  text-align: center;
+  font-size: .95rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+.lema-acceso strong { display: block; color: #fff; font-size: 1.05rem; margin-bottom: .2rem; }
+@media (max-width: 575.98px) {
+  .tarjeta-logo { width: 150px; height: 150px; margin-bottom: -55px; border-radius: 22px; }
+  .logo-acceso { width: 118px; }
+  .tarjeta-formulario { padding: 72px 1.25rem 1.5rem; }
+}

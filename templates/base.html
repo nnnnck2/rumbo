@@ -9,9 +9,16 @@
 </head>
 <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
   {% block cuerpo %}
-  <nav class="navbar navbar-expand-md bg-body-tertiary border-bottom">
+  {% with vista=request.resolver_match.view_name %}
+  <nav class="navbar navbar-expand-md barra-rumbo">
     <div class="container">
-      <a class="navbar-brand fw-semibold" href="{% url 'inicio' %}">Rumbo</a>
+      <a class="navbar-brand marca-barra" href="{% url 'inicio' %}">
+        <span class="marca-rumbo" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" focusable="false">
+            <path d="M8 16.016a7.5 7.5 0 0 0 1.962-14.74A1 1 0 0 0 9 0H7a1 1 0 0 0-.962 1.276A7.5 7.5 0 0 0 8 16.016m6.5-7.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0"/>
+            <path d="m6.94 7.44 4.95-2.83-2.83 4.95-4.949 2.83 2.828-4.95z"/>
+          </svg>
+        </span>Rumbo</a>
       {% if user.is_authenticated %}
         {% if mi_asesor %}<div class="order-md-last ms-auto ms-md-2">{% include "cuentas/_estado_asesor.html" %}</div>{% endif %}
         <button class="navbar-toggler ms-2" type="button" data-bs-toggle="collapse" data-bs-target="#menu"
@@ -20,17 +27,20 @@
         </button>
         <div class="collapse navbar-collapse" id="menu">
           <div class="navbar-nav ms-auto align-items-md-center">
-            <a class="nav-link" href="{% url 'leads:lista' %}">Leads</a>
+            <a class="nav-link{% if vista == 'leads:lista' or vista == 'leads:ficha' %} active{% endif %}" href="{% url 'leads:lista' %}">Leads</a>
             {% if rumbo.es_supervisor %}
-              <a class="nav-link" href="{% url 'cuentas:asesores' %}">Asesores</a>
-              <a class="nav-link" href="{% url 'leads:metricas' %}">Métricas</a>
+              <a class="nav-link{% if vista == 'cuentas:asesores' %} active{% endif %}" href="{% url 'cuentas:asesores' %}">Asesores</a>
+              <a class="nav-link{% if vista == 'leads:metricas' %} active{% endif %}" href="{% url 'leads:metricas' %}">Métricas</a>
               <a class="nav-link" href="{% url 'leads:alertas_contador' %}" hx-get="{% url 'leads:alertas_contador' %}" hx-trigger="load" hx-swap="outerHTML">Alertas</a>
             {% endif %}
             {% if rumbo.es_admin %}
-              <a class="nav-link" href="{% url 'cuentas:usuarios' %}">Usuarios</a>
-              <a class="nav-link" href="{% url 'leads:configuracion' %}">Configuración</a>
+              <a class="nav-link{% if vista == 'cuentas:usuarios' or vista == 'cuentas:usuario_nuevo' or vista == 'cuentas:usuario_editar' %} active{% endif %}" href="{% url 'cuentas:usuarios' %}">Usuarios</a>
+              <a class="nav-link{% if vista == 'leads:configuracion' %} active{% endif %}" href="{% url 'leads:configuracion' %}">Configuración</a>
             {% endif %}
-            <span class="navbar-text ms-md-2 me-md-2 small">{{ user.get_username }}{% if rumbo.rol %} · {{ rumbo.rol }}{% endif %}</span>
+            <span class="usuario-barra ms-md-3 me-md-1 small">
+              <span class="avatar-usuario" aria-hidden="true">{{ user.get_username|slice:":1"|upper }}</span>
+              <span>{{ user.get_username }}{% if rumbo.rol %} <span class="text-body-secondary">· {{ rumbo.rol }}</span>{% endif %}</span>
+            </span>
             <form method="post" action="{% url 'cuentas:logout' %}" class="d-inline">{% csrf_token %}
               <button class="btn btn-link nav-link">Salir</button>
             </form>
@@ -39,6 +49,7 @@
       {% endif %}
     </div>
   </nav>
+  {% endwith %}
   <main class="container py-4">{% block contenido %}{% endblock %}</main>
   {% endblock %}
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
