@@ -124,6 +124,38 @@ class AgendarForm(Bootstrap, forms.Form):
         return cuando
 
 
+# ─────────────────────────────── RF-26 · Datos del caso y notas ───────────────────────────────
+
+# Sugerencias para escribir rápido. Se puede poner cualquier otro valor (pendiente: lista del área).
+TIPOS_VISA = ["Turismo", "Estudiante", "Trabajo", "Negocios", "Residencia", "Reunificación familiar", "Tránsito"]
+PAISES = ["Estados Unidos", "Canadá", "España", "Reino Unido", "México", "Schengen (Europa)", "Australia"]
+
+
+class DatosLeadForm(Bootstrap, forms.Form):
+    version = forms.IntegerField(widget=forms.HiddenInput)
+    tipo_visa = forms.CharField(required=False, max_length=80, label="Tipo de visa",
+                                widget=forms.TextInput(attrs={"list": "tipos-visa", "autocomplete": "off"}))
+    pais_interes = forms.CharField(required=False, max_length=80, label="País de interés",
+                                   widget=forms.TextInput(attrs={"list": "paises", "autocomplete": "off"}))
+
+    def clean(self):
+        datos = super().clean()
+        for campo in ("tipo_visa", "pais_interes"):
+            datos[campo] = " ".join((datos.get(campo) or "").split())   # sin espacios de más
+        return datos
+
+
+class NotaForm(Bootstrap, forms.Form):
+    texto = forms.CharField(max_length=4000, label="Nueva nota",
+                            widget=forms.Textarea(attrs={"rows": 2, "placeholder": "Solo la ve el equipo (no el cliente)"}))
+
+    def clean_texto(self):
+        texto = self.cleaned_data["texto"].strip()
+        if not texto:
+            raise forms.ValidationError("Escriba la nota.")
+        return texto
+
+
 # ─────────────────────────────── RF-16 · Reasignación ───────────────────────────────
 
 def asesores_activos():

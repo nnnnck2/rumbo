@@ -115,3 +115,16 @@ class NotificacionTests(SimpleTestCase):
             html = views.alertas_contador(peticion).content.decode()
         self.assertNotIn("</script><img", html)
         self.assertIn(r"\u003c/script\u003e", html)
+
+
+class DatosYNotasFormTests(SimpleTestCase):
+    def test_datos_del_caso_normaliza_espacios_y_permite_vacios(self):
+        from leads.forms import DatosLeadForm
+        f = DatosLeadForm({"version": 3, "tipo_visa": "  Turismo   B1/B2 ", "pais_interes": ""})
+        self.assertTrue(f.is_valid(), f.errors)
+        self.assertEqual((f.cleaned_data["tipo_visa"], f.cleaned_data["pais_interes"]), ("Turismo B1/B2", ""))
+
+    def test_nota_vacia_rechazada(self):
+        from leads.forms import NotaForm
+        self.assertFalse(NotaForm({"texto": "   "}).is_valid())
+        self.assertTrue(NotaForm({"texto": "Pidió que lo llamen en la tarde"}).is_valid())

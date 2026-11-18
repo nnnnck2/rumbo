@@ -6,6 +6,7 @@
 </div>
 <p class="text-body-secondary small mb-3">
   Etapa <span class="badge text-bg-primary">{{ lead.etapa.nombre }}</span>
+  {% if lead.tipo_visa %}· {{ lead.tipo_visa }}{% if lead.pais_interes %} · {{ lead.pais_interes }}{% endif %}{% endif %}
   {% if lead.motivo_descarte %}· motivo: {{ lead.motivo_descarte.nombre }}{% endif %}
   · {{ lead.get_estado_asignacion_display }}{% if lead.asesor %} con <strong>{{ lead.asesor.usuario.nombre }}</strong>{% endif %}
   · intentos {{ lead.intentos_asesor_actual }} (total {{ lead.intentos_totales }})
@@ -19,6 +20,7 @@
     {% include "leads/_accion_intento.html" %}
   </div>
   <div class="col-lg-5">
+    {% include "leads/_accion_datos.html" %}
     {% include "leads/_accion_agendar.html" %}
     {% include "leads/_accion_etapa.html" %}
     {% include "leads/_accion_reasignar.html" %}
@@ -44,6 +46,7 @@
     </ul>
   </div>
   <div class="col-lg-6">
+    {% include "leads/_notas.html" %}
     <h2 class="h6">Historial de etapas</h2>
     <ul class="list-group list-group-flush small mb-3">
       {% for h in historial_etapas %}

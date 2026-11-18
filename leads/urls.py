@@ -14,5 +14,7 @@ urlpatterns = [
     path("<int:pk>/intento/", views.registrar_intento, name="registrar_intento"),
     path("<int:pk>/etapa/", views.cambiar_etapa, name="cambiar_etapa"),
     path("<int:pk>/agendar/", views.agendar, name="agendar"),
+    path("<int:pk>/datos/", views.guardar_datos, name="guardar_datos"),
+    path("<int:pk>/nota/", views.agregar_nota, name="agregar_nota"),
     path("<int:pk>/reasignar/", views.reasignar, name="reasignar"),
 ]

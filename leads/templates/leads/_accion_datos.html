@@ -1,0 +1,24 @@
+{# RF-26 · Tipo de visa y país de interés (SCRUM-50). Requiere: lead, datos_form (None si no puede editar), tipos_visa, paises. #}
+<div class="card mb-3">
+  <div class="card-body">
+    <h2 class="h6 card-title">Datos del caso</h2>
+    {% if datos_form %}
+    <form method="post" action="{% url 'leads:guardar_datos' lead.pk %}"
+          hx-post="{% url 'leads:guardar_datos' lead.pk %}" hx-target="#ficha" hx-swap="innerHTML">
+      {% csrf_token %}{{ datos_form.version }}
+      <div class="row g-2">
+        <div class="col-sm-6">{% include "leads/_campo.html" with campo=datos_form.tipo_visa %}</div>
+        <div class="col-sm-6">{% include "leads/_campo.html" with campo=datos_form.pais_interes %}</div>
+      </div>
+      <datalist id="tipos-visa">{% for t in tipos_visa %}<option value="{{ t }}">{% endfor %}</datalist>
+      <datalist id="paises">{% for p in paises %}<option value="{{ p }}">{% endfor %}</datalist>
+      <button class="btn btn-outline-primary w-100" type="submit">Guardar</button>
+    </form>
+    {% else %}
+      <dl class="row small mb-0">
+        <dt class="col-5">Tipo de visa</dt><dd class="col-7">{{ lead.tipo_visa|default:"—" }}</dd>
+        <dt class="col-5">País</dt><dd class="col-7 mb-0">{{ lead.pais_interes|default:"—" }}</dd>
+      </dl>
+    {% endif %}
+  </div>
+</div>

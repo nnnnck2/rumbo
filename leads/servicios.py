@@ -158,6 +158,41 @@ def leads_sin_llamar():
     return filas
 
 
+# ─────────────────────────────── RF-26 · Datos del caso y notas ───────────────────────────────
+
+def actualizar_datos_lead(lead_id, version, tipo_visa, pais_interes):
+    """Guarda tipo de visa y país en lead.datos (jsonb; la base genera las columnas tipo_visa y
+    pais_interes para filtrar). Conserva el resto de datos. Bloqueo optimista por versión.
+    Devuelve la nueva versión."""
+    try:
+        with transaction.atomic(), connection.cursor() as cursor:
+            cursor.execute(
+                """UPDATE rumbo.lead
+                   SET datos = (datos - 'tipo_visa' - 'pais_interes')
+                               || jsonb_strip_nulls(jsonb_build_object('tipo_visa', %s::text, 'pais_interes', %s::text))
+                   WHERE id = %s AND version = %s
+                   RETURNING version""",
+                [tipo_visa or None, pais_interes or None, lead_id, version],
+            )
+            fila = cursor.fetchone()
+            if fila:
+                return fila[0]
+            # 0 filas: o cambió la versión, o RLS no le deja editar este lead
+            cursor.execute("SELECT version FROM rumbo.lead WHERE id = %s", [lead_id])
+            visible = cursor.fetchone()
+    except DatabaseError as exc:
+        raise traducir(exc) from exc
+    if visible and visible[0] != version:
+        raise ErrorNegocio(_MENSAJES["conflicto"], "conflicto")
+    raise ErrorNegocio(_MENSAJES["permiso"], "permiso")
+
+
+def agregar_nota(lead_id, texto, usuario_id):
+    """Nota interna (solo inserción: la base no deja editarlas ni borrarlas)."""
+    _ejecutar("INSERT INTO rumbo.nota_lead (lead_id, autor_usuario_id, texto) VALUES (%s, %s, %s) RETURNING id",
+              [lead_id, usuario_id, texto.strip()])
+
+
 # ─────────────────────────────── RF-16 · Reasignación manual ───────────────────────────────
 
 def reasignar(lead_id, asesor_id):

@@ -1,0 +1,16 @@
+{# RF-26 · Notas internas con autor y fecha (SCRUM-50). Solo inserción: no se editan ni se borran. #}
+<h2 class="h6">Notas internas</h2>
+<form method="post" action="{% url 'leads:agregar_nota' lead.pk %}" class="mb-2"
+      hx-post="{% url 'leads:agregar_nota' lead.pk %}" hx-target="#ficha" hx-swap="innerHTML">
+  {% csrf_token %}
+  {% include "leads/_campo.html" with campo=nota_form.texto %}
+  <button class="btn btn-sm btn-outline-secondary" type="submit">Agregar nota</button>
+</form>
+<ul class="list-group list-group-flush small mb-3">
+  {% for n in notas %}
+    <li class="list-group-item px-0">
+      <div class="text-body-secondary">{{ n.creado_en|date:"d/m/Y H:i" }} · {{ n.autor_usuario.nombre }}</div>
+      <div style="white-space: pre-line">{{ n.texto }}</div>
+    </li>
+  {% empty %}<li class="list-group-item px-0 text-body-secondary">Sin notas.</li>{% endfor %}
+</ul>

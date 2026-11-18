@@ -11,3 +11,102 @@ body { min-height: 100vh; }
 .estado-pausa       { background: var(--bs-warning); color: var(--bs-dark); }
 .estado-ocupado     { background: var(--bs-info); color: var(--bs-dark); }
 .estado-fuera_turno { background: var(--bs-secondary); }
+
+/* ── Identidad visual (misma línea que CALLFLOW: azul Multivisa, sobrio) ── */
+:root {
+  --rb-primario: #0062a8;
+  --rb-primario-oscuro: #004f88;
+  --rb-noche: #0a2a4a;
+  --rb-foco: rgba(0, 98, 168, 0.25);
+  --bs-primary: var(--rb-primario);
+  --bs-primary-rgb: 0, 98, 168;
+  --bs-link-color: var(--rb-primario);
+  --bs-link-color-rgb: 0, 98, 168;
+  --bs-focus-ring-color: var(--rb-foco);
+}
+.btn-primary {
+  --bs-btn-bg: var(--rb-primario);
+  --bs-btn-border-color: var(--rb-primario);
+  --bs-btn-hover-bg: var(--rb-primario-oscuro);
+  --bs-btn-hover-border-color: var(--rb-primario-oscuro);
+  --bs-btn-active-bg: var(--rb-primario-oscuro);
+  --bs-btn-active-border-color: var(--rb-primario-oscuro);
+  --bs-btn-disabled-bg: var(--rb-primario);
+  --bs-btn-disabled-border-color: var(--rb-primario);
+}
+.form-control:focus, .form-select:focus { border-color: #7fb0db; box-shadow: 0 0 0 .25rem var(--rb-foco); }
+
+/* ── Pantalla de ingreso (SCRUM-67) ── */
+.pantalla-acceso { display: grid; min-height: 100vh; grid-template-columns: 1fr; }
+@media (min-width: 992px) {
+  .pantalla-acceso { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); }
+}
+.panel-marca {
+  position: relative;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  padding: 2rem;
+  overflow: hidden;
+  color: #fff;
+  background: linear-gradient(150deg, var(--rb-noche) 0%, var(--rb-primario) 55%, #2b80c4 100%);
+}
+/* Aros sutiles sobre el azul */
+.panel-marca::before, .panel-marca::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.07);
+  pointer-events: none;
+}
+.panel-marca::before { width: 560px; height: 560px; left: -180px; bottom: -220px; }
+.panel-marca::after { width: 380px; height: 380px; right: -140px; top: -120px; }
+.insignia-rumbo {
+  position: absolute;
+  top: 1.5rem;
+  left: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .45rem .9rem .45rem .45rem;
+  border-radius: .6rem;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+.marca-rumbo {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--rb-primario);
+  color: #fff;
+}
+.insignia-rumbo .marca-rumbo { background: #fff; color: var(--rb-primario); }
+/* Círculo blanco detrás del logo: su azul marino no se leería directo sobre el panel */
+.circulo-logo {
+  display: grid;
+  place-items: center;
+  width: 340px;
+  height: 340px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 12px rgba(255, 255, 255, 0.08), 0 18px 45px rgba(0, 0, 0, 0.3);
+}
+.logo-acceso { display: block; width: 240px; height: auto; }
+.lema-acceso { position: relative; max-width: 22rem; text-align: center; color: rgba(255, 255, 255, 0.85); }
+.lema-acceso strong { display: block; color: #fff; font-size: 1.1rem; margin-bottom: .25rem; }
+.panel-formulario {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1rem;
+  background: var(--bs-body-bg);
+}
+.formulario-acceso { width: 100%; max-width: 420px; }
+.logo-marca { width: auto; height: 40px; }
+.formulario-acceso .form-control { padding: .65rem .85rem; }
+.boton-ver-clave { border-color: var(--bs-border-color); }

@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="{% static 'css/rumbo.css' %}">
 </head>
 <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+  {% block cuerpo %}
   <nav class="navbar navbar-expand-md bg-body-tertiary border-bottom">
     <div class="container">
       <a class="navbar-brand fw-semibold" href="{% url 'inicio' %}">Rumbo</a>
@@ -38,6 +39,7 @@
     </div>
   </nav>
   <main class="container py-4">{% block contenido %}{% endblock %}</main>
+  {% endblock %}
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
 </body>

@@ -21,8 +21,8 @@ from django.views.decorators.http import require_http_methods, require_POST
 from cuentas.permisos import SUPERVISION, TODOS, con_rol
 
 from . import servicios
-from .forms import (AgendarForm, ConfiguracionForm, EtapaForm, IntentoForm, ReasignarForm, ReasignarLoteForm,
-                    asesores_activos)
+from .forms import (PAISES, TIPOS_VISA, AgendarForm, ConfiguracionForm, DatosLeadForm, EtapaForm, IntentoForm,
+                    NotaForm, ReasignarForm, ReasignarLoteForm, asesores_activos)
 from .models import Etapa, EstadoAsignacion, Lead
 
 
@@ -33,10 +33,19 @@ def _lead(pk):
             .filter(pk=pk).first())
 
 
-def _contexto_ficha(request, lead, intento_form=None, etapa_form=None, reasignar_form=None, agendar_form=None):
+def _contexto_ficha(request, lead, intento_form=None, etapa_form=None, reasignar_form=None, agendar_form=None,
+                    datos_form=None, nota_form=None):
     puede_actuar = lead.estado_asignacion == EstadoAsignacion.ASIGNADO
+    puede_editar = request.rumbo.es_supervisor or (lead.asesor_id and lead.asesor_id == request.rumbo.asesor_id)
     return {
         "lead": lead,
+        "datos_form": (datos_form or DatosLeadForm(initial={"version": lead.version, "tipo_visa": lead.tipo_visa,
+                                                            "pais_interes": lead.pais_interes}))
+                      if puede_editar else None,
+        "tipos_visa": TIPOS_VISA,
+        "paises": PAISES,
+        "notas": lead.notas.select_related("autor_usuario").order_by("-creado_en"),
+        "nota_form": nota_form or NotaForm(),
         "vencida": bool(puede_actuar and lead.proxima_accion_en and lead.proxima_accion_en <= timezone.now()),
         "agendar_form": (agendar_form or AgendarForm(initial={"version": lead.version})) if puede_actuar else None,
         "rumbo": request.rumbo,
@@ -127,6 +136,45 @@ def agendar(request, pk):
         return _responder_ficha(request, _lead(pk), agendar_form=None if e.tipo == "conflicto" else form)
     cuando = timezone.localtime(form.cleaned_data["cuando"])
     messages.success(request, f"Llamada agendada para el {cuando:%d/%m a las %H:%M}.")
+    return _responder_ficha(request, _lead(pk))
+
+
+# ─────────────────────────────── RF-26 · Datos del caso y notas ───────────────────────────────
+
+@require_POST
+@con_rol(*TODOS)
+def guardar_datos(request, pk):
+    lead = _lead(pk)
+    if lead is None:
+        raise PermissionDenied
+    form = DatosLeadForm(request.POST)
+    if not form.is_valid():
+        return _responder_ficha(request, lead, datos_form=form)
+    d = form.cleaned_data
+    try:
+        servicios.actualizar_datos_lead(lead.pk, d["version"], d["tipo_visa"], d["pais_interes"])
+    except servicios.ErrorNegocio as e:
+        messages.error(request, e.mensaje)
+        return _responder_ficha(request, _lead(pk), datos_form=None if e.tipo == "conflicto" else form)
+    messages.success(request, "Datos del caso guardados.")
+    return _responder_ficha(request, _lead(pk))
+
+
+@require_POST
+@con_rol(*TODOS)
+def agregar_nota(request, pk):
+    lead = _lead(pk)
+    if lead is None:
+        raise PermissionDenied
+    form = NotaForm(request.POST)
+    if not form.is_valid():
+        return _responder_ficha(request, lead, nota_form=form)
+    try:
+        servicios.agregar_nota(lead.pk, form.cleaned_data["texto"], request.rumbo.usuario_id)
+    except servicios.ErrorNegocio as e:
+        messages.error(request, e.mensaje)
+        return _responder_ficha(request, lead, nota_form=form)
+    messages.success(request, "Nota agregada.")
     return _responder_ficha(request, _lead(pk))
 
 
