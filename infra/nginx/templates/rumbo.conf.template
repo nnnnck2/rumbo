@@ -1,0 +1,85 @@
+# Generado por la imagen de nginx con envsubst (solo se reemplaza ${DOMINIO}).
+
+# ── HTTP: solo el desafío de Let's Encrypt, la salud y la redirección a HTTPS ──
+server {
+    listen 80 default_server;
+    server_name _;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/acme;
+    }
+
+    location = /salud {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    location / {
+        return 301 https://${DOMINIO}$request_uri;
+    }
+}
+
+# ── HTTPS ──
+server {
+    listen 443 ssl default_server;
+    http2 on;
+    server_name ${DOMINIO};
+
+    ssl_certificate     /etc/letsencrypt/live/${DOMINIO}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMINIO}/privkey.pem;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+    ssl_session_tickets off;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "same-origin" always;
+
+    set $app http://web:8000;
+
+    location = /salud {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    location /static/ {
+        alias /srv/static/;
+        expires 7d;
+        access_log off;
+    }
+
+    # Webhook de WhatsApp (Meta). Se reenvía el cuerpo tal cual: la firma
+    # X-Hub-Signature-256 se calcula sobre los bytes exactos (SCRUM-19).
+    location /webhook/ {
+        limit_req zone=webhook burst=100 nodelay;
+        client_max_body_size 1m;
+        proxy_request_buffering on;
+        proxy_pass $app;
+        include /etc/nginx/templates/proxy_comun.inc;
+    }
+
+    location = /cuentas/login/ {
+        limit_req zone=login burst=5 nodelay;
+        proxy_pass $app;
+        include /etc/nginx/templates/proxy_comun.inc;
+    }
+
+    location / {
+        limit_req zone=general burst=40 nodelay;
+        proxy_pass $app;
+        include /etc/nginx/templates/proxy_comun.inc;
+    }
+
+    # Mientras no exista la app (SCRUM-14) se muestra una página de mantenimiento.
+    error_page 502 503 504 /mantenimiento.html;
+    location = /mantenimiento.html {
+        root /usr/share/nginx/estatico;
+        internal;
+    }
+}

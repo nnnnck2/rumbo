@@ -57,19 +57,31 @@ bash pruebas/probar.sh
    - `rumbo.reasignar_sin_primera_llamada()`: cada minuto.
    - `rumbo.liberar_cola()`: a las 9:00 y cada 5 minutos.
 
-## Respaldos en el VPS (crontab del host)
+## Respaldos en el VPS (SCRUM-16)
 
-```cron
-0 3 * * 0    cd /opt/rumbo/db && docker compose exec -T -u postgres db /scripts/respaldo.sh full
-0 3 * * 1-6  cd /opt/rumbo/db && docker compose exec -T -u postgres db /scripts/respaldo.sh diff
-30 4 * * *   cd /opt/rumbo/db && docker compose exec -T -u postgres db /scripts/verificar_respaldos.sh
-```
+`infra/scripts/instalar_cron.sh` (lo llama `desplegar.sh`) deja en `/etc/cron.d/rumbo`:
+
+| Cuándo | Qué |
+|---|---|
+| Domingo 03:00 | respaldo completo |
+| Lunes a sábado 03:00 | respaldo diferencial |
+| Todos los días 04:30 | `check` + `verify`; si falla escribe `FALLO` en `/var/log/rumbo/respaldos.log` |
+
+Cada respaldo va a **repo1** (volumen local, 4 completos ≈ 1 mes) y, si está configurado, a **repo2** fuera del servidor (8 completos ≈ 2 meses). El WAL se archiva continuamente en ambos.
+
+### Copia fuera del servidor (repo2)
+
+1. Crear un bucket S3 compatible (Backblaze B2, Cloudflare R2, AWS S3…) y una clave con acceso solo a ese bucket.
+2. Descomentar y completar las variables `PGBACKREST_REPO2_*` en `db/.env`.
+3. `bash infra/scripts/desplegar.sh`: agrega `docker-compose.fuera-servidor.yml`, crea la stanza en el bucket y toma el primer respaldo completo allí (`scripts/activar_repo2.sh`, idempotente).
+
+Las credenciales viven solo en `.env` (pgBackRest lee las variables `PGBACKREST_*`), no en `pgbackrest.conf`.
 
 Restaurar a un momento exacto: `./scripts/restaurar_pitr.sh "2027-01-15 10:42:00-05"`
 
 ## Antes de producción
 
-- **Copia fuera del VPS.** Hay que activar `repo2` (S3/B2/R2) en `pgbackrest.conf`. Un respaldo que vive en el mismo servidor no sirve si se pierde el servidor.
+- **Copia fuera del VPS.** Configurar `repo2` en `.env` (ver arriba). Un respaldo que vive en el mismo servidor no sirve si se pierde el servidor.
 - **Réplica en otro servidor.** Con la réplica en el mismo VPS se protegen los datos, pero no se tiene alta disponibilidad real si el VPS se cae. Para eso hay que mover `db-replica` a un segundo VPS.
 - **Certificado TLS real.** Hay que montarlo en `/etc/postgresql/ssl`; el de la imagen es autofirmado.
 - **Guardar fuera del servidor la clave `PGBACKREST_REPO1_CIPHER_PASS`.** Sin ella los respaldos no se pueden leer.

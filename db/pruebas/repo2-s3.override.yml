@@ -1,0 +1,7 @@
+# Solo para pruebas/probar_repo2.sh: Servidor S3 local (VersityGW) con certificado autofirmado en el puerto 443.
+services:
+  db:
+    environment:
+      PGBACKREST_REPO2_STORAGE_VERIFY_TLS: "n"
+  db-replica:
+    profiles: [nunca]

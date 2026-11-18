@@ -1,0 +1,24 @@
+# Rumbo · copia de respaldos FUERA del servidor (pgBackRest repo2 en un bucket S3 compatible).
+# Se superpone al compose principal; desplegar.sh lo agrega solo si .env define PGBACKREST_REPO2_TYPE.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.fuera-servidor.yml up -d --build
+#
+# Proveedores probados por compatibilidad S3: Backblaze B2, Cloudflare R2, AWS S3, Wasabi.
+# pgBackRest lee cualquier opción desde variables PGBACKREST_*; así no hay claves en pgbackrest.conf.
+
+services:
+  db:
+    environment:
+      PGBACKREST_REPO2_TYPE: ${PGBACKREST_REPO2_TYPE:?Falta PGBACKREST_REPO2_TYPE (s3)}
+      PGBACKREST_REPO2_PATH: ${PGBACKREST_REPO2_PATH:-/rumbo}
+      PGBACKREST_REPO2_S3_BUCKET: ${PGBACKREST_REPO2_S3_BUCKET:?Falta PGBACKREST_REPO2_S3_BUCKET}
+      PGBACKREST_REPO2_S3_ENDPOINT: ${PGBACKREST_REPO2_S3_ENDPOINT:?Falta PGBACKREST_REPO2_S3_ENDPOINT}
+      PGBACKREST_REPO2_S3_REGION: ${PGBACKREST_REPO2_S3_REGION:?Falta PGBACKREST_REPO2_S3_REGION}
+      PGBACKREST_REPO2_S3_URI_STYLE: ${PGBACKREST_REPO2_S3_URI_STYLE:-host}
+      PGBACKREST_REPO2_S3_KEY: ${PGBACKREST_REPO2_S3_KEY:?Falta PGBACKREST_REPO2_S3_KEY}
+      PGBACKREST_REPO2_S3_KEY_SECRET: ${PGBACKREST_REPO2_S3_KEY_SECRET:?Falta PGBACKREST_REPO2_S3_KEY_SECRET}
+      PGBACKREST_REPO2_CIPHER_TYPE: aes-256-cbc
+      PGBACKREST_REPO2_CIPHER_PASS: ${PGBACKREST_REPO2_CIPHER_PASS:?Falta PGBACKREST_REPO2_CIPHER_PASS}
+      # 8 completos semanales ≈ 2 meses fuera del servidor (repo1 local guarda ≈ 1 mes)
+      PGBACKREST_REPO2_RETENTION_FULL: ${PGBACKREST_REPO2_RETENTION_FULL:-8}
+      PGBACKREST_REPO2_RETENTION_FULL_TYPE: count
