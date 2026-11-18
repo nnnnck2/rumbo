@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block titulo %}Inicio{% endblock %}
+{% block contenido %}
+  <h1 class="h3">Rumbo</h1>
+  <p class="text-body-secondary">Reparto de leads de WhatsApp del área de visas.</p>
+  <button class="btn btn-outline-secondary btn-sm" hx-get="{% url 'salud' %}" hx-target="#salud" hx-swap="innerHTML">
+    Comprobar estado
+  </button>
+  <pre id="salud" class="mt-3 small"></pre>
+{% endblock %}

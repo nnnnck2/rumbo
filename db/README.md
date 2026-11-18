@@ -40,12 +40,12 @@ bash pruebas/probar.sh
 
 ## Conectar Django
 
-1. **Contexto por transacción.** Con `ATOMIC_REQUESTS = True`, un middleware ejecuta al inicio de cada request:
+1. **Contexto por transacción.** `core.middleware.ContextoRumboMiddleware` abre una transacción por request y ejecuta:
    ```python
    cursor.execute("SELECT set_config('rumbo.usuario_id', %s, true)", [str(request.user.id)])
    ```
-   Los workers de Celery usan el id `0` (sistema). El rol y el asesor **no** los manda la app: la base los lee de `rumbo.usuario`.
-2. **Modelos `managed = False`.** Las tablas las crean estas migraciones SQL, no `makemigrations`. Las tablas propias de Django (auth, sesiones) van en un esquema `django` aparte; ese esquema se crea con una migración nueva cuando se arme el proyecto Django (SCRUM-14).
+   No se usa `ATOMIC_REQUESTS` porque esa transacción empieza después de los middlewares y el `set_config(..., true)` se perdería. Los workers de Celery y el webhook usan el id `0` (sistema) con `core.db.como_sistema()`. El rol y el asesor **no** los manda la app: la base los lee de `rumbo.usuario`.
+2. **Modelos `managed = False`.** Las tablas las crean estas migraciones SQL, no `makemigrations`. Las tablas propias de Django (auth, sesiones, admin) van en el esquema `django` (`011_esquema_django.sql`). Django se conecta con `search_path = django, rumbo`.
 3. **Las escrituras de negocio se hacen con funciones**, no con el ORM:
    `registrar_mensaje_entrante`, `registrar_intento`, `cambiar_etapa`, `reasignar_manual`, `cambiar_estado_asesor`, `registrar_mensaje_saliente`, `anular_venta`.
 4. **Errores propios** que la app debe traducir para el usuario:

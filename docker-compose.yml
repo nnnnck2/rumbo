@@ -1,0 +1,72 @@
+# Rumbo · aplicación (Django + Celery worker + Celery beat + Redis)
+# Requiere la base levantada antes:   cd db && docker compose up -d --build
+# Uso:   cp .env.example .env   →   docker compose up -d --build
+# Los contenedores se reinician solos si fallan (restart: unless-stopped).
+
+name: rumbo-app
+
+x-app: &app
+  build: .
+  image: rumbo-app:latest
+  restart: unless-stopped
+  env_file: .env
+  environment:
+    DJANGO_SETTINGS_MODULE: ${DJANGO_SETTINGS_MODULE:-config.settings.prod}
+    DB_HOST: db
+    DB_PORT: 5432
+    REDIS_URL: redis://redis:6379/0
+  depends_on:
+    redis:
+      condition: service_healthy
+  networks: [interna, rumbo_db]
+
+services:
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--save", "60", "1"]
+    volumes:
+      - redis_datos:/data
+    networks: [interna]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  web:
+    <<: *app
+    command: ["web"]
+    ports:
+      # Solo local: el proxy HTTPS (Caddy/Nginx) del VPS reenvía aquí.
+      - "127.0.0.1:${WEB_PUERTO:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/salud/', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  worker:
+    <<: *app
+    command: ["worker"]
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A config inspect ping -d celery@$$HOSTNAME --timeout 5"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 30s
+
+  beat:
+    <<: *app
+    command: ["beat"]
+
+volumes:
+  redis_datos:
+
+networks:
+  interna:
+  # Red creada por db/docker-compose.yml
+  rumbo_db:
+    external: true
+    name: ${DB_RED:-rumbo_db}
