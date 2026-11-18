@@ -57,6 +57,7 @@ class EtapaFormTests(SimpleTestCase):
 class ConfiguracionFormTests(SimpleTestCase):
     datos = {"hora_inicio": "09:00", "hora_fin": "18:00", "dias": ["1", "2", "3", "4", "5"],
              "max_intentos_por_asesor": 3, "minutos_primera_llamada": 15, "minutos_entre_reintentos": 30,
+             "minutos_alerta_supervisor": 30,
              "texto_bienvenida": "¡Hola!", "texto_fuera_horario": "Fuera de horario", "texto_privacidad": ""}
 
     def test_cambios_en_el_formato_de_la_base(self):
@@ -84,3 +85,33 @@ class ConfiguracionFormTests(SimpleTestCase):
              "max_intentos_por_asesor": 4})
         self.assertEqual((inicial["hora_inicio"], inicial["dias"], inicial["max_intentos_por_asesor"]),
                          ("08:30", [1, 2], 4))
+
+
+class AgendarFormTests(SimpleTestCase):
+    def test_no_se_agenda_en_el_pasado(self):
+        from leads.forms import AgendarForm
+        f = AgendarForm({"version": 1, "cuando": "2020-01-01T10:00"})
+        self.assertFalse(f.is_valid())
+        self.assertIn("cuando", f.errors)
+
+
+class NotificacionTests(SimpleTestCase):
+    def test_nombre_del_cliente_no_puede_cerrar_el_script(self):
+        from unittest import mock
+
+        from django.test import RequestFactory
+
+        from leads import views
+        fila = {"nombre_perfil": "</script><img src=x onerror=alert(1)>", "telefono": "+593991234567",
+                "asesor": "Ana", "minutos": 40}
+        peticion = RequestFactory().get("/leads/alertas/contador/")
+        peticion.user = mock.Mock(is_authenticated=True)
+        peticion.htmx = True
+        with mock.patch("leads.views.servicios.leads_sin_llamar", return_value=[fila]), \
+             mock.patch("leads.views.servicios.contexto_actual",
+                        return_value=servicios.Contexto(3, "supervisor", None)), \
+             mock.patch("cuentas.context_processors.contexto_actual",
+                        return_value=servicios.Contexto(3, "supervisor", None)):
+            html = views.alertas_contador(peticion).content.decode()
+        self.assertNotIn("</script><img", html)
+        self.assertIn(r"\u003c/script\u003e", html)

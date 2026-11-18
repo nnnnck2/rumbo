@@ -9,7 +9,8 @@
   {% if lead.motivo_descarte %}· motivo: {{ lead.motivo_descarte.nombre }}{% endif %}
   · {{ lead.get_estado_asignacion_display }}{% if lead.asesor %} con <strong>{{ lead.asesor.usuario.nombre }}</strong>{% endif %}
   · intentos {{ lead.intentos_asesor_actual }} (total {{ lead.intentos_totales }})
-  {% if lead.proxima_accion_en %}· próxima acción {{ lead.proxima_accion_en|date:"d/m H:i" }}{% endif %}
+  {% if lead.proxima_accion_en %}· próxima llamada
+    <span class="{% if vencida %}badge text-bg-danger{% endif %}">{{ lead.proxima_accion_en|date:"d/m H:i" }}{% if vencida %} · vencida{% endif %}</span>{% endif %}
   · primer contacto {{ lead.primer_contacto_en|date:"d/m/Y H:i" }}
 </p>
 
@@ -18,6 +19,7 @@
     {% include "leads/_accion_intento.html" %}
   </div>
   <div class="col-lg-5">
+    {% include "leads/_accion_agendar.html" %}
     {% include "leads/_accion_etapa.html" %}
     {% include "leads/_accion_reasignar.html" %}
   </div>

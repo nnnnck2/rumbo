@@ -1,4 +1,4 @@
--- 013 · Sprint 2
+-- 014 · Sprint 2
 --   · RF-04 (SCRUM-23): registrar la respuesta automática que el sistema envía al primer mensaje.
 --     registrar_mensaje_saliente (006) es para asesores: exige su número y su rol. La respuesta
 --     automática sale por el número al que escribió el cliente y la registra el usuario sistema.

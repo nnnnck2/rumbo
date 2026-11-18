@@ -20,7 +20,10 @@
         <div class="collapse navbar-collapse" id="menu">
           <div class="navbar-nav ms-auto align-items-md-center">
             <a class="nav-link" href="{% url 'leads:lista' %}">Leads</a>
-            {% if rumbo.es_supervisor %}<a class="nav-link" href="{% url 'cuentas:asesores' %}">Asesores</a>{% endif %}
+            {% if rumbo.es_supervisor %}
+              <a class="nav-link" href="{% url 'cuentas:asesores' %}">Asesores</a>
+              <a class="nav-link" href="{% url 'leads:alertas_contador' %}" hx-get="{% url 'leads:alertas_contador' %}" hx-trigger="load" hx-swap="outerHTML">Alertas</a>
+            {% endif %}
             {% if rumbo.es_admin %}
               <a class="nav-link" href="{% url 'cuentas:usuarios' %}">Usuarios</a>
               <a class="nav-link" href="{% url 'leads:configuracion' %}">Configuración</a>

@@ -62,7 +62,7 @@ docker compose exec web python manage.py probar_celery
 - `beat` programa: bandeja del webhook cada 30 s, `reasignar_sin_primera_llamada` cada minuto y `liberar_cola` cada 5 minutos.
 - Todos tienen `restart: unless-stopped`: si un proceso cae, Docker lo vuelve a levantar.
 
-Si la base de desarrollo ya existía, aplique las migraciones nuevas (011, 012, 013…) así:
+Si la base de desarrollo ya existía, aplique las migraciones nuevas (011, 012, 013, 014…) así:
 
 ```bash
 cd db && docker compose up -d --build && docker compose exec -u postgres db bash /scripts/migrar.sh
@@ -111,7 +111,7 @@ Cada usuario son dos filas con **el mismo id**: `django.auth_user` (usuario y co
 | Administrador | Todo | Además gestionar usuarios (`/cuentas/usuarios/`) y la configuración |
 
 - Login en `/cuentas/ingresar/`. Los intentos fallidos quedan en el log `rumbo.seguridad`.
-- El **primer administrador** se crea con `python manage.py crear_admin --usuario admin --nombre "…"`. Pide la contraseña, o la toma de `RUMBO_ADMIN_PASSWORD`. La base solo lo permite mientras no haya ningún admin activo (`rumbo.crear_primer_admin`, migración 013). Los demás usuarios se crean desde **Usuarios**.
+- El **primer administrador** se crea con `python manage.py crear_admin --usuario admin --nombre "…"`. Pide la contraseña, o la toma de `RUMBO_ADMIN_PASSWORD`. La base solo lo permite mientras no haya ningún admin activo (`rumbo.crear_primer_admin`, migración 014). Los demás usuarios se crean desde **Usuarios**.
 - Un asesor no puede cambiar de rol porque tiene leads e historial a su nombre: se desactiva y se crea otro usuario. Un usuario desactivado no puede ingresar ni recibe leads.
 
 ### Estado del asesor (SCRUM-25)
@@ -127,11 +127,14 @@ El asesor cambia su estado con un clic en la barra superior: **Disponible**, **P
 | `/leads/<id>/intento/` | dueño, supervisor, admin | RF-22: resultado de la llamada (agenda, cambio de etapa, venta, paso al siguiente asesor) |
 | `/leads/<id>/etapa/` | dueño, supervisor, admin | RF-25: cambio de etapa (solo transiciones permitidas; descartar exige motivo) |
 | `/leads/<id>/reasignar/` | supervisor, admin | RF-16: reasignación manual |
-| `/leads/configuracion/` | admin | RF-31: horario, reglas de reparto y reintentos, textos automáticos |
+| `/leads/<id>/agendar/` | dueño, supervisor, admin | RF-24: agendar o reprogramar la próxima llamada sin registrar intento |
+| `/leads/configuracion/` | admin | RF-31: horario, reglas de reparto y reintentos, umbral de alertas, textos automáticos |
+| `/leads/alertas/` | supervisor, admin | RF-33: leads con la llamada atrasada más de N minutos (se actualiza cada 30 s; insignia en la barra y notificación del navegador) |
 
 - Toda escritura pasa por las funciones SQL (`leads/servicios.py`); la base valida permisos, reglas y versión. Si dos personas editan el mismo lead, la segunda recibe un aviso y la ficha se recarga.
 - Las acciones son bloques reutilizables (`leads/templates/leads/_accion_*.html`) para incluirlos en la ficha completa (SCRUM-29) y en la lista de llamadas (SCRUM-28). Responden con HTMX y también funcionan sin JavaScript.
 - La configuración rige desde la siguiente operación: las funciones de la base la leen en cada llamada.
+- Tareas automáticas (Celery beat): reasignar leads sin primera llamada (cada minuto, RF-14; solo cuenta el tiempo dentro del turno) y repartir la cola de fuera de horario (cada 5 minutos, RF-13).
 
 ## Número de prueba de Meta (SCRUM-9)
 

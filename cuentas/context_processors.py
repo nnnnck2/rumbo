@@ -1,5 +1,6 @@
 """Pone en todas las plantillas `rumbo` (rol del usuario según la base) y `mi_asesor`
 (estado del asesor para el selector de la barra). Se calculan solo si la plantilla los usa."""
+from django.db import DatabaseError
 from django.utils.functional import SimpleLazyObject
 
 from leads.models import Asesor
@@ -14,7 +15,13 @@ def rumbo(request):
         return {"rumbo": SIN_CONTEXTO}
 
     def _ctx():
-        return getattr(request, "rumbo", None) or contexto_actual()
+        ctx = getattr(request, "rumbo", None)
+        if ctx is not None:
+            return ctx
+        try:
+            return contexto_actual()
+        except DatabaseError:            # p. ej. página de error tras un fallo de la base
+            return SIN_CONTEXTO
 
     def _asesor():
         ctx = _ctx()

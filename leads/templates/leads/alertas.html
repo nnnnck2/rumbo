@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block titulo %}Alertas{% endblock %}
+{% block contenido %}
+  <h1 class="h4">Leads sin llamar</h1>
+  {% include "leads/_alertas_tabla.html" %}
+  <button type="button" class="btn btn-sm btn-outline-secondary" id="activar-notificaciones" hidden>
+    Activar notificaciones del navegador
+  </button>
+  <script>
+    (function () {
+      const boton = document.getElementById('activar-notificaciones');
+      if (!('Notification' in window) || Notification.permission !== 'default') return;
+      boton.hidden = false;
+      boton.addEventListener('click', () => Notification.requestPermission().then(() => { boton.hidden = true; }));
+    })();
+  </script>
+{% endblock %}

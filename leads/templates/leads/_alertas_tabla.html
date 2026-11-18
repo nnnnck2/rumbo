@@ -1,0 +1,27 @@
+{# RF-33 · Leads con la llamada atrasada (SCRUM-40). Se refresca sola cada 30 s. #}
+<div id="alertas" hx-get="{% url 'leads:alertas' %}" hx-trigger="every 30s" hx-swap="outerHTML">
+  <p class="small text-body-secondary">
+    Llamadas atrasadas más de <strong>{{ umbral }} min</strong> (dentro del horario de atención).
+    Actualizado {% now "H:i:s" %}.
+  </p>
+  {% if alertas %}
+  <div class="table-responsive">
+    <table class="table table-sm align-middle">
+      <thead><tr><th>Espera</th><th>Lead</th><th>Asesor</th><th>Motivo</th><th></th></tr></thead>
+      <tbody>
+      {% for a in alertas %}
+        <tr class="{% if a.minutos >= umbral|add:umbral %}table-danger{% else %}table-warning{% endif %}">
+          <td class="fw-semibold text-nowrap">{{ a.minutos }} min</td>
+          <td>{{ a.nombre_perfil|default:"Sin nombre" }}<div class="small text-body-secondary">{{ a.telefono }}</div></td>
+          <td>{{ a.asesor|default:"—" }}</td>
+          <td class="small">{{ a.motivo_texto }}</td>
+          <td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="{% url 'leads:ficha' a.lead_id %}">Ver / reasignar</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <div class="alert alert-success py-2">No hay llamadas atrasadas.</div>
+  {% endif %}
+</div>
