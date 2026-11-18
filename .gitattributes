@@ -4,3 +4,6 @@
 *.conf text eol=lf
 Dockerfile text eol=lf
 *.yml  text eol=lf
+*.template text eol=lf
+*.inc  text eol=lf
+.env.example text eol=lf
