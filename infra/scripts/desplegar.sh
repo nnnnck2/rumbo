@@ -2,13 +2,13 @@
 # Despliegue de Rumbo en el VPS con un solo comando (SCRUM-15):
 #   bash /opt/rumbo/infra/scripts/desplegar.sh
 # 1) trae la última versión de main   2) levanta la base (y la copia fuera del servidor si está configurada)
-# 3) primer certificado si falta        4) levanta nginx, certbot, Redis y, si existe app/, Django + Celery
+# 3) levanta Django + Celery + Redis (raíz)  4) primer certificado si falta y levanta nginx + certbot
 # 5) instala el cron de respaldos (pide sudo la primera vez)
 set -euo pipefail
 RAIZ="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$RAIZ"
 
-for f in db/.env infra/.env; do
+for f in db/.env .env infra/.env; do
     [ -f "$f" ] || { echo "Falta $f (copiar desde ${f}.example y completar)." >&2; exit 1; }
     if grep -q 'cambiar-' "$f"; then echo "Hay claves sin cambiar en $f." >&2; exit 1; fi
 done
@@ -31,20 +31,16 @@ if grep -q '^PGBACKREST_REPO2_TYPE=' .env; then
     docker compose exec -T -u postgres db /scripts/activar_repo2.sh
 fi
 
-echo "▶ Pila pública"
+echo "▶ Aplicación (Django + Celery + Redis)"
+cd "$RAIZ"
+grep -q '^DJANGO_SETTINGS_MODULE=config.settings.prod' .env     || echo "  ⚠ .env no usa config.settings.prod (HTTPS, HSTS y cookies seguras quedan desactivados)"
+docker compose up -d --build --remove-orphans --wait web
+docker compose up -d worker beat
+
+echo "▶ Pila pública (nginx + certbot)"
 cd "$RAIZ/infra"
 bash scripts/obtener_certificado.sh
-PERFILES=()
-if [ -f "$RAIZ/app/Dockerfile" ] && [ -f "$RAIZ/app/.env" ]; then
-    PERFILES=(--profile app)
-    echo "  · aplicación Django encontrada: se despliega web + worker + beat"
-else
-    echo "  · todavía no hay app/ (SCRUM-14): solo nginx, certbot y Redis"
-fi
-docker compose "${PERFILES[@]}" up -d --build --remove-orphans
-if [ ${#PERFILES[@]} -gt 0 ]; then
-    docker compose --profile app exec -T web python manage.py collectstatic --noinput
-fi
+docker compose up -d --remove-orphans
 
 echo "▶ Cron de respaldos"
 [ -f /etc/cron.d/rumbo ] || sudo bash scripts/instalar_cron.sh

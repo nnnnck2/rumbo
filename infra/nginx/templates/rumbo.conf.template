@@ -48,15 +48,9 @@ server {
         return 200 "ok\n";
     }
 
-    location /static/ {
-        alias /srv/static/;
-        expires 7d;
-        access_log off;
-    }
-
     # Webhook de WhatsApp (Meta). Se reenvía el cuerpo tal cual: la firma
     # X-Hub-Signature-256 se calcula sobre los bytes exactos (SCRUM-19).
-    location /webhook/ {
+    location = /whatsapp/webhook/ {
         limit_req zone=webhook burst=100 nodelay;
         client_max_body_size 1m;
         proxy_request_buffering on;
@@ -64,7 +58,7 @@ server {
         include /etc/nginx/templates/proxy_comun.inc;
     }
 
-    location = /cuentas/login/ {
+    location = /admin/login/ {
         limit_req zone=login burst=5 nodelay;
         proxy_pass $app;
         include /etc/nginx/templates/proxy_comun.inc;
@@ -76,7 +70,7 @@ server {
         include /etc/nginx/templates/proxy_comun.inc;
     }
 
-    # Mientras no exista la app (SCRUM-14) se muestra una página de mantenimiento.
+    # Si la aplicación está caída o reiniciándose se muestra una página de mantenimiento.
     error_page 502 503 504 /mantenimiento.html;
     location = /mantenimiento.html {
         root /usr/share/nginx/estatico;

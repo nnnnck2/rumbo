@@ -113,7 +113,8 @@ cat <<FIN
 
 ✔ VPS listo. Siguientes pasos (como usuario $USUARIO):
   1. cd $DESTINO/db    && cp .env.example .env    # claves reales (openssl rand -base64 32)
-  2. cd $DESTINO/infra && cp .env.example .env    # DOMINIO, CORREO_LETSENCRYPT, REDIS_PASSWORD
-  3. Verificar que el DNS del dominio apunta a esta IP:  $(curl -fsS -4 https://ifconfig.me || echo '?')
-  4. bash $DESTINO/infra/scripts/desplegar.sh
+  2. cd $DESTINO       && cp .env.example .env    # Django (config.settings.prod) y WhatsApp
+  3. cd $DESTINO/infra && cp .env.example .env    # DOMINIO, CORREO_LETSENCRYPT
+  4. Verificar que el DNS del dominio apunta a esta IP:  $(curl -fsS -4 https://ifconfig.me || echo '?')
+  5. bash $DESTINO/infra/scripts/desplegar.sh
 FIN

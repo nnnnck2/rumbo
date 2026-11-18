@@ -12,6 +12,7 @@ rumbo/
 ├── templates/ static/   Bootstrap + HTMX
 ├── docker/entrypoint.sh web | worker | beat
 ├── docker-compose.yml   web + worker + beat + redis
+├── infra/               VPS: nginx + HTTPS (Let's Encrypt), despliegue y cron de respaldos (ver infra/README.md)
 └── db/                  base de datos PostgreSQL (ver db/README.md)
 ```
 
@@ -88,6 +89,21 @@ Probar sin Meta (pasa por el webhook real y escribe en la base):
 python manage.py simular_mensaje_whatsapp --telefono +593991234567 --texto "Hola"
 python manage.py simular_mensaje_whatsapp --firma-invalida      # debe responder 403
 ```
+
+## Número de prueba de Meta (SCRUM-9)
+
+Para probar con WhatsApp real antes de tener el VPS:
+
+1. **Meta for Developers → app Rumbo → WhatsApp → Configuración de la API**: copiar el *token de acceso temporal* (dura 24 h) y el *identificador del número de teléfono* del número de prueba, y agregar su celular en **Para** (máximo 5 destinatarios permitidos). Copiar también la *clave secreta de la app* (Configuración de la app → Básica).
+2. En `.env`: `WHATSAPP_ACCESS_TOKEN=<token temporal>`, `WHATSAPP_APP_SECRET=<clave secreta>` y agregar `.trycloudflare.com` a `DJANGO_ALLOWED_HOSTS`. Luego `docker compose up -d`.
+3. Dar de alta el número de prueba (solo admin puede escribir en `rumbo.numero_whatsapp`; en desarrollo se hace con el superusuario de la base):
+
+   ```bash
+   cd db && docker compose exec -u postgres db psql -d rumbo -c      "INSERT INTO rumbo.numero_whatsapp (telefono, meta_phone_number_id, conectado_api) VALUES ('+1555XXXXXXX', '<phone_number_id>', true)"
+   ```
+
+4. **Enviar**: `docker compose exec web python manage.py enviar_whatsapp_prueba --a +5939XXXXXXXX` → llega la plantilla `hello_world` a su celular.
+5. **Recibir**: `bash infra/scripts/tunel_prueba.sh` abre un túnel HTTPS temporal y muestra la URL y el token para el webhook en Meta (suscribir el campo `messages`). Responder desde el celular: el mensaje entra por `/whatsapp/webhook/` y crea el lead (`docker compose logs -f web worker`). Ya dentro de la ventana de 24 h se puede contestar con `--texto "..."`. Cerrar el túnel con Ctrl+C al terminar.
 
 ## Pruebas
 

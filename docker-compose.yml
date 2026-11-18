@@ -40,6 +40,8 @@ services:
     ports:
       # Solo local: el proxy HTTPS (Caddy/Nginx) del VPS reenvía aquí.
       - "127.0.0.1:${WEB_PUERTO:-8000}:8000"
+    # rumbo_web: red por la que el nginx del VPS (infra/) llega a web.
+    networks: [interna, rumbo_db, rumbo_web]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/salud/', timeout=3)"]
       interval: 15s
@@ -70,3 +72,6 @@ networks:
   rumbo_db:
     external: true
     name: ${DB_RED:-rumbo_db}
+  # Solo web se une a esta red: nginx no ve Redis, worker ni la base.
+  rumbo_web:
+    name: rumbo_web
