@@ -1,0 +1,15 @@
+{# RF-24 · Agendar / reprogramar la próxima llamada sin registrar un intento (SCRUM-37). Requiere: lead, agendar_form. #}
+{% if agendar_form %}
+<div class="card mb-3">
+  <div class="card-body">
+    <h2 class="h6 card-title">Agendar llamada</h2>
+    <form method="post" action="{% url 'leads:agendar' lead.pk %}"
+          hx-post="{% url 'leads:agendar' lead.pk %}" hx-target="#ficha" hx-swap="innerHTML">
+      {% csrf_token %}{{ agendar_form.version }}
+      {% include "leads/_campo.html" with campo=agendar_form.cuando %}
+      <button class="btn btn-outline-primary w-100" type="submit">Agendar</button>
+    </form>
+    <p class="form-text mb-0">Si ya hablaste con el cliente, usa "Llamar después" en el resultado de la llamada.</p>
+  </div>
+</div>
+{% endif %}

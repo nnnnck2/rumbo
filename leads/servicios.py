@@ -128,6 +128,36 @@ def etapas_permitidas(etapa_actual):
         return cursor.fetchall()
 
 
+# ─────────────────────────────── RF-24 · Agendar llamada ───────────────────────────────
+
+def agendar_llamada(lead_id, version, cuando):
+    """Reprograma la próxima llamada sin registrar un intento. Devuelve la nueva versión."""
+    return _ejecutar("SELECT rumbo.agendar_llamada(%s, %s, %s)", [lead_id, version, cuando])
+
+
+# ─────────────────────────────── RF-33 · Leads sin llamar ───────────────────────────────
+
+MOTIVOS_ALERTA = {
+    "sin_primera_llamada": "Sin primera llamada",
+    "reintento_vencido": "Reintento vencido",
+    "agenda_vencida": "Llamada agendada vencida",
+    "en_cola": "En cola, sin asesor en turno",
+}
+
+
+def leads_sin_llamar():
+    """Leads con la llamada atrasada más del umbral configurado (solo dentro del turno).
+    RLS: el supervisor ve todos; el asesor, los suyos."""
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT lead_id, telefono, nombre_perfil, asesor, motivo, desde, minutos "
+                       "FROM rumbo.leads_sin_llamar()")
+        columnas = [c.name for c in cursor.description]
+        filas = [dict(zip(columnas, f)) for f in cursor.fetchall()]
+    for f in filas:
+        f["motivo_texto"] = MOTIVOS_ALERTA.get(f["motivo"], f["motivo"])
+    return filas
+
+
 # ─────────────────────────────── RF-16 · Reasignación manual ───────────────────────────────
 
 def reasignar(lead_id, asesor_id):

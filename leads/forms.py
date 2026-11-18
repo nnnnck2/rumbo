@@ -111,6 +111,19 @@ class EtapaForm(Bootstrap, forms.Form):
         return datos
 
 
+# ─────────────────────────────── RF-24 · Agendar llamada ───────────────────────────────
+
+class AgendarForm(Bootstrap, forms.Form):
+    version = forms.IntegerField(widget=forms.HiddenInput)
+    cuando = forms.DateTimeField(label="Llamar el", input_formats=["%Y-%m-%dT%H:%M"], widget=FechaHoraLocal())
+
+    def clean_cuando(self):
+        cuando = self.cleaned_data["cuando"]
+        if cuando <= timezone.now():
+            raise forms.ValidationError("La fecha debe ser futura.")
+        return cuando
+
+
 # ─────────────────────────────── RF-16 · Reasignación ───────────────────────────────
 
 def asesores_activos():
@@ -151,6 +164,8 @@ class ConfiguracionForm(Bootstrap, forms.Form):
     minutos_primera_llamada = forms.IntegerField(min_value=1, max_value=240, label="Minutos para la primera llamada",
                                                  help_text="Si el asesor no llama en este tiempo, se reasigna.")
     minutos_entre_reintentos = forms.IntegerField(min_value=1, max_value=1440, label="Minutos entre reintentos")
+    minutos_alerta_supervisor = forms.IntegerField(min_value=1, max_value=480, label="Alertar al supervisor tras",
+                                                   help_text="Minutos de atraso de una llamada pendiente.")
     # Textos automáticos de WhatsApp
     texto_bienvenida = forms.CharField(max_length=1024, label="Respuesta al primer mensaje",
                                        widget=forms.Textarea(attrs={"rows": 2}))
@@ -171,7 +186,7 @@ class ConfiguracionForm(Bootstrap, forms.Form):
             "dias": horario.get("dias", [1, 2, 3, 4, 5]),
         }
         for clave in ("max_intentos_por_asesor", "minutos_primera_llamada", "minutos_entre_reintentos",
-                      "texto_bienvenida", "texto_fuera_horario", "texto_privacidad"):
+                      "minutos_alerta_supervisor", "texto_bienvenida", "texto_fuera_horario", "texto_privacidad"):
             if clave in config:
                 inicial[clave] = config[clave]
         return inicial
@@ -191,6 +206,7 @@ class ConfiguracionForm(Bootstrap, forms.Form):
             "max_intentos_por_asesor": d["max_intentos_por_asesor"],
             "minutos_primera_llamada": d["minutos_primera_llamada"],
             "minutos_entre_reintentos": d["minutos_entre_reintentos"],
+            "minutos_alerta_supervisor": d["minutos_alerta_supervisor"],
             "texto_bienvenida": d["texto_bienvenida"].strip(),
             "texto_fuera_horario": d["texto_fuera_horario"].strip(),
         }

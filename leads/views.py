@@ -7,6 +7,7 @@ Las acciones responden con el bloque #ficha actualizado (HTMX) o redirigen (sin 
 Permisos: los decide la base. Un asesor solo ve (RLS) y solo puede tocar (funciones SQL) sus
 leads. Aquí además se ocultan los botones que su rol no puede usar.
 """
+import json
 from functools import wraps
 
 from django.contrib import messages
@@ -16,10 +17,12 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.http import require_http_methods, require_POST
 
 from . import servicios
-from .forms import ConfiguracionForm, EtapaForm, IntentoForm, ReasignarForm, ReasignarLoteForm, asesores_activos
+from .forms import (AgendarForm, ConfiguracionForm, EtapaForm, IntentoForm, ReasignarForm, ReasignarLoteForm,
+                    asesores_activos)
 from .models import Etapa, EstadoAsignacion, Lead
 
 
@@ -48,10 +51,12 @@ def _lead(pk):
             .filter(pk=pk).first())
 
 
-def _contexto_ficha(request, lead, intento_form=None, etapa_form=None, reasignar_form=None):
+def _contexto_ficha(request, lead, intento_form=None, etapa_form=None, reasignar_form=None, agendar_form=None):
     puede_actuar = lead.estado_asignacion == EstadoAsignacion.ASIGNADO
     return {
         "lead": lead,
+        "vencida": bool(puede_actuar and lead.proxima_accion_en and lead.proxima_accion_en <= timezone.now()),
+        "agendar_form": (agendar_form or AgendarForm(initial={"version": lead.version})) if puede_actuar else None,
         "rumbo": request.rumbo,
         "intentos": lead.intentos.select_related("resultado", "asesor__usuario").order_by("-numero"),
         "historial_etapas": lead.historial_etapas.select_related("desde", "hacia", "usuario").order_by("-creado_en"),
@@ -120,6 +125,27 @@ def registrar_intento(request, pk):
                                             "el lead pasó al siguiente asesor.")
     messages.success(request, f"Intento registrado: {resultado}.")
     return _responder_ficha(request, lead)
+
+
+# ─────────────────────────────── RF-24 · Agendar llamada ───────────────────────────────
+
+@require_POST
+@con_rol(*TODOS)
+def agendar(request, pk):
+    lead = _lead(pk)
+    if lead is None:
+        raise PermissionDenied
+    form = AgendarForm(request.POST)
+    if not form.is_valid():
+        return _responder_ficha(request, lead, agendar_form=form)
+    try:
+        servicios.agendar_llamada(lead.pk, form.cleaned_data["version"], form.cleaned_data["cuando"])
+    except servicios.ErrorNegocio as e:
+        messages.error(request, e.mensaje)
+        return _responder_ficha(request, _lead(pk), agendar_form=None if e.tipo == "conflicto" else form)
+    cuando = timezone.localtime(form.cleaned_data["cuando"])
+    messages.success(request, f"Llamada agendada para el {cuando:%d/%m a las %H:%M}.")
+    return _responder_ficha(request, _lead(pk))
 
 
 # ─────────────────────────────── RF-25 · Cambiar etapa ───────────────────────────────
@@ -201,6 +227,9 @@ def lista(request):
         qs = qs.filter(estado_asignacion=f["estado"])
     if f.get("asesor") and request.rumbo.es_supervisor:
         qs = qs.filter(asesor_id=f["asesor"]) if f["asesor"] != "ninguno" else qs.filter(asesor__isnull=True)
+    if f.get("pendientes"):                   # RF-24: llamadas que ya toca hacer (vencidas incluidas)
+        qs = qs.filter(estado_asignacion=EstadoAsignacion.ASIGNADO, proxima_accion_en__lte=timezone.now())
+        qs = qs.order_by("proxima_accion_en")
     if f.get("q"):
         qs = qs.filter(Q(telefono__icontains=f["q"]) | Q(nombre_perfil__icontains=f["q"]))
     pagina = Paginator(qs, 50).get_page(f.get("pagina"))
@@ -213,7 +242,34 @@ def lista(request):
         "filtros": f,
         "lote_form": ReasignarForm() if request.rumbo.es_supervisor else None,
         "volver": request.get_full_path(),
+        "ahora": timezone.now(),
     })
+
+
+# ─────────────────────────────── RF-33 · Alertas de leads sin llamar ───────────────────────────────
+
+@require_http_methods(["GET"])
+@con_rol(*SUPERVISION)
+def alertas(request):
+    """Panel del supervisor. Se refresca solo (HTMX) cada 30 s."""
+    contexto = {"alertas": servicios.leads_sin_llamar(), "rumbo": request.rumbo,
+                "umbral": servicios.leer_configuracion().get("minutos_alerta_supervisor", 30)}
+    plantilla = "leads/_alertas_tabla.html" if request.htmx else "leads/alertas.html"
+    return render(request, plantilla, contexto)
+
+
+@require_http_methods(["GET"])
+@con_rol(*SUPERVISION)
+def alertas_contador(request):
+    """Insignia de la barra de navegación (HTMX, cada 30 s). Dispara la notificación del navegador."""
+    filas = servicios.leads_sin_llamar()
+    # Texto para la notificación. El nombre viene del perfil de WhatsApp (lo escribe el cliente):
+    # se escapa "<", ">" y "&" para que no pueda cerrar el <script> ni inyectar HTML.
+    detalle = [f"{f['nombre_perfil'] or f['telefono']} · {f['asesor'] or 'sin asesor'} · {f['minutos']} min"
+               for f in filas[:3]]
+    alertas_json = (json.dumps(detalle, ensure_ascii=True)
+                    .replace("<", r"\u003c").replace(">", r"\u003e").replace("&", r"\u0026"))
+    return render(request, "leads/_alertas_contador.html", {"total": len(filas), "alertas_json": alertas_json})
 
 
 # ─────────────────────────────── RF-31 · Configuración ───────────────────────────────
