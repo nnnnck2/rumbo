@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block titulo %}Asesores{% endblock %}
+{% block contenido %}
+  <h1 class="h4">Asesores</h1>
+  <p class="text-body-secondary small">Solo los asesores <strong>disponibles</strong> reciben leads nuevos.
+    La tabla se actualiza sola cada 30 segundos.</p>
+  {% include "leads/_mensajes.html" %}
+  <div hx-get="{% url 'cuentas:asesores' %}" hx-trigger="every 30s" hx-swap="innerHTML">
+    {% include "cuentas/_tabla_asesores.html" %}
+  </div>
+{% endblock %}

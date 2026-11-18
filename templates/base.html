@@ -8,18 +8,30 @@
   <link rel="stylesheet" href="{% static 'css/rumbo.css' %}">
 </head>
 <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
-  <nav class="navbar navbar-expand bg-body-tertiary border-bottom">
+  <nav class="navbar navbar-expand-md bg-body-tertiary border-bottom">
     <div class="container">
       <a class="navbar-brand fw-semibold" href="{% url 'inicio' %}">Rumbo</a>
-      <div class="navbar-nav ms-auto">
-        {% if user.is_authenticated %}
-          <a class="nav-link" href="{% url 'leads:lista' %}">Leads</a>
-          {% if rumbo.es_admin %}<a class="nav-link" href="{% url 'leads:configuracion' %}">Configuración</a>{% endif %}
-          <span class="navbar-text ms-2 me-3">{{ user.get_username }}</span>
-        {% else %}
-          <a class="nav-link" href="{% url 'admin:login' %}">Ingresar</a>
-        {% endif %}
-      </div>
+      {% if user.is_authenticated %}
+        {% if mi_asesor %}<div class="order-md-last ms-auto ms-md-2">{% include "cuentas/_estado_asesor.html" %}</div>{% endif %}
+        <button class="navbar-toggler ms-2" type="button" data-bs-toggle="collapse" data-bs-target="#menu"
+                aria-controls="menu" aria-expanded="false" aria-label="Menú">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="menu">
+          <div class="navbar-nav ms-auto align-items-md-center">
+            <a class="nav-link" href="{% url 'leads:lista' %}">Leads</a>
+            {% if rumbo.es_supervisor %}<a class="nav-link" href="{% url 'cuentas:asesores' %}">Asesores</a>{% endif %}
+            {% if rumbo.es_admin %}
+              <a class="nav-link" href="{% url 'cuentas:usuarios' %}">Usuarios</a>
+              <a class="nav-link" href="{% url 'leads:configuracion' %}">Configuración</a>
+            {% endif %}
+            <span class="navbar-text ms-md-2 me-md-2 small">{{ user.get_username }}{% if rumbo.rol %} · {{ rumbo.rol }}{% endif %}</span>
+            <form method="post" action="{% url 'cuentas:logout' %}" class="d-inline">{% csrf_token %}
+              <button class="btn btn-link nav-link">Salir</button>
+            </form>
+          </div>
+        </div>
+      {% endif %}
     </div>
   </nav>
   <main class="container py-4">{% block contenido %}{% endblock %}</main>

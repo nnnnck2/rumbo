@@ -34,8 +34,8 @@ python -m venv .venv
 pip install -r requirements.txt
 cp .env.example .env           # DB_PASSWORD = RUMBO_APP_PASSWORD de db/.env
 python manage.py migrate       # crea las tablas de Django en el esquema "django"
-python manage.py createsuperuser
-python manage.py runserver
+python manage.py crear_admin --usuario admin --nombre "Su Nombre"   # primer administrador
+python manage.py runserver     # http://127.0.0.1:8000 → login
 ```
 
 `DB_PORT` del `.env` debe coincidir con el puerto que publica la base (`DB_PUERTO` en `db/.env`, por defecto 5432). Si en la máquina ya hay un PostgreSQL instalado en el 5432, publique la base en otro puerto (por ejemplo 5434) en los dos archivos.
@@ -62,7 +62,7 @@ docker compose exec web python manage.py probar_celery
 - `beat` programa: bandeja del webhook cada 30 s, `reasignar_sin_primera_llamada` cada minuto y `liberar_cola` cada 5 minutos.
 - Todos tienen `restart: unless-stopped`: si un proceso cae, Docker lo vuelve a levantar.
 
-Si la base de desarrollo ya existía antes de la migración `011_esquema_django.sql`, aplíquela así:
+Si la base de desarrollo ya existía, aplique las migraciones nuevas (011, 012, 013…) así:
 
 ```bash
 cd db && docker compose up -d --build && docker compose exec -u postgres db bash /scripts/migrar.sh
@@ -84,6 +84,8 @@ Flujo de un POST válido:
 
 En Meta for Developers → WhatsApp → Configuración: URL de devolución = la de arriba, token de verificación = `WHATSAPP_VERIFY_TOKEN`, suscribir el campo **messages**. El número de la empresa debe estar en `rumbo.numero_whatsapp` con su `meta_phone_number_id`. Si no hay id, se busca por el número visible.
 
+4. **Respuesta automática (RF-04, SCRUM-23).** Si el mensaje crea un lead nuevo, al confirmar se encola `whatsapp.enviar_respuesta_automatica`. Esta tarea responde por el mismo número al que escribió el cliente. Dentro del horario manda `texto_bienvenida` y fuera de él `texto_fuera_horario`, ambos seguidos de `texto_privacidad` (LOPDP). Los tres textos se editan en **Configuración** y rigen al instante. La respuesta queda en el historial del lead y nunca se envía dos veces. Si Meta o la red fallan, se reintenta hasta 5 veces con espera creciente; los rechazos definitivos (4xx) quedan en el log. Sin `WHATSAPP_ACCESS_TOKEN` no se envía nada y solo se avisa en el log.
+
 Probar sin Meta (pasa por el webhook real y escribe en la base):
 
 ```bash
@@ -98,15 +100,23 @@ Las tablas las crean las migraciones SQL de `db/migraciones`. `leads/models.py` 
 - `python manage.py verificar_modelos` compara los modelos con las columnas reales de `rumbo` y falla si quedaron desalineados. Hay que correrlo después de cada migración SQL nueva.
 - El admin (`/admin/`) es **de solo lectura**: leads con sus mensajes, asignaciones, intentos, etapas y notas; asesores; ventas; catálogos; configuración.
 
-### Usuarios
+### Usuarios y roles (SCRUM-27)
 
-Cada usuario de Django necesita su fila en `rumbo.usuario` con **el mismo id** y un rol (`admin`, `supervisor` o `asesor`). Sin esa fila, la base (RLS) no le muestra nada. Mientras no exista la gestión de usuarios (SCRUM-27), el primer administrador se crea así:
+Cada usuario son dos filas con **el mismo id**: `django.auth_user` (usuario y contraseña) y `rumbo.usuario` (nombre, rol y activo). Los asesores tienen además su fila en `rumbo.asesor`. El rol vive en la base: con él decide qué ve cada uno (RLS) y qué puede hacer.
 
-```bash
-docker compose exec web python manage.py createsuperuser
-docker compose exec web python manage.py shell -c "from django.contrib.auth.models import User; print(User.objects.get(username='admin').pk)"
-cd db && docker compose exec -u postgres db psql -d rumbo -c   "SET ROLE rumbo_owner; INSERT INTO rumbo.usuario (id, nombre, rol) VALUES (<id>, 'Administrador', 'admin')"
-```
+| Rol | Ve | Puede |
+|---|---|---|
+| Asesor | Solo sus leads | Registrar llamadas y etapas de sus leads, cambiar su estado |
+| Supervisor | Todos los leads y asesores | Además reasignar y cambiar el estado de cualquier asesor (`/cuentas/asesores/`) |
+| Administrador | Todo | Además gestionar usuarios (`/cuentas/usuarios/`) y la configuración |
+
+- Login en `/cuentas/ingresar/`. Los intentos fallidos quedan en el log `rumbo.seguridad`.
+- El **primer administrador** se crea con `python manage.py crear_admin --usuario admin --nombre "…"`. Pide la contraseña, o la toma de `RUMBO_ADMIN_PASSWORD`. La base solo lo permite mientras no haya ningún admin activo (`rumbo.crear_primer_admin`, migración 013). Los demás usuarios se crean desde **Usuarios**.
+- Un asesor no puede cambiar de rol porque tiene leads e historial a su nombre: se desactiva y se crea otro usuario. Un usuario desactivado no puede ingresar ni recibe leads.
+
+### Estado del asesor (SCRUM-25)
+
+El asesor cambia su estado con un clic en la barra superior: **Disponible**, **Pausa** o **Fuera de turno**. Solo los disponibles reciben leads nuevos. El supervisor ve el estado de todos en `/cuentas/asesores/`, con la hora del último cambio y los leads abiertos de cada uno. La tabla se actualiza cada 30 s. El estado `ocupado` existe en la base para la reasignación automática (SCRUM-39) y no se elige a mano.
 
 ## Acciones sobre el lead y configuración (SCRUM-30 a 33)
 

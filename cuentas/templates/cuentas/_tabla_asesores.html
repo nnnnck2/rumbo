@@ -1,0 +1,33 @@
+<div id="tabla-asesores">
+  {% if request.htmx %}{% include "leads/_mensajes.html" %}{% endif %}
+  <p class="mb-2"><span class="badge text-bg-success">{{ disponibles }}</span> disponible{{ disponibles|pluralize }} de {{ filas|length }}</p>
+  {% if filas %}
+  <div class="table-responsive">
+    <table class="table table-sm align-middle">
+      <thead><tr><th>Asesor</th><th>Estado</th><th>Desde</th><th class="text-end">Leads abiertos</th><th>Número</th><th>Cambiar</th></tr></thead>
+      <tbody>
+      {% for f in filas %}
+        <tr>
+          <td>{{ f.nombre }}</td>
+          <td><span class="badge estado-{{ f.estado }}">{% if f.estado == 'disponible' %}Disponible{% elif f.estado == 'pausa' %}En pausa{% elif f.estado == 'ocupado' %}Ocupado{% else %}Fuera de turno{% endif %}</span></td>
+          <td class="small text-body-secondary" title="{{ f.estado_desde }}">hace {{ f.estado_desde|timesince }}</td>
+          <td class="text-end">{{ f.abiertos }}</td>
+          <td class="small">{{ f.telefono|default:"—" }}</td>
+          <td>
+            <form method="post" action="{% url 'cuentas:asesores' %}" hx-post="{% url 'cuentas:asesores' %}"
+                  hx-target="#tabla-asesores" hx-swap="outerHTML" class="btn-group btn-group-sm">
+              {% csrf_token %}<input type="hidden" name="asesor" value="{{ f.id }}">
+              {% if f.estado != 'disponible' %}<button name="estado" value="disponible" class="btn btn-outline-success">Disponible</button>{% endif %}
+              {% if f.estado != 'pausa' %}<button name="estado" value="pausa" class="btn btn-outline-warning">Pausa</button>{% endif %}
+              {% if f.estado != 'fuera_turno' %}<button name="estado" value="fuera_turno" class="btn btn-outline-secondary">Fuera de turno</button>{% endif %}
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p class="text-body-secondary">No hay asesores activos. {% if rumbo.es_admin %}<a href="{% url 'cuentas:usuario_nuevo' %}">Crear uno</a>.{% endif %}</p>
+  {% endif %}
+</div>

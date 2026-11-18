@@ -11,42 +11,19 @@ WHATSAPP_ACCESS_TOKEN (.env); con el número de prueba sirve el temporal de 24 h
 "Configuración de la API". El destino debe estar en los destinatarios permitidos (máx. 5).
 Dar de alta el número es tarea de admin (RLS): ver "Número de prueba de Meta" en el README.
 """
-import json
-import urllib.error
-import urllib.request
-
-from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
 from core.db import como_sistema
-
-GRAPH = "https://graph.facebook.com"
+from whatsapp import cliente
 
 
 def enviar_mensaje(phone_number_id, destino, texto=None, plantilla="hello_world", idioma="en_US"):
     """Llama a la Cloud API y devuelve (http_status, respuesta_json)."""
-    if not settings.WHATSAPP_ACCESS_TOKEN:
-        raise CommandError("Falta WHATSAPP_ACCESS_TOKEN en .env.")
-    cuerpo = {"messaging_product": "whatsapp", "to": destino.lstrip("+")}
-    if texto:
-        cuerpo |= {"type": "text", "text": {"body": texto}}
-    else:
-        cuerpo |= {"type": "template", "template": {"name": plantilla, "language": {"code": idioma}}}
-    peticion = urllib.request.Request(
-        f"{GRAPH}/{settings.WHATSAPP_API_VERSION}/{phone_number_id}/messages",
-        data=json.dumps(cuerpo).encode(),
-        headers={"Authorization": f"Bearer {settings.WHATSAPP_ACCESS_TOKEN}",
-                 "Content-Type": "application/json"},
-        method="POST",
-    )
+    cuerpo = cliente.cuerpo_texto(destino, texto) if texto else cliente.cuerpo_plantilla(destino, plantilla, idioma)
     try:
-        with urllib.request.urlopen(peticion, timeout=15) as r:
-            return r.status, json.load(r)
-    except urllib.error.HTTPError as e:
-        try:
-            return e.code, json.load(e)
-        except ValueError:
-            return e.code, {"error": {"message": e.reason}}
+        return cliente.llamar_api(phone_number_id, cuerpo)
+    except cliente.SinToken as e:
+        raise CommandError(str(e)) from e
 
 
 class Command(BaseCommand):

@@ -5,3 +5,9 @@ body { min-height: 100vh; }
 .resultados { display: grid; gap: .5rem; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); }
 .resultado-opcion { padding: .75rem; }
 .resultado-opcion input { margin-right: .35rem; }
+
+/* Estado del asesor (SCRUM-25) */
+.estado-disponible  { background: var(--bs-success); }
+.estado-pausa       { background: var(--bs-warning); color: var(--bs-dark); }
+.estado-ocupado     { background: var(--bs-info); color: var(--bs-dark); }
+.estado-fuera_turno { background: var(--bs-secondary); }

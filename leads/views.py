@@ -7,10 +7,7 @@ Las acciones responden con el bloque #ficha actualizado (HTMX) o redirigen (sin 
 Permisos: los decide la base. Un asesor solo ve (RLS) y solo puede tocar (funciones SQL) sus
 leads. Aquí además se ocultan los botones que su rol no puede usar.
 """
-from functools import wraps
-
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.db.models import Q
@@ -18,27 +15,11 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods, require_POST
 
+from cuentas.permisos import SUPERVISION, TODOS, con_rol
+
 from . import servicios
 from .forms import ConfiguracionForm, EtapaForm, IntentoForm, ReasignarForm, ReasignarLoteForm, asesores_activos
 from .models import Etapa, EstadoAsignacion, Lead
-
-
-def con_rol(*roles):
-    """login_required + rol de la base (rumbo.usuario). Sin fila en rumbo.usuario → 403."""
-    def decorador(vista):
-        @login_required
-        @wraps(vista)
-        def envoltura(request, *args, **kwargs):
-            request.rumbo = servicios.contexto_actual()
-            if request.rumbo.rol not in roles:
-                raise PermissionDenied
-            return vista(request, *args, **kwargs)
-        return envoltura
-    return decorador
-
-
-TODOS = ("asesor", "supervisor", "admin")
-SUPERVISION = ("supervisor", "admin")
 
 
 # ─────────────────────────────── Ficha ───────────────────────────────

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block titulo %}Ingresar{% endblock %}
+{% block contenido %}
+  <div class="mx-auto" style="max-width: 22rem">
+    <h1 class="h4 mb-3">Ingresar a Rumbo</h1>
+    {% for e in form.non_field_errors %}<div class="alert alert-danger py-2">{{ e }}</div>{% endfor %}
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ next }}">
+      {% include "leads/_campo.html" with campo=form.username %}
+      {% include "leads/_campo.html" with campo=form.password %}
+      <button class="btn btn-primary w-100 mt-2">Ingresar</button>
+    </form>
+  </div>
+{% endblock %}

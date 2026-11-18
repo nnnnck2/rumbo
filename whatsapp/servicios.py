@@ -8,6 +8,7 @@ Si el worker falla, el evento sigue pendiente y se reintenta (máx. 10 veces, ve
 import hashlib
 import json
 import logging
+from functools import partial
 
 from django.db import transaction
 from psycopg.types.json import Jsonb
@@ -68,7 +69,20 @@ def procesar_payload(cursor, payload: dict) -> list[tuple]:
         resultados.append(resultado)
         logger.info("Mensaje %s → lead %s (nuevo=%s, mensaje_nuevo=%s, asesor=%s)",
                     mensaje.wa_message_id, *resultado)
+        lead_id, lead_nuevo, mensaje_nuevo, _ = resultado
+        if lead_nuevo and mensaje_nuevo:
+            # RF-04: se encola al confirmar; si este evento se deshace (savepoint), no se envía nada.
+            transaction.on_commit(partial(_encolar_respuesta, lead_id, mensaje.phone_number_id))
     return resultados
+
+
+def _encolar_respuesta(lead_id, phone_number_id):
+    from .tasks import enviar_respuesta_automatica
+
+    try:
+        enviar_respuesta_automatica.delay(lead_id, phone_number_id)
+    except Exception:  # noqa: BLE001 — sin Redis no hay worker; queda en el log para reenviar a mano
+        logger.exception("No se pudo encolar la respuesta automática del lead %s", lead_id)
 
 
 def procesar_pendientes(lote: int = 10) -> dict:

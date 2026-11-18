@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block titulo %}Usuarios{% endblock %}
+{% block contenido %}
+  <div class="d-flex align-items-center mb-2">
+    <h1 class="h4 mb-0">Usuarios</h1>
+    <a class="btn btn-primary btn-sm ms-auto" href="{% url 'cuentas:usuario_nuevo' %}">Nuevo usuario</a>
+  </div>
+  <p class="text-body-secondary small">Asesor: solo ve sus leads · Supervisor: ve todos los leads y asesores y reasigna ·
+    Administrador: además gestiona usuarios y configuración.</p>
+  {% include "leads/_mensajes.html" %}
+  <div class="table-responsive">
+    <table class="table table-sm align-middle">
+      <thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Número / CALLFLOW</th><th>Último ingreso</th><th></th></tr></thead>
+      <tbody>
+      {% for f in filas %}
+        <tr class="{% if not f.activo %}text-body-tertiary{% endif %}">
+          <td>{{ f.username }}{% if not f.activo %} <span class="badge text-bg-light border">inactivo</span>{% endif %}</td>
+          <td>{{ f.nombre|default:"—" }}</td>
+          <td>{% if f.rol %}{{ f.rol_display }}{% else %}<span class="badge text-bg-danger">sin rol</span>{% endif %}</td>
+          <td class="small">{% if f.asesor %}{{ f.asesor.numero_whatsapp|default:"sin número" }} · {{ f.asesor.codigo_callflow|default:"sin código" }}{% endif %}</td>
+          <td class="small">{{ f.ultimo_ingreso|date:"d/m/Y H:i"|default:"nunca" }}</td>
+          <td class="text-end"><a class="btn btn-outline-secondary btn-sm" href="{% url 'cuentas:usuario_editar' f.id %}">Editar</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

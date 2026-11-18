@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block titulo %}{% if nuevo %}Nuevo usuario{% else %}Editar {{ editado.username }}{% endif %}{% endblock %}
+{% block contenido %}
+  <h1 class="h4">{% if nuevo %}Nuevo usuario{% else %}Editar {{ editado.username }}{% endif %}</h1>
+  {% include "leads/_mensajes.html" %}
+  {% for e in form.non_field_errors %}<div class="alert alert-danger py-2">{{ e }}</div>{% endfor %}
+  <form method="post" class="row g-3" style="max-width: 40rem">
+    {% csrf_token %}
+    <div class="col-md-6">{% include "leads/_campo.html" with campo=form.username %}</div>
+    <div class="col-md-6">{% include "leads/_campo.html" with campo=form.nombre %}</div>
+    <div class="col-md-6">{% include "leads/_campo.html" with campo=form.rol %}</div>
+    {% if form.activo %}
+      <div class="col-md-6 d-flex align-items-end mb-2">
+        <div class="form-check">{{ form.activo }} <label class="form-check-label" for="{{ form.activo.id_for_label }}">Activo</label>
+          <div class="form-text">Inactivo: no puede ingresar ni recibe leads.</div></div>
+      </div>
+    {% endif %}
+    <fieldset class="col-12" id="campos-asesor">
+      <legend class="h6">Datos del asesor</legend>
+      <div class="row g-3">
+        <div class="col-md-6">{% include "leads/_campo.html" with campo=form.numero_whatsapp %}</div>
+        <div class="col-md-6">{% include "leads/_campo.html" with campo=form.codigo_callflow %}</div>
+      </div>
+    </fieldset>
+    <div class="col-md-6">{% include "leads/_campo.html" with campo=form.password1 %}</div>
+    <div class="col-md-6">{% include "leads/_campo.html" with campo=form.password2 %}</div>
+    <div class="col-12">
+      <button class="btn btn-primary">Guardar</button>
+      <a class="btn btn-link" href="{% url 'cuentas:usuarios' %}">Cancelar</a>
+    </div>
+  </form>
+  <script>
+    (function () {   // los datos de asesor solo se muestran si el rol es asesor
+      var rol = document.getElementById("{{ form.rol.id_for_label }}"), caja = document.getElementById("campos-asesor");
+      function actualizar() { caja.hidden = rol.value !== "asesor"; }
+      rol.addEventListener("change", actualizar); actualizar();
+    })();
+  </script>
+{% endblock %}

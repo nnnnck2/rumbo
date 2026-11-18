@@ -1,0 +1,16 @@
+{# RF-11 · Selector de estado del asesor (un clic). Se reemplaza a sí mismo por HTMX. #}
+<form id="estado-asesor" method="post" action="{% url 'cuentas:mi_estado' %}"
+      hx-post="{% url 'cuentas:mi_estado' %}" hx-target="this" hx-swap="outerHTML"
+      class="btn-group btn-group-sm" role="group" aria-label="Mi estado">
+  {% csrf_token %}
+  <input type="hidden" name="volver" value="{{ request.get_full_path }}">
+  {% with e=mi_asesor.estado %}
+    <button name="estado" value="disponible" class="btn {% if e == 'disponible' %}btn-success{% else %}btn-outline-success{% endif %}"
+            {% if e == 'disponible' %}aria-pressed="true"{% endif %}>Disponible</button>
+    <button name="estado" value="pausa" class="btn {% if e == 'pausa' %}btn-warning{% else %}btn-outline-warning{% endif %}"
+            {% if e == 'pausa' %}aria-pressed="true"{% endif %}>Pausa</button>
+    <button name="estado" value="fuera_turno" class="btn {% if e == 'fuera_turno' %}btn-secondary{% else %}btn-outline-secondary{% endif %}"
+            {% if e == 'fuera_turno' %}aria-pressed="true"{% endif %}>Fuera de turno</button>
+  {% endwith %}
+</form>
+{% if request.htmx %}{% for m in messages %}<div class="alert alert-danger py-1 small position-fixed top-0 end-0 m-2">{{ m }}</div>{% endfor %}{% endif %}

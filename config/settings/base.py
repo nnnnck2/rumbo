@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     "core",
     "whatsapp",
     "leads",
+    "cuentas",
 ]
 
 MIDDLEWARE = [
@@ -57,6 +58,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "cuentas.context_processors.rumbo",
             ],
         },
     },
@@ -106,7 +108,9 @@ STORAGES = {
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }
 
-LOGIN_URL = "admin:login"
+LOGIN_URL = "cuentas:login"
+LOGIN_REDIRECT_URL = "inicio"
+LOGOUT_REDIRECT_URL = "cuentas:login"
 
 # ── WhatsApp Cloud API (Meta) ─────────────────────────────────────────────────────
 # Token que se escribe en Meta al configurar el webhook (verificación GET).
