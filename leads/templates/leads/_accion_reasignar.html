@@ -1,0 +1,14 @@
+{# RF-16 · Reasignar el lead a otro asesor (SCRUM-32). Solo supervisor/admin: para el asesor, reasignar_form es None. #}
+{% if reasignar_form %}
+<div class="card mb-3">
+  <div class="card-body">
+    <h2 class="h6 card-title">Reasignar</h2>
+    <form method="post" action="{% url 'leads:reasignar' lead.pk %}"
+          hx-post="{% url 'leads:reasignar' lead.pk %}" hx-target="#ficha" hx-swap="innerHTML">
+      {% csrf_token %}
+      {% include "leads/_campo.html" with campo=reasignar_form.asesor %}
+      <button class="btn btn-outline-secondary w-100" type="submit">Reasignar</button>
+    </form>
+  </div>
+</div>
+{% endif %}

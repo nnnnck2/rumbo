@@ -1,2 +1,7 @@
 /* Estilos propios de Rumbo (sobre Bootstrap 5). */
 body { min-height: 100vh; }
+
+/* Resultado de la llamada: botones grandes, usables en el celular (SCRUM-30 / SCRUM-34). */
+.resultados { display: grid; gap: .5rem; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); }
+.resultado-opcion { padding: .75rem; }
+.resultado-opcion input { margin-right: .35rem; }

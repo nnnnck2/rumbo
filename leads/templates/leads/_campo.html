@@ -1,0 +1,7 @@
+{# Campo de formulario con Bootstrap:  {% include "leads/_campo.html" with campo=form.x %} #}
+<div class="mb-2">
+  {% if campo.label %}<label class="form-label small mb-1" for="{{ campo.id_for_label }}">{{ campo.label }}</label>{% endif %}
+  {{ campo }}
+  {% if campo.help_text %}<div class="form-text">{{ campo.help_text }}</div>{% endif %}
+  {% for e in campo.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+</div>

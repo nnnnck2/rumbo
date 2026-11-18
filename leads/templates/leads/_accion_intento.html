@@ -1,0 +1,48 @@
+{# RF-22 · Registrar el resultado de una llamada (SCRUM-30). Requiere: lead, intento_form, puede_registrar. #}
+<div class="card">
+  <div class="card-body">
+    <h2 class="h6 card-title">Resultado de la llamada</h2>
+    {% if puede_registrar %}
+    <form method="post" action="{% url 'leads:registrar_intento' lead.pk %}"
+          hx-post="{% url 'leads:registrar_intento' lead.pk %}" hx-target="#ficha" hx-swap="innerHTML"
+          data-agenda="{{ intento_form.codigos_agenda }}" data-venta="{{ intento_form.codigos_venta }}">
+      {% csrf_token %}{{ intento_form.version }}
+      {% for e in intento_form.non_field_errors %}<div class="alert alert-danger py-1">{{ e }}</div>{% endfor %}
+      <div class="resultados mb-2">
+        {% for opcion in intento_form.resultado %}
+          <label class="btn btn-outline-primary text-start resultado-opcion">{{ opcion.tag }} {{ opcion.choice_label }}</label>
+        {% endfor %}
+      </div>
+      {% for e in intento_form.resultado.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+      <div class="extra-agenda">{% include "leads/_campo.html" with campo=intento_form.agendar_para %}</div>
+      <div class="extra-venta row g-2">
+        <div class="col-sm-6">{% include "leads/_campo.html" with campo=intento_form.tipo_visa %}</div>
+        <div class="col-sm-6">{% include "leads/_campo.html" with campo=intento_form.pais %}</div>
+        <div class="col-8">{% include "leads/_campo.html" with campo=intento_form.valor %}</div>
+        <div class="col-4">{% include "leads/_campo.html" with campo=intento_form.moneda %}</div>
+      </div>
+      {% include "leads/_campo.html" with campo=intento_form.nota %}
+      <button class="btn btn-primary btn-lg w-100" type="submit">Registrar</button>
+    </form>
+    <script>
+      // Muestra la fecha (llamar después) o los datos de la venta (venta cerrada) según el resultado elegido.
+      (function () {
+        const form = document.currentScript.previousElementSibling;
+        const agenda = form.dataset.agenda.split(','), venta = form.dataset.venta.split(',');
+        function actualizar() {
+          const elegido = (form.querySelector('input[name=resultado]:checked') || {}).value;
+          form.querySelector('.extra-agenda').hidden = !agenda.includes(elegido);
+          form.querySelector('.extra-venta').hidden = !venta.includes(elegido);
+          form.querySelectorAll('.resultado-opcion').forEach(l => l.classList.toggle('active', l.querySelector('input').checked));
+        }
+        form.addEventListener('change', actualizar);
+        actualizar();
+      })();
+    </script>
+    {% else %}
+      <p class="text-body-secondary small mb-0">
+        {% if lead.estado_asignacion == "cerrado" %}El lead está cerrado.{% else %}El lead está en cola, sin asesor asignado.{% endif %}
+      </p>
+    {% endif %}
+  </div>
+</div>

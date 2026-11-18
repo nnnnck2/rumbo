@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block titulo %}Configuración{% endblock %}
+{% block contenido %}
+  <h1 class="h4">Configuración</h1>
+  <p class="text-body-secondary small">Solo administradores. Los cambios rigen desde la siguiente operación, sin reiniciar el sistema.</p>
+  {% include "leads/_mensajes.html" %}
+  {% for e in form.non_field_errors %}<div class="alert alert-danger py-2">{{ e }}</div>{% endfor %}
+
+  <form method="post" class="row g-4" style="max-width: 56rem">
+    {% csrf_token %}
+    <section class="col-md-6">
+      <h2 class="h6">Horario de atención</h2>
+      <p class="small text-body-secondary">Fuera de este horario los leads quedan en cola y se reparten al abrir.</p>
+      <div class="row g-2">
+        <div class="col-6">{% include "leads/_campo.html" with campo=form.hora_inicio %}</div>
+        <div class="col-6">{% include "leads/_campo.html" with campo=form.hora_fin %}</div>
+      </div>
+      <div class="mb-2">
+        <div class="form-label small mb-1">{{ form.dias.label }}</div>
+        <div class="d-flex flex-wrap gap-3">
+          {% for d in form.dias %}<label class="form-check-label">{{ d.tag }} {{ d.choice_label }}</label>{% endfor %}
+        </div>
+        {% for e in form.dias.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+      </div>
+    </section>
+
+    <section class="col-md-6">
+      <h2 class="h6">Reparto y reintentos</h2>
+      {% include "leads/_campo.html" with campo=form.max_intentos_por_asesor %}
+      {% include "leads/_campo.html" with campo=form.minutos_primera_llamada %}
+      {% include "leads/_campo.html" with campo=form.minutos_entre_reintentos %}
+    </section>
+
+    <section class="col-12">
+      <h2 class="h6">Textos automáticos de WhatsApp</h2>
+      {% include "leads/_campo.html" with campo=form.texto_bienvenida %}
+      {% include "leads/_campo.html" with campo=form.texto_fuera_horario %}
+      {% include "leads/_campo.html" with campo=form.texto_privacidad %}
+    </section>
+
+    <div class="col-12"><button class="btn btn-primary">Guardar</button></div>
+  </form>
+{% endblock %}

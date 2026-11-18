@@ -13,7 +13,9 @@
       <a class="navbar-brand fw-semibold" href="{% url 'inicio' %}">Rumbo</a>
       <div class="navbar-nav ms-auto">
         {% if user.is_authenticated %}
-          <span class="navbar-text me-3">{{ user.get_username }}</span>
+          <a class="nav-link" href="{% url 'leads:lista' %}">Leads</a>
+          {% if rumbo.es_admin %}<a class="nav-link" href="{% url 'leads:configuracion' %}">Configuración</a>{% endif %}
+          <span class="navbar-text ms-2 me-3">{{ user.get_username }}</span>
         {% else %}
           <a class="nav-link" href="{% url 'admin:login' %}">Ingresar</a>
         {% endif %}

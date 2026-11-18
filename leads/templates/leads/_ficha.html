@@ -1,0 +1,60 @@
+{# Ficha mínima del lead. La ficha completa es SCRUM-29: puede incluir los bloques _accion_*.html. #}
+{% include "leads/_mensajes.html" %}
+<div class="d-flex flex-wrap align-items-baseline gap-2 mb-1">
+  <h1 class="h4 mb-0">{{ lead.nombre_perfil|default:"Sin nombre" }}</h1>
+  <a class="btn btn-success btn-sm" href="tel:{{ lead.telefono }}">Llamar {{ lead.telefono }}</a>
+</div>
+<p class="text-body-secondary small mb-3">
+  Etapa <span class="badge text-bg-primary">{{ lead.etapa.nombre }}</span>
+  {% if lead.motivo_descarte %}· motivo: {{ lead.motivo_descarte.nombre }}{% endif %}
+  · {{ lead.get_estado_asignacion_display }}{% if lead.asesor %} con <strong>{{ lead.asesor.usuario.nombre }}</strong>{% endif %}
+  · intentos {{ lead.intentos_asesor_actual }} (total {{ lead.intentos_totales }})
+  {% if lead.proxima_accion_en %}· próxima acción {{ lead.proxima_accion_en|date:"d/m H:i" }}{% endif %}
+  · primer contacto {{ lead.primer_contacto_en|date:"d/m/Y H:i" }}
+</p>
+
+<div class="row g-3">
+  <div class="col-lg-7">
+    {% include "leads/_accion_intento.html" %}
+  </div>
+  <div class="col-lg-5">
+    {% include "leads/_accion_etapa.html" %}
+    {% include "leads/_accion_reasignar.html" %}
+  </div>
+</div>
+
+<div class="row g-3 mt-1">
+  <div class="col-lg-6">
+    <h2 class="h6">Intentos de llamada</h2>
+    <ul class="list-group list-group-flush small mb-3">
+      {% for i in intentos %}
+        <li class="list-group-item px-0">#{{ i.numero }} · {{ i.creado_en|date:"d/m H:i" }} · <strong>{{ i.resultado.nombre }}</strong>
+          · {{ i.asesor.usuario.nombre }}{% if i.agendado_para %} · agendado {{ i.agendado_para|date:"d/m H:i" }}{% endif %}
+          {% if i.nota %}<div class="text-body-secondary">{{ i.nota }}</div>{% endif %}</li>
+      {% empty %}<li class="list-group-item px-0 text-body-secondary">Sin intentos todavía.</li>{% endfor %}
+    </ul>
+    <h2 class="h6">Mensajes de WhatsApp</h2>
+    <ul class="list-group list-group-flush small">
+      {% for m in mensajes %}
+        <li class="list-group-item px-0">{{ m.ocurrido_en|date:"d/m H:i" }} · {% if m.direccion == "entrante" %}cliente{% else %}Multivisa{% endif %}:
+          {% if m.cuerpo %}{{ m.cuerpo }}{% else %}<em>[{{ m.tipo }}]</em>{% endif %}</li>
+      {% empty %}<li class="list-group-item px-0 text-body-secondary">Sin mensajes.</li>{% endfor %}
+    </ul>
+  </div>
+  <div class="col-lg-6">
+    <h2 class="h6">Historial de etapas</h2>
+    <ul class="list-group list-group-flush small mb-3">
+      {% for h in historial_etapas %}
+        <li class="list-group-item px-0">{{ h.creado_en|date:"d/m H:i" }} · {{ h.desde.nombre|default:"—" }} → <strong>{{ h.hacia.nombre }}</strong>{% if h.usuario %} · {{ h.usuario.nombre }}{% endif %}</li>
+      {% endfor %}
+    </ul>
+    <h2 class="h6">Asignaciones</h2>
+    <ul class="list-group list-group-flush small">
+      {% for a in asignaciones %}
+        <li class="list-group-item px-0">{{ a.creado_en|date:"d/m H:i" }} · {{ a.get_motivo_display }}:
+          {% if a.asesor_anterior %}{{ a.asesor_anterior.usuario.nombre }} → {% endif %}<strong>{{ a.asesor.usuario.nombre }}</strong>
+          {% if a.asignado_por_usuario %}· por {{ a.asignado_por_usuario.nombre }}{% endif %}</li>
+      {% empty %}<li class="list-group-item px-0 text-body-secondary">Sin asignaciones.</li>{% endfor %}
+    </ul>
+  </div>
+</div>

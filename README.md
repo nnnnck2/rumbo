@@ -9,7 +9,7 @@ rumbo/
 ├── config/              proyecto Django: settings por entorno (base, dev, prod, test), urls, celery
 ├── core/                transacción + contexto RLS por request, healthcheck, tareas generales
 ├── whatsapp/            webhook de WhatsApp Cloud API, firma, bandeja de entrada, tareas
-├── leads/               modelos (managed=False) sobre el esquema rumbo y admin de solo lectura
+├── leads/               modelos (managed=False), admin de solo lectura, acciones del lead y configuración
 ├── templates/ static/   Bootstrap + HTMX
 ├── docker/entrypoint.sh web | worker | beat
 ├── docker-compose.yml   web + worker + beat + redis
@@ -107,6 +107,21 @@ docker compose exec web python manage.py createsuperuser
 docker compose exec web python manage.py shell -c "from django.contrib.auth.models import User; print(User.objects.get(username='admin').pk)"
 cd db && docker compose exec -u postgres db psql -d rumbo -c   "SET ROLE rumbo_owner; INSERT INTO rumbo.usuario (id, nombre, rol) VALUES (<id>, 'Administrador', 'admin')"
 ```
+
+## Acciones sobre el lead y configuración (SCRUM-30 a 33)
+
+| Ruta | Quién | Qué |
+|---|---|---|
+| `/leads/` | todos (el asesor ve solo los suyos) | Lista con filtros por etapa, estado, asesor y búsqueda. Supervisor: reasignación en lote |
+| `/leads/<id>/` | dueño del lead, supervisor, admin | Ficha mínima con las acciones y el historial |
+| `/leads/<id>/intento/` | dueño, supervisor, admin | RF-22: resultado de la llamada (agenda, cambio de etapa, venta, paso al siguiente asesor) |
+| `/leads/<id>/etapa/` | dueño, supervisor, admin | RF-25: cambio de etapa (solo transiciones permitidas; descartar exige motivo) |
+| `/leads/<id>/reasignar/` | supervisor, admin | RF-16: reasignación manual |
+| `/leads/configuracion/` | admin | RF-31: horario, reglas de reparto y reintentos, textos automáticos |
+
+- Toda escritura pasa por las funciones SQL (`leads/servicios.py`); la base valida permisos, reglas y versión. Si dos personas editan el mismo lead, la segunda recibe un aviso y la ficha se recarga.
+- Las acciones son bloques reutilizables (`leads/templates/leads/_accion_*.html`) para incluirlos en la ficha completa (SCRUM-29) y en la lista de llamadas (SCRUM-28). Responden con HTMX y también funcionan sin JavaScript.
+- La configuración rige desde la siguiente operación: las funciones de la base la leen en cada llamada.
 
 ## Número de prueba de Meta (SCRUM-9)
 

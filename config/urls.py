@@ -7,5 +7,6 @@ urlpatterns = [
     path("", core_views.inicio, name="inicio"),
     path("salud/", core_views.salud, name="salud"),
     path("whatsapp/", include("whatsapp.urls")),
+    path("leads/", include("leads.urls")),
     path("admin/", admin.site.urls),
 ]

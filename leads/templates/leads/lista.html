@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block titulo %}Leads{% endblock %}
+{% block contenido %}
+  <h1 class="h4">Leads</h1>
+  {% include "leads/_mensajes.html" %}
+
+  {# Filtros (RF-25: filtro por etapa) #}
+  <form method="get" class="row g-2 align-items-end mb-3">
+    <div class="col-6 col-md-3">
+      <label class="form-label small mb-1" for="f-etapa">Etapa</label>
+      <select id="f-etapa" name="etapa" class="form-select form-select-sm">
+        <option value="">Todas</option>
+        {% for e in etapas %}<option value="{{ e.codigo }}" {% if filtros.etapa == e.codigo %}selected{% endif %}>{{ e.nombre }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-6 col-md-2">
+      <label class="form-label small mb-1" for="f-estado">Estado</label>
+      <select id="f-estado" name="estado" class="form-select form-select-sm">
+        <option value="">Todos</option>
+        {% for valor, nombre in estados %}<option value="{{ valor }}" {% if filtros.estado == valor %}selected{% endif %}>{{ nombre }}</option>{% endfor %}
+      </select>
+    </div>
+    {% if rumbo.es_supervisor %}
+    <div class="col-6 col-md-3">
+      <label class="form-label small mb-1" for="f-asesor">Asesor</label>
+      <select id="f-asesor" name="asesor" class="form-select form-select-sm">
+        <option value="">Todos</option>
+        <option value="ninguno" {% if filtros.asesor == "ninguno" %}selected{% endif %}>Sin asesor (en cola)</option>
+        {% for a in asesores %}<option value="{{ a.pk }}" {% if filtros.asesor == a.pk|stringformat:"s" %}selected{% endif %}>{{ a.usuario.nombre }}</option>{% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    <div class="col-6 col-md-2">
+      <label class="form-label small mb-1" for="f-q">Buscar</label>
+      <input id="f-q" name="q" value="{{ filtros.q|default:'' }}" class="form-control form-control-sm" placeholder="Nombre o teléfono">
+    </div>
+    <div class="col-12 col-md-2 d-grid"><button class="btn btn-sm btn-primary">Filtrar</button></div>
+  </form>
+
+  <form method="post" action="{% url 'leads:reasignar_lote' %}">
+    {% csrf_token %}<input type="hidden" name="volver" value="{{ volver }}">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle">
+        <thead><tr>
+          {% if lote_form %}<th><input type="checkbox" class="form-check-input" aria-label="Seleccionar todos"
+              onclick="document.querySelectorAll('input[name=leads]').forEach(c => c.checked = this.checked)"></th>{% endif %}
+          <th>Lead</th><th>Etapa</th><th>Estado</th><th>Asesor</th><th class="text-end">Intentos</th><th>Primer contacto</th>
+        </tr></thead>
+        <tbody>
+        {% for l in pagina %}
+          <tr>
+            {% if lote_form %}<td>{% if l.estado_asignacion != "cerrado" %}<input type="checkbox" class="form-check-input" name="leads" value="{{ l.pk }}" aria-label="Seleccionar {{ l.telefono }}">{% endif %}</td>{% endif %}
+            <td><a href="{% url 'leads:ficha' l.pk %}">{{ l.nombre_perfil|default:"Sin nombre" }}</a><div class="small text-body-secondary">{{ l.telefono }}</div></td>
+            <td><span class="badge text-bg-light border">{{ l.etapa.nombre }}</span></td>
+            <td class="small">{{ l.get_estado_asignacion_display }}</td>
+            <td class="small">{{ l.asesor.usuario.nombre|default:"—" }}</td>
+            <td class="text-end small">{{ l.intentos_asesor_actual }} / {{ l.intentos_totales }}</td>
+            <td class="small">{{ l.primer_contacto_en|date:"d/m/Y H:i" }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="text-body-secondary">No hay leads con estos filtros.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if lote_form and pagina.object_list %}
+    <div class="row g-2 align-items-end">
+      <div class="col-sm-6 col-md-4">{% include "leads/_campo.html" with campo=lote_form.asesor %}</div>
+      <div class="col-sm-6 col-md-3 mb-2 d-grid"><button class="btn btn-outline-secondary">Reasignar seleccionados</button></div>
+    </div>
+    {% endif %}
+  </form>
+
+  {% if pagina.has_other_pages %}
+  <nav class="small mt-2">
+    {% if pagina.has_previous %}<a href="?{% for k, v in filtros.items %}{% if k != 'pagina' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}pagina={{ pagina.previous_page_number }}">← Anterior</a>{% endif %}
+    <span class="mx-2">Página {{ pagina.number }} de {{ pagina.paginator.num_pages }}</span>
+    {% if pagina.has_next %}<a href="?{% for k, v in filtros.items %}{% if k != 'pagina' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}pagina={{ pagina.next_page_number }}">Siguiente →</a>{% endif %}
+  </nav>
+  {% endif %}
+{% endblock %}
