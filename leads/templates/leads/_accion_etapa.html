@@ -1,26 +1,29 @@
 {# RF-25 · Cambiar la etapa del lead (SCRUM-31). Requiere: lead, etapa_form. #}
-<div class="card mb-3">
-  <div class="card-body">
-    <h2 class="h6 card-title">Etapa</h2>
-    {% if etapa_form.fields.etapa.choices %}
-    <form method="post" action="{% url 'leads:cambiar_etapa' lead.pk %}"
-          hx-post="{% url 'leads:cambiar_etapa' lead.pk %}" hx-target="#ficha" hx-swap="innerHTML">
-      {% csrf_token %}{{ etapa_form.version }}
-      {% include "leads/_campo.html" with campo=etapa_form.etapa %}
-      <div class="motivo">{% include "leads/_campo.html" with campo=etapa_form.motivo_descarte %}</div>
-      <button class="btn btn-outline-primary w-100" type="submit">Cambiar etapa</button>
-    </form>
-    <script>
-      (function () {
-        const form = document.currentScript.previousElementSibling;
-        const etapa = form.querySelector('select[name=etapa]'), motivo = form.querySelector('.motivo');
-        const actualizar = () => { motivo.hidden = etapa.value !== 'descartado'; };
-        etapa.addEventListener('change', actualizar);
-        actualizar();
-      })();
-    </script>
-    {% else %}
-      <p class="text-body-secondary small mb-0">{{ lead.etapa.nombre }} es una etapa final.</p>
-    {% endif %}
-  </div>
+<div class="bloque-gestion">
+  <h3 class="titulo-bloque">Etapa</h3>
+  {% if etapa_form.fields.etapa.choices %}
+  <form method="post" action="{% url 'leads:cambiar_etapa' lead.pk %}"
+        hx-post="{% url 'leads:cambiar_etapa' lead.pk %}" hx-target="#ficha" hx-swap="innerHTML">
+    {% csrf_token %}{{ etapa_form.version }}
+    {% for e in etapa_form.non_field_errors %}<div class="alert alert-danger py-1 small">{{ e }}</div>{% endfor %}
+    <label class="visually-hidden" for="{{ etapa_form.etapa.id_for_label }}">{{ etapa_form.etapa.label }}</label>
+    <div class="input-group input-group-sm">
+      {{ etapa_form.etapa }}
+      <button class="btn btn-outline-primary" type="submit">Cambiar</button>
+    </div>
+    {% for e in etapa_form.etapa.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+    <div class="motivo mt-2">{% include "leads/_campo.html" with campo=etapa_form.motivo_descarte %}</div>
+  </form>
+  <script>
+    (function () {
+      const form = document.currentScript.previousElementSibling;
+      const etapa = form.querySelector('select[name=etapa]'), motivo = form.querySelector('.motivo');
+      const actualizar = () => { motivo.hidden = etapa.value !== 'descartado'; };
+      etapa.addEventListener('change', actualizar);
+      actualizar();
+    })();
+  </script>
+  {% else %}
+    <p class="text-body-secondary small mb-0">{{ lead.etapa.nombre }} es una etapa final.</p>
+  {% endif %}
 </div>

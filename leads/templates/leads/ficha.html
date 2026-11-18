@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block titulo %}{{ lead.nombre_perfil|default:lead.telefono }}{% endblock %}
 {% block contenido %}
-  <a href="{% url 'leads:lista' %}" class="small text-decoration-none">← Leads</a>
+  <a href="{% url 'leads:lista' %}" class="enlace-volver">← Volver a leads</a>
   <div id="ficha" class="mt-2">{% include "leads/_ficha.html" %}</div>
 {% endblock %}

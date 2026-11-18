@@ -1,7 +1,7 @@
 {# RF-22 · Registrar el resultado de una llamada (SCRUM-30). Requiere: lead, intento_form, puede_registrar. #}
-<div class="card">
-  <div class="card-body">
-    <h2 class="h6 card-title">Resultado de la llamada</h2>
+<section class="tarjeta-rumbo">
+  <div>
+    <h2 class="titulo-tarjeta">Resultado de la llamada</h2>
     {% if puede_registrar %}
     <form method="post" action="{% url 'leads:registrar_intento' lead.pk %}"
           hx-post="{% url 'leads:registrar_intento' lead.pk %}" hx-target="#ficha" hx-swap="innerHTML"
@@ -22,7 +22,7 @@
         <div class="col-4">{% include "leads/_campo.html" with campo=intento_form.moneda %}</div>
       </div>
       {% include "leads/_campo.html" with campo=intento_form.nota %}
-      <button class="btn btn-primary btn-lg w-100" type="submit">Registrar</button>
+      <div class="text-end"><button class="btn btn-primary px-5" type="submit">Registrar resultado</button></div>
     </form>
     <script>
       // Muestra la fecha (llamar después) o los datos de la venta (venta cerrada) según el resultado elegido.
@@ -45,4 +45,4 @@
       </p>
     {% endif %}
   </div>
-</div>
+</section>
