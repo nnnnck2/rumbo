@@ -9,6 +9,7 @@ rumbo/
 ├── config/              proyecto Django: settings por entorno (base, dev, prod, test), urls, celery
 ├── core/                transacción + contexto RLS por request, healthcheck, tareas generales
 ├── whatsapp/            webhook de WhatsApp Cloud API, firma, bandeja de entrada, tareas
+├── leads/               modelos (managed=False) sobre el esquema rumbo y admin de solo lectura
 ├── templates/ static/   Bootstrap + HTMX
 ├── docker/entrypoint.sh web | worker | beat
 ├── docker-compose.yml   web + worker + beat + redis
@@ -90,6 +91,23 @@ python manage.py simular_mensaje_whatsapp --telefono +593991234567 --texto "Hola
 python manage.py simular_mensaje_whatsapp --firma-invalida      # debe responder 403
 ```
 
+## Modelo de datos y admin (SCRUM-21)
+
+Las tablas las crean las migraciones SQL de `db/migraciones`. `leads/models.py` las refleja con `managed = False`: Django las lee pero nunca les hace DDL. Las escrituras de negocio (reparto, etapas, intentos, ventas) van por las funciones SQL, no por `.save()`.
+
+- `python manage.py verificar_modelos` compara los modelos con las columnas reales de `rumbo` y falla si quedaron desalineados. Hay que correrlo después de cada migración SQL nueva.
+- El admin (`/admin/`) es **de solo lectura**: leads con sus mensajes, asignaciones, intentos, etapas y notas; asesores; ventas; catálogos; configuración.
+
+### Usuarios
+
+Cada usuario de Django necesita su fila en `rumbo.usuario` con **el mismo id** y un rol (`admin`, `supervisor` o `asesor`). Sin esa fila, la base (RLS) no le muestra nada. Mientras no exista la gestión de usuarios (SCRUM-27), el primer administrador se crea así:
+
+```bash
+docker compose exec web python manage.py createsuperuser
+docker compose exec web python manage.py shell -c "from django.contrib.auth.models import User; print(User.objects.get(username='admin').pk)"
+cd db && docker compose exec -u postgres db psql -d rumbo -c   "SET ROLE rumbo_owner; INSERT INTO rumbo.usuario (id, nombre, rol) VALUES (<id>, 'Administrador', 'admin')"
+```
+
 ## Número de prueba de Meta (SCRUM-9)
 
 Para probar con WhatsApp real antes de tener el VPS:
@@ -108,7 +126,8 @@ Para probar con WhatsApp real antes de tener el VPS:
 ## Pruebas
 
 ```bash
-python manage.py test --settings=config.settings.test    # firma, parser y endpoint (sin base)
+python manage.py test --settings=config.settings.test    # firma, parser, endpoint y modelos (sin base)
+python manage.py verificar_modelos                        # modelos de Django = tablas de la base
 bash db/pruebas/probar.sh                                 # garantías de la base (pila desechable)
 ```
 
