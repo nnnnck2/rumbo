@@ -2,34 +2,23 @@
 {% load static %}
 {% block titulo %}Ingresar{% endblock %}
 {% block cuerpo %}
-{# Pantalla de ingreso (SCRUM-67): misma línea visual que CALLFLOW. #}
+{# Pantalla de ingreso (SCRUM-67): identidad propia de Rumbo (verde petróleo, rosa de los vientos). #}
 <div class="pantalla-acceso">
-  <section class="panel-marca d-none d-lg-flex" aria-hidden="true">
-    <div class="insignia-rumbo">
-      <span class="marca-rumbo">
-        {# Rosa de los vientos: "rumbo" #}
-        <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" focusable="false">
-          <path d="M8 16.016a7.5 7.5 0 0 0 1.962-14.74A1 1 0 0 0 9 0H7a1 1 0 0 0-.962 1.276A7.5 7.5 0 0 0 8 16.016m6.5-7.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0"/>
-          <path d="m6.94 7.44 4.95-2.83-2.83 4.95-4.949 2.83 2.828-4.95z"/>
-        </svg>
-      </span>
-      <span>Rumbo</span>
-    </div>
-    <div class="circulo-logo">
-      <img src="{% static 'img/logo-multivisa.png' %}" alt="" class="logo-acceso" width="640" height="621">
-    </div>
-    <p class="lema-acceso mb-0"><strong>Sistema interno de Multivisa</strong>Atención de leads de WhatsApp del área de visas.</p>
-  </section>
-
   <section class="panel-formulario">
     <div class="formulario-acceso">
-      <div class="d-flex d-lg-none align-items-center gap-2 mb-4">
-        <img src="{% static 'img/logo-multivisa.png' %}" alt="Multivisa" class="logo-marca" width="640" height="621">
-        <span class="fs-4 fw-semibold">Rumbo</span>
+      <div class="titulo-acceso">
+        <span class="marca-rumbo" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" focusable="false">
+            <path d="M8 16.016a7.5 7.5 0 0 0 1.962-14.74A1 1 0 0 0 9 0H7a1 1 0 0 0-.962 1.276A7.5 7.5 0 0 0 8 16.016m6.5-7.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0"/>
+            <path d="m6.94 7.44 4.95-2.83-2.83 4.95-4.949 2.83 2.828-4.95z"/>
+          </svg>
+        </span>
+        <span>Rumbo</span>
+        <img src="{% static 'img/logo-multivisa.png' %}" alt="Multivisa" class="logo-marca ms-auto d-lg-none" width="640" height="621">
       </div>
 
-      <h1 class="h3 mb-1">Ingresar</h1>
-      <p class="text-body-secondary mb-4">Use el usuario y la contraseña que le entregó el administrador.</p>
+      <h1 class="h3 mb-1">Bienvenido</h1>
+      <p class="text-body-secondary mb-4">Ingrese con el usuario y la contraseña que le entregó el administrador.</p>
 
       {% for m in messages %}
         <div class="alert alert-{% if m.tags == 'error' %}danger{% else %}{{ m.tags|default:'info' }}{% endif %}" role="alert">{{ m }}</div>
@@ -56,10 +45,25 @@
         <button class="btn btn-primary w-100 py-2" type="submit">Ingresar</button>
       </form>
 
-      <p class="text-center text-body-secondary small mt-4 mb-0">
+      <p class="text-body-secondary small mt-4 mb-0">
         ¿No tiene cuenta u olvidó su contraseña? Pídale al administrador que cree su cuenta o le asigne una contraseña nueva.
       </p>
     </div>
+  </section>
+
+  <section class="panel-marca d-none d-lg-flex" aria-hidden="true">
+    {# Rosa de los vientos de fondo #}
+    <svg class="rosa-vientos" viewBox="0 0 200 200" fill="none" stroke="currentColor" stroke-width="1.2" focusable="false">
+      <circle cx="100" cy="100" r="96"/>
+      <circle cx="100" cy="100" r="70"/>
+      <circle cx="100" cy="100" r="20"/>
+      <path d="M100 4 L112 88 L196 100 L112 112 L100 196 L88 112 L4 100 L88 88 Z" fill="currentColor" fill-opacity=".35"/>
+      <path d="M100 30 L106 94 L170 100 L106 106 L100 170 L94 106 L30 100 L94 94 Z" transform="rotate(45 100 100)"/>
+    </svg>
+    <div class="tarjeta-logo">
+      <img src="{% static 'img/logo-multivisa.png' %}" alt="" class="logo-acceso" width="640" height="621">
+    </div>
+    <p class="lema-acceso mb-0"><strong>Atención de leads del área de visas</strong>Cada cliente que escribe por WhatsApp, con su asesor y su llamada a tiempo.</p>
   </section>
 </div>
 <script>
