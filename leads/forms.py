@@ -169,6 +169,9 @@ class DatosLeadForm(Bootstrap, forms.Form):
                                 widget=forms.TextInput(attrs={"list": "tipos-visa", "autocomplete": "off"}))
     pais_interes = forms.CharField(required=False, max_length=80, label="País de interés",
                                    widget=forms.TextInput(attrs={"list": "paises", "autocomplete": "off"}))
+    cita_en = forms.DateTimeField(required=False, label="Fecha de la cita", input_formats=["%Y-%m-%dT%H:%M"],
+                                  widget=FechaHoraLocal(),
+                                  help_text="Al guardarla, el cliente recibe un recordatorio 24 h y 2 h antes.")
 
     def clean(self):
         datos = super().clean()
@@ -245,6 +248,28 @@ class ConfiguracionForm(Bootstrap, forms.Form):
                                                 "24 h no se envía nada (Meta no permite texto libre).")
     aviso_idioma = forms.CharField(max_length=5, initial="es", label="Idioma de la plantilla")
     aviso_horas = forms.IntegerField(min_value=1, max_value=168, label="Como máximo un aviso cada (horas)")
+    # SCRUM-115 · Preguntas automáticas
+    bot_activo = forms.BooleanField(required=False, label="Hacer preguntas automáticas antes de la llamada",
+                                    help_text="Tras la respuesta automática: tipo de visa y país (listas de WhatsApp).")
+    bot_texto_visa = forms.CharField(max_length=1024, required=False, label="Pregunta del tipo de visa")
+    bot_texto_pais = forms.CharField(max_length=1024, required=False, label="Pregunta del país")
+    bot_texto_gracias = forms.CharField(max_length=1024, required=False, label="Mensaje final")
+    # SCRUM-116 · Recordatorio de cita
+    rec_activo = forms.BooleanField(required=False, label="Recordar la cita al cliente (24 h y 2 h antes)")
+    rec_texto = forms.CharField(max_length=1024, required=False, label="Texto del recordatorio",
+                                widget=forms.Textarea(attrs={"rows": 2}),
+                                help_text="{nombre} = cliente · {cita} = día y hora. Se usa si el cliente escribió en las últimas 24 h.")
+    rec_plantilla = forms.CharField(max_length=512, required=False, label="Plantilla de Meta (más de 24 h)",
+                                    help_text="Con dos variables: {{1}} nombre y {{2}} fecha de la cita.")
+    rec_idioma = forms.CharField(max_length=5, required=False, initial="es", label="Idioma de la plantilla")
+    # SCRUM-121 · Reporte semanal · SCRUM-130 · Comisión estimada
+    reporte_destinatarios = forms.CharField(max_length=2000, required=False, label="Enviar el reporte de los lunes a",
+                                            widget=forms.Textarea(attrs={"rows": 2, "placeholder": "gerencia@multivisa.ec, …"}),
+                                            help_text="Correos separados por coma. Vacío = no se envía.")
+    comision_tipo = forms.ChoiceField(choices=[("porcentaje", "Porcentaje de lo vendido"), ("fijo", "Monto fijo por venta")],
+                                      required=False, label="Regla de la comisión estimada")
+    comision_valor = forms.DecimalField(min_value=0, max_value=100000, decimal_places=2, required=False,
+                                        label="Valor", help_text="Solo para mostrar una estimación: la oficial la calcula CALLFLOW.")
     # SCRUM-97 · Meta del día de cada asesor (0 = no se mide)
     meta_llamadas = forms.IntegerField(min_value=0, max_value=1000, label="Llamadas")
     meta_citas = forms.IntegerField(min_value=0, max_value=1000, label="Citas")
@@ -259,17 +284,21 @@ class ConfiguracionForm(Bootstrap, forms.Form):
                                        help_text="Pendiente de validar con el área (SCRUM-23).")
 
     ZONA = "America/Guayaquil"
-    # SCRUM-96 · Un guion de llamada por tipo de visa (más el general).
+    # SCRUM-96 · Un guion de llamada por tipo de visa (más el general). SCRUM-117 · Lo mismo para documentos.
     TIPOS_GUION = ["General", *TIPOS_VISA]
+    RESPUESTAS = 4             # SCRUM-114 · espacios para respuestas rápidas
     # SCRUM-111 · Campos de cada pestaña (para abrir la que tiene errores).
     PESTANAS = {
         "horario": ["hora_inicio", "hora_fin", "dias"],
         "reparto": ["max_intentos_por_asesor", "minutos_primera_llamada", "minutos_entre_reintentos",
                     "minutos_alerta_supervisor", "max_intentos_por_lead"],
         "whatsapp": ["texto_bienvenida", "texto_fuera_horario", "texto_privacidad", "aviso_activo", "aviso_texto",
-                     "aviso_plantilla", "aviso_idioma", "aviso_horas"],
-        "metas": ["meta_llamadas", "meta_citas", "meta_ventas"],
-        "guiones": [f"guion_{i}" for i in range(len(TIPOS_GUION))],
+                     "aviso_plantilla", "aviso_idioma", "aviso_horas", "bot_activo", "bot_texto_visa", "bot_texto_pais",
+                     "bot_texto_gracias", "rec_activo", "rec_texto", "rec_plantilla", "rec_idioma",
+                     *[f"rr_{c}_{i}" for i in range(4) for c in ("titulo", "texto")]],
+        "metas": ["meta_llamadas", "meta_citas", "meta_ventas", "comision_tipo", "comision_valor"],
+        "guiones": [f"guion_{i}" for i in range(len(TIPOS_GUION))] + [f"doc_{i}" for i in range(len(TIPOS_GUION))],
+        "reportes": ["reporte_destinatarios"],
     }
 
     def __init__(self, *args, **kwargs):
@@ -282,9 +311,31 @@ class ConfiguracionForm(Bootstrap, forms.Form):
                                              "placeholder": "Un paso por línea" if i else "Se usa si el cliente no tiene "
                                                             "tipo de visa o su tipo no tiene guion propio."}))
 
+        for i, tipo in enumerate(self.TIPOS_GUION):
+            self.fields[f"doc_{i}"] = forms.CharField(
+                max_length=4000, required=False, label=tipo,
+                widget=forms.Textarea(attrs={"rows": 4, "class": "form-control", "placeholder": "Un documento por línea"}))
+        for i in range(self.RESPUESTAS):
+            self.fields[f"rr_titulo_{i}"] = forms.CharField(max_length=80, required=False, label="Título",
+                                                            widget=forms.TextInput(attrs={"class": "form-control"}))
+            self.fields[f"rr_texto_{i}"] = forms.CharField(
+                max_length=1000, required=False, label="Mensaje",
+                widget=forms.Textarea(attrs={"rows": 2, "class": "form-control",
+                                             "placeholder": "{nombre}, {asesor}, {documentos} y {cita} se completan solos"}))
+        for campo in ("bot_activo", "rec_activo"):
+            self.fields[campo].widget.attrs["class"] = "form-check-input"
+
     @property
     def campos_guion(self):
         return [self[f"guion_{i}"] for i in range(len(self.TIPOS_GUION))]
+
+    @property
+    def campos_documentos(self):
+        return [self[f"doc_{i}"] for i in range(len(self.TIPOS_GUION))]
+
+    @property
+    def respuestas_rapidas(self):
+        return [(self[f"rr_titulo_{i}"], self[f"rr_texto_{i}"]) for i in range(self.RESPUESTAS)]
 
     @classmethod
     def desde_configuracion(cls, config):
@@ -308,9 +359,41 @@ class ConfiguracionForm(Bootstrap, forms.Form):
         inicial.update({"meta_llamadas": metas.get("llamadas", 20), "meta_citas": metas.get("citas", 3),
                         "meta_ventas": metas.get("ventas", 1)})
         guiones = {k.lower(): v for k, v in (config.get("guiones_llamada") or {}).items()}
+        documentos = {k.lower(): v for k, v in (config.get("documentos_por_visa") or {}).items()}
         for i, tipo in enumerate(cls.TIPOS_GUION):
             inicial[f"guion_{i}"] = guiones.get(tipo.lower(), "")
+            inicial[f"doc_{i}"] = documentos.get(tipo.lower(), "")
+        for i, (titulo, texto) in enumerate(list((config.get("respuestas_rapidas") or {}).items())[:cls.RESPUESTAS]):
+            inicial[f"rr_titulo_{i}"], inicial[f"rr_texto_{i}"] = titulo, texto
+        bot = config.get("bot_preguntas") or {}
+        inicial.update({"bot_activo": bot.get("activo", False), "bot_texto_visa": bot.get("texto_visa", ""),
+                        "bot_texto_pais": bot.get("texto_pais", ""), "bot_texto_gracias": bot.get("texto_gracias", "")})
+        rec = config.get("recordatorio_cita") or {}
+        inicial.update({"rec_activo": rec.get("activo", True), "rec_texto": rec.get("texto", ""),
+                        "rec_plantilla": rec.get("plantilla", ""), "rec_idioma": rec.get("idioma", "es")})
+        inicial["reporte_destinatarios"] = ", ".join((config.get("reporte_semanal") or {}).get("destinatarios", []))
+        comision = config.get("comision") or {}
+        inicial.update({"comision_tipo": comision.get("tipo", "porcentaje"), "comision_valor": comision.get("valor", 5)})
         return inicial
+
+    def clean_rec_plantilla(self):
+        valor = (self.cleaned_data.get("rec_plantilla") or "").strip()
+        if valor and not re.fullmatch(r"[a-z0-9_]+", valor):
+            raise forms.ValidationError("El nombre de la plantilla en Meta solo tiene minúsculas, números y _.")
+        return valor
+
+    def clean_reporte_destinatarios(self):
+        from django.core.validators import validate_email
+
+        correos = [c.strip() for c in re.split(r"[,;\s]+", self.cleaned_data.get("reporte_destinatarios") or "") if c.strip()]
+        for c in correos:
+            try:
+                validate_email(c)
+            except forms.ValidationError as e:
+                raise forms.ValidationError(f"Correo inválido: {c}") from e
+        if len(correos) > 20:
+            raise forms.ValidationError("Como máximo 20 correos.")
+        return correos
 
     def clean_aviso_plantilla(self):
         valor = (self.cleaned_data.get("aviso_plantilla") or "").strip()
@@ -352,4 +435,21 @@ class ConfiguracionForm(Bootstrap, forms.Form):
         cambios["metas_diarias"] = {"llamadas": d["meta_llamadas"], "citas": d["meta_citas"], "ventas": d["meta_ventas"]}
         cambios["guiones_llamada"] = {tipo: d[f"guion_{i}"].strip() for i, tipo in enumerate(self.TIPOS_GUION)
                                       if (d.get(f"guion_{i}") or "").strip()}
+        cambios["documentos_por_visa"] = {tipo: d[f"doc_{i}"].strip() for i, tipo in enumerate(self.TIPOS_GUION)
+                                          if (d.get(f"doc_{i}") or "").strip()}
+        cambios["respuestas_rapidas"] = {d[f"rr_titulo_{i}"].strip(): d[f"rr_texto_{i}"].strip()
+                                         for i in range(self.RESPUESTAS)
+                                         if (d.get(f"rr_titulo_{i}") or "").strip() and (d.get(f"rr_texto_{i}") or "").strip()}
+        cambios["bot_preguntas"] = {
+            "activo": bool(d.get("bot_activo")),
+            "texto_visa": (d.get("bot_texto_visa") or "").strip() or "¿Qué tipo de visa necesitas?",
+            "texto_pais": (d.get("bot_texto_pais") or "").strip() or "¿A qué país quieres viajar?",
+            "texto_gracias": (d.get("bot_texto_gracias") or "").strip() or "¡Gracias! Un asesor te llamará pronto."}
+        cambios["recordatorio_cita"] = {
+            "activo": bool(d.get("rec_activo")),
+            "texto": (d.get("rec_texto") or "").strip() or "Hola {nombre}, te recordamos tu cita con Multivisa el {cita}.",
+            "plantilla": d.get("rec_plantilla") or "", "idioma": (d.get("rec_idioma") or "es").strip() or "es"}
+        cambios["reporte_semanal"] = {"destinatarios": d.get("reporte_destinatarios") or []}
+        if d.get("comision_tipo"):
+            cambios["comision"] = {"tipo": d["comision_tipo"], "valor": float(d.get("comision_valor") or 0)}
         return cambios

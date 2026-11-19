@@ -1,0 +1,14 @@
+{% autoescape off %}Resumen de Rumbo · leads llegados del {{ desde|date:"d/m/Y" }} al {{ hasta|date:"d/m/Y" }}
+
+Leads recibidos: {{ total.leads }}
+Llamados: {{ total.llamados }} ({{ total.tasa_llamados|default_if_none:"—" }} %)
+Contactados: {{ total.contactados }} (tasa de contacto {{ total.tasa_contacto|default_if_none:"—" }} %)
+Ventas: {{ total.ventas }}
+Asignado → primera llamada (mediana): {% if total.min_asignado_a_llamada_mediana is not None %}{{ total.min_asignado_a_llamada_mediana|floatformat:0 }} min{% else %}—{% endif %}
+
+Por asesor:
+{% for f in por_asesor %}  · {{ f.grupo }}: {{ f.leads }} leads, {{ f.llamados }} llamados, {{ f.ventas }} ventas
+{% empty %}  (sin leads)
+{% endfor %}
+El detalle por campaña y anuncio va en el archivo adjunto (se abre con Excel).
+{% endautoescape %}

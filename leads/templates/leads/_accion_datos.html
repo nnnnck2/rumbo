@@ -8,6 +8,7 @@
     <div class="row g-2">
       <div class="col-6">{% include "leads/_campo.html" with campo=datos_form.tipo_visa %}</div>
       <div class="col-6">{% include "leads/_campo.html" with campo=datos_form.pais_interes %}</div>
+      <div class="col-12">{% include "leads/_campo.html" with campo=datos_form.cita_en %}</div>
     </div>
     <datalist id="tipos-visa">{% for t in tipos_visa %}<option value="{{ t }}">{% endfor %}</datalist>
     <datalist id="paises">{% for p in paises %}<option value="{{ p }}">{% endfor %}</datalist>
@@ -16,7 +17,8 @@
   {% else %}
     <dl class="row small mb-0">
       <dt class="col-5 fw-normal text-body-secondary">Tipo de visa</dt><dd class="col-7">{{ lead.tipo_visa|default:"—" }}</dd>
-      <dt class="col-5 fw-normal text-body-secondary">País</dt><dd class="col-7 mb-0">{{ lead.pais_interes|default:"—" }}</dd>
+      <dt class="col-5 fw-normal text-body-secondary">País</dt><dd class="col-7">{{ lead.pais_interes|default:"—" }}</dd>
+      <dt class="col-5 fw-normal text-body-secondary">Cita</dt><dd class="col-7 mb-0">{{ cita|date:"D d/m H:i"|default:"—" }}</dd>
     </dl>
   {% endif %}
 </div>

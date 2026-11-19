@@ -114,6 +114,8 @@ def usuario_editar(request, pk):
         "activo": bool(perfil and perfil.activo and user.is_active),
         "numero_whatsapp": asesor.numero_whatsapp_id if asesor else None,
         "codigo_callflow": asesor.codigo_callflow if asesor else "",
+        "especialidad_paises": (asesor.preferencias or {}).get("paises", []) if asesor else [],
+        "especialidad_visas": (asesor.preferencias or {}).get("visas", []) if asesor else [],
     }
     form = UsuarioForm(request.POST or None, usuario=user, initial=inicial)
     if perfil and perfil.rol == "asesor":
@@ -127,6 +129,10 @@ def usuario_editar(request, pk):
         except ErrorNegocio as e:
             messages.error(request, e.mensaje)
         else:
+            asesor = Asesor.objects.filter(usuario_id=pk).first()
+            if asesor is not None:                                   # SCRUM-118
+                servicios.guardar_especialidades(asesor.pk, form.cleaned_data.get("especialidad_paises") or [],
+                                                 form.cleaned_data.get("especialidad_visas") or [])
             if datos["password"] and user.pk == request.user.pk:
                 update_session_auth_hash(request, user)
             seguridad.info("Usuario modificado · %s por usuario_id=%s (rol=%s activo=%s clave_cambiada=%s)",

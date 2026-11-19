@@ -365,6 +365,7 @@ class Notificacion(ModeloRumbo):
     url = models.TextField(null=True)
     clave = models.TextField(null=True)
     leida_en = models.DateTimeField(null=True)
+    push_en = models.DateTimeField(null=True)          # 019: ya se envió por push (SCRUM-122)
     creado_en = models.DateTimeField()
 
     class Meta(ModeloRumbo.Meta):

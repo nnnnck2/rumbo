@@ -497,3 +497,201 @@
     if (document.querySelector("[data-vista-previa]")) actualizar();
   });
 })();
+
+// SCRUM-124 · Deshacer el resultado de la llamada: se guarda a los 5 s, con un botón "Deshacer" hasta entonces.
+// Los intentos no se pueden editar en la base (son historial), así que la protección es antes de enviar.
+// Se escucha en `window` (fase de captura): corre antes que HTMX y que los demás scripts que miran el envío.
+(function () {
+  "use strict";
+  const ESPERA_S = 5;
+  let pendiente = null;
+
+  function caja() {
+    let c = document.getElementById("deshacer-resultado");
+    if (!c) {
+      c = document.createElement("div");
+      c.id = "deshacer-resultado";
+      c.className = "deshacer-resultado";
+      c.setAttribute("role", "status");
+      c.setAttribute("aria-live", "assertive");
+      c.innerHTML = '<span class="texto"></span><button type="button" class="btn btn-sm btn-light">Deshacer</button>' +
+                    '<span class="barra" aria-hidden="true"></span>';
+      document.body.appendChild(c);
+      c.querySelector("button").addEventListener("click", cancelar);
+    }
+    return c;
+  }
+  function cancelar() {
+    if (!pendiente) return;
+    clearInterval(pendiente.reloj);
+    pendiente = null;
+    const c = caja();
+    c.querySelector(".texto").textContent = "Listo, no se guardó nada.";
+    c.querySelector("button").hidden = true;
+    c.classList.remove("contando");
+    setTimeout(function () { c.classList.remove("visible"); }, 1800);
+  }
+  window.addEventListener("submit", function (ev) {
+    const form = ev.target;
+    if (form.id !== "form-intento") return;
+    if (form.dataset.confirmado === "1") { delete form.dataset.confirmado; return; }   // ya pasó la espera
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+    if (pendiente) return;                                                               // ya hay uno contando
+    const boton = ev.submitter;
+    const elegido = boton && boton.dataset.codigo ? boton : form.querySelector(".boton-resultado.elegido");
+    const nombre = elegido ? elegido.textContent.trim() : "el resultado";
+    let quedan = ESPERA_S;
+    const c = caja();
+    const texto = c.querySelector(".texto");
+    c.querySelector("button").hidden = false;
+    texto.textContent = "Guardando «" + nombre + "» en " + quedan + " s";
+    c.style.setProperty("--espera", ESPERA_S + "s");
+    c.classList.remove("contando"); void c.offsetWidth; c.classList.add("visible", "contando");
+    pendiente = { reloj: setInterval(function () {
+      quedan -= 1;
+      if (quedan > 0) { texto.textContent = "Guardando «" + nombre + "» en " + quedan + " s"; return; }
+      clearInterval(pendiente.reloj);
+      pendiente = null;
+      texto.textContent = "Guardando «" + nombre + "»…";
+      c.querySelector("button").hidden = true;
+      setTimeout(function () { c.classList.remove("visible", "contando"); }, 1200);
+      form.dataset.confirmado = "1";
+      if (form.requestSubmit) form.requestSubmit(boton && boton.form === form ? boton : undefined);
+      else form.submit();
+    }, 1000) };
+  }, true);
+  document.addEventListener("keydown", function (ev) { if (ev.key === "Escape" && pendiente) cancelar(); });
+})();
+
+// SCRUM-123 · Búsqueda global: Ctrl+K (o Cmd+K) y "/" abren el buscador; flechas y Enter eligen.
+(function () {
+  "use strict";
+  function abrir() {
+    const m = document.getElementById("modal-busqueda");
+    if (m && window.bootstrap) bootstrap.Modal.getOrCreateInstance(m).show();
+  }
+  document.addEventListener("keydown", function (ev) {
+    const escribiendo = ev.target.closest("input, textarea, select, [contenteditable]");
+    if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === "k") { ev.preventDefault(); abrir(); }
+    else if (ev.key === "/" && !escribiendo) { ev.preventDefault(); abrir(); }
+  });
+  document.addEventListener("click", function (ev) { if (ev.target.closest("[data-abrir-busqueda]")) abrir(); });
+  document.addEventListener("shown.bs.modal", function (ev) {
+    if (ev.target.id === "modal-busqueda") { const c = document.getElementById("campo-busqueda"); c.focus(); c.select(); }
+  });
+  document.addEventListener("keydown", function (ev) {
+    if (ev.target.id !== "campo-busqueda") return;
+    const opciones = Array.from(document.querySelectorAll("#resultados-busqueda [data-resultado]"));
+    if (!opciones.length) return;
+    let i = opciones.findIndex(function (o) { return o.classList.contains("activo"); });
+    if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
+      ev.preventDefault();
+      if (i >= 0) opciones[i].classList.remove("activo");
+      i = ev.key === "ArrowDown" ? Math.min(opciones.length - 1, i + 1) : Math.max(0, i - 1);
+      opciones[i].classList.add("activo");
+      opciones[i].scrollIntoView({ block: "nearest" });
+    } else if (ev.key === "Enter") {
+      ev.preventDefault();
+      location.href = opciones[Math.max(0, i)].href;
+    }
+  });
+})();
+
+// SCRUM-127 · Tema claro / oscuro / automático (se recuerda en este navegador).
+(function () {
+  "use strict";
+  const medio = window.matchMedia("(prefers-color-scheme: dark)");
+  function aplicar(tema) {
+    const oscuro = tema === "oscuro" || (tema === "auto" && medio.matches);
+    document.documentElement.setAttribute("data-bs-theme", oscuro ? "dark" : "light");
+    document.documentElement.dataset.tema = tema;
+    document.querySelectorAll("[data-tema]").forEach(function (b) {
+      if (b.tagName !== "BUTTON") return;
+      const activo = b.dataset.tema === tema;
+      b.classList.toggle("active", activo);
+      b.setAttribute("aria-pressed", activo ? "true" : "false");
+    });
+  }
+  function actual() { try { return localStorage.getItem("rumbo-tema") || "auto"; } catch (e) { return "auto"; } }
+  document.addEventListener("click", function (ev) {
+    const b = ev.target.closest("button[data-tema]");
+    if (!b) return;
+    try { localStorage.setItem("rumbo-tema", b.dataset.tema); } catch (e) {}
+    aplicar(b.dataset.tema);
+  });
+  medio.addEventListener("change", function () { if (actual() === "auto") aplicar("auto"); });
+  document.addEventListener("DOMContentLoaded", function () { aplicar(actual()); });
+})();
+
+// SCRUM-122 · App instalable y avisos push en este dispositivo.
+(function () {
+  "use strict";
+  if (!("serviceWorker" in navigator)) return;
+  const soportaPush = "PushManager" in window && "Notification" in window;
+
+  function claveBytes(base64) {
+    const relleno = "=".repeat((4 - base64.length % 4) % 4);
+    const crudo = atob((base64 + relleno).replace(/-/g, "+").replace(/_/g, "/"));
+    return Uint8Array.from(crudo, function (c) { return c.charCodeAt(0); });
+  }
+  function csrf() {
+    try { return JSON.parse(document.body.getAttribute("hx-headers"))["X-CSRFToken"]; } catch (e) { return ""; }
+  }
+  function enviar(datos) {
+    return fetch(document.body.dataset.pushUrl, { method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json", "X-CSRFToken": csrf() }, body: JSON.stringify(datos) });
+  }
+  function pintar(activo) {
+    document.querySelectorAll("[data-texto-push]").forEach(function (t) {
+      t.textContent = activo ? "Desactivar avisos en este dispositivo" : "Activar avisos en este dispositivo";
+    });
+  }
+  async function estado() {
+    const reg = await navigator.serviceWorker.getRegistration("/");
+    const sus = reg && soportaPush ? await reg.pushManager.getSubscription() : null;
+    pintar(!!sus);
+    return { reg: reg, sus: sus };
+  }
+  window.addEventListener("load", function () {
+    navigator.serviceWorker.register("/sw.js", { scope: "/" }).then(estado).catch(function () {});
+  });
+  document.addEventListener("click", async function (ev) {
+    if (!ev.target.closest("[data-activar-push]")) return;
+    const clave = document.body.dataset.pushClave;
+    if (!soportaPush || !clave) { alert("Este navegador no permite avisos push."); return; }
+    try {
+      const actual = await estado();
+      if (actual.sus) {
+        await enviar({ accion: "baja", endpoint: actual.sus.endpoint });
+        await actual.sus.unsubscribe();
+        pintar(false);
+        return;
+      }
+      if ((await Notification.requestPermission()) !== "granted") {
+        alert("Los avisos están bloqueados: actívelos en la configuración del sitio.");
+        return;
+      }
+      const reg = actual.reg || await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+      const sus = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: claveBytes(clave) });
+      const r = await enviar(sus.toJSON());
+      pintar(r.ok);
+      if (r.ok) new Notification("Rumbo", { body: "Listo: los avisos llegarán a este dispositivo aunque Rumbo esté cerrado." });
+    } catch (e) {
+      alert("No se pudieron activar los avisos en este dispositivo.");
+    }
+  });
+})();
+
+// SCRUM-114 / 117 · Respuestas rápidas: insertan el texto en la caja de WhatsApp de la ficha.
+document.addEventListener("click", function (ev) {
+  const b = ev.target.closest("[data-insertar]");
+  if (!b) return;
+  const caja = document.getElementById("texto-whatsapp");
+  if (!caja || caja.disabled) return;
+  ev.preventDefault();
+  caja.value = b.dataset.insertar;
+  caja.focus();
+  caja.setSelectionRange(caja.value.length, caja.value.length);
+  caja.scrollIntoView({ behavior: "smooth", block: "center" });
+});

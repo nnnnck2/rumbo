@@ -138,6 +138,30 @@ En **Leads → Más filtros**, **"Llegaron por varios anuncios"** muestra a los 
 
 ---
 
+## Más herramientas
+
+**Para el asesor**
+- **Responder por WhatsApp desde la ficha:** escriba en la caja de la conversación o toque una respuesta rápida. Sale por el número de la empresa y queda en la ficha. Solo se puede escribir texto si el cliente escribió en las últimas 24 h.
+- **Documentos:** en la ficha, toque cada documento para pasarlo de *falta* a *pedido* y a *recibido*. "Pedir lo que falta" prepara el mensaje de WhatsApp.
+- **Fecha de la cita:** en Datos del caso. El cliente recibe un recordatorio 24 h y 2 h antes, y la cita aparece en la **Agenda**.
+- **Prioridad alta:** "Llamar al siguiente" empieza por los clientes más calientes (llegaron por un anuncio, respondieron las preguntas, volvieron a escribir, tienen cita).
+- **Deshacer:** al tocar un resultado hay 5 segundos para tocar **Deshacer** antes de que se guarde.
+- **Buscar un cliente:** lupa de arriba o **Ctrl + K** (o la tecla **/**).
+- **Comisión del mes:** en Inicio, una estimación según la regla de la empresa. La oficial la calcula CALLFLOW.
+- **Avisos en el celular:** menú de usuario → **Activar avisos en este dispositivo**. En el celular, "Agregar a la pantalla de inicio" instala Rumbo como una app.
+- **Tema oscuro:** menú de usuario → Tema.
+
+**Para la supervisora**
+- **Métricas:** mapa de las mejores horas para contactar y "Para acompañar esta semana" (asesores muy por debajo del equipo).
+- **Agenda** de todo el equipo, con filtro por asesor.
+
+**Para el administrador**
+- **Datos personales (LOPDP):** registrar pedidos de clientes, ver el plazo de 15 días, responder y, si piden eliminación, anonimizar.
+- **Usuarios → asesor:** países y tipos de visa que domina (el reparto los prefiere).
+- **Configuración:** preguntas automáticas, recordatorio de citas, respuestas rápidas, documentos por visa, comisión estimada y destinatarios del reporte semanal de los lunes.
+
+---
+
 ## Sesión práctica (60 minutos)
 
 | Tiempo | Actividad |

@@ -142,6 +142,41 @@
     {% endif %}
   </section>
 
+{% if alertas_calidad %}
+  {# SCRUM-129 · Asesores muy por debajo del equipo (últimos 7 días). #}
+  <section class="tarjeta-rumbo alertas-calidad mb-3">
+    <h2 class="titulo-tarjeta"><i class="bi bi-clipboard-pulse" aria-hidden="true"></i> Para acompañar esta semana</h2>
+    <ul class="lista-simple">
+      {% for a in alertas_calidad %}
+      <li class="fila-equipo"><span class="flex-grow-1"><strong>{{ a.nombre }}</strong>
+        <span class="d-block small text-body-secondary">{{ a.llamadas }} llamadas · {{ a.motivos|join:" · " }}</span></span></li>
+      {% endfor %}
+    </ul>
+    <p class="small text-body-secondary mb-0 mt-2">Últimos 7 días, asesores con al menos 10 llamadas y menos del 60 % de la tasa del equipo.</p>
+  </section>
+  {% endif %}
+
+  {# SCRUM-128 · Mejores horas para contactar. #}
+  <section class="tarjeta-rumbo mb-3">
+    <h2 class="titulo-tarjeta">Mejores horas para contactar</h2>
+    <p class="small text-body-secondary">Porcentaje de llamadas en que se habló con el cliente, por día y hora. Más oscuro = mejor.
+      Las celdas con borde punteado tienen menos de 5 llamadas (poco confiables).</p>
+    <div class="table-responsive">
+      <table class="mapa-calor" aria-label="Tasa de contacto por día y hora">
+        <thead><tr><th scope="col"><span class="visually-hidden">Día</span></th>{% for h in horas_calor %}<th scope="col">{{ h }}h</th>{% endfor %}</tr></thead>
+        <tbody>
+        {% for fila in mapa_calor %}
+          <tr><th scope="row">{{ fila.dia }}</th>
+            {% for c in fila.celdas %}
+              <td class="{% if c.nivel is not None %}nivel-{{ c.nivel }}{% else %}sin-datos{% endif %}{% if c.poco %} poco{% endif %}"
+                  title="{{ fila.dia }} {{ c.hora }}:00 · {{ c.contactos }} de {{ c.llamadas }} llamada{{ c.llamadas|pluralize }}">{% if c.pct is not None %}{{ c.pct }}{% endif %}</td>
+            {% endfor %}</tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
   <section class="tarjeta-rumbo"><h2 class="titulo-tarjeta">Por asesor</h2>
   <div class="table-responsive">
     <table class="table align-middle tabla-apilable">

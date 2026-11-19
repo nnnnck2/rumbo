@@ -49,3 +49,19 @@ def liberar_cola():
     if total:
         logger.info("Leads repartidos desde la cola: %s", total)
     return total
+
+
+@shared_task(name="core.enviar_push")
+def enviar_push():
+    """SCRUM-122: notificaciones nuevas → push a los dispositivos suscritos."""
+    from . import push
+
+    return push.enviar_pendientes()
+
+
+@shared_task(name="core.enviar_reporte_semanal")
+def enviar_reporte_semanal():
+    """SCRUM-121: lunes 08:00, resumen de la semana pasada por correo."""
+    from . import reporte
+
+    return reporte.enviar()

@@ -1,0 +1,19 @@
+{# SCRUM-123 · Resultados de la búsqueda global (HTMX). #}
+{% if resultados %}
+  <ul class="resultados-busqueda" role="listbox" aria-label="Clientes encontrados">
+    {% for l in resultados %}
+      <li role="option"><a class="fila-enlace{% if forloop.first %} activo{% endif %}" href="{% url 'leads:ficha' l.pk %}" data-resultado>
+        <span class="avatar-lead" aria-hidden="true">{{ l.nombre_perfil|default:"?"|slice:":1"|upper }}</span>
+        <span class="flex-grow-1 lh-sm min-w-0">
+          <span class="d-block fw-semibold text-truncate">{{ l.nombre_perfil|default:"Sin nombre" }}</span>
+          <span class="small text-body-secondary">{{ l.telefono }} · {{ l.etapa.nombre }}{% if rumbo.es_supervisor and l.asesor %} · {{ l.asesor.usuario.nombre }}{% endif %}</span>
+        </span>
+        <i class="bi bi-arrow-return-left text-body-tertiary" aria-hidden="true"></i>
+      </a></li>
+    {% endfor %}
+  </ul>
+{% elif q|length >= 2 %}
+  <p class="small text-body-secondary px-3 py-3 mb-0">No hay clientes con «{{ q }}».</p>
+{% else %}
+  <p class="small text-body-secondary px-3 py-3 mb-0">Escriba al menos 2 letras del nombre o 3 números del teléfono.</p>
+{% endif %}

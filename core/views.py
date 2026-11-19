@@ -23,12 +23,15 @@ def _panel_asesor(ctx):
     abiertos = Lead.objects.filter(estado_asignacion=EstadoAsignacion.ASIGNADO, asesor_id=ctx.asesor_id)
     ya = abiertos.filter(proxima_accion_en__lte=ahora).select_related("etapa").order_by("proxima_accion_en")
     inicio_mes = _inicio_del_dia().replace(day=1)
+    from leads.operacion import comision_del_mes
     from leads.servicios import con_situacion, leer_configuracion, progreso_del_dia
 
     return {
         # SCRUM-97: lo hecho hoy frente a la meta diaria
         "metas": progreso_del_dia(ctx.asesor_id, ctx.usuario_id, leer_configuracion().get("metas_diarias"),
                                   _inicio_del_dia()),
+        # SCRUM-130: comisión estimada del mes
+        "comision": comision_del_mes(ctx.asesor_id, leer_configuracion().get("comision"), inicio_mes),
         "por_llamar_lista": con_situacion(ya[:6]),
         "por_llamar_total": ya.count(),
         "proximas": abiertos.filter(proxima_accion_en__gt=ahora).select_related("etapa").order_by("proxima_accion_en")[:5],
@@ -43,6 +46,7 @@ def _panel_supervision():
     """Resumen del día para supervisor y administrador."""
     from cuentas.servicios import asesores_con_carga
     from leads import servicios
+    from leads.operacion import alertas_calidad
     from leads.models import EstadoAsignacion, IntentoLlamada, Lead, Venta
 
     hoy = _inicio_del_dia()
@@ -58,6 +62,7 @@ def _panel_supervision():
         "en_cola": Lead.objects.filter(estado_asignacion=EstadoAsignacion.EN_COLA).count(),
         "llamadas_hoy": IntentoLlamada.objects.filter(creado_en__gte=hoy).count(),
         "ventas_hoy": Venta.objects.filter(anulada_en__isnull=True, cerrada_en__gte=hoy).count(),
+        "alertas_calidad": alertas_calidad(servicios.RESULTADOS_CONTACTO),          # SCRUM-129
     }
 
 
@@ -193,3 +198,52 @@ def notificaciones(request):
         "sin_leer": _mis_notificaciones().filter(leida_en__isnull=True).count(),
         "hoy": timezone.localdate(),
     })
+
+
+# ─────────────────────────────── SCRUM-122 · App instalable y push ───────────────────────────────
+
+@require_GET
+def service_worker(request):
+    """Se sirve en la raíz para que su alcance sea todo el sitio."""
+    from django.http import HttpResponse
+    from django.template.loader import render_to_string
+
+    respuesta = HttpResponse(render_to_string("core/sw.js"), content_type="application/javascript")
+    respuesta["Service-Worker-Allowed"] = "/"
+    respuesta["Cache-Control"] = "no-cache"
+    return respuesta
+
+
+@require_GET
+def manifest(request):
+    from django.templatetags.static import static
+
+    return JsonResponse({
+        "name": "Rumbo · Multivisa", "short_name": "Rumbo", "lang": "es", "start_url": "/", "scope": "/",
+        "display": "standalone", "background_color": "#f4f6fb", "theme_color": "#14254f",
+        "icons": [{"src": static("img/icono-192.png"), "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+                  {"src": static("img/icono-512.png"), "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}],
+    }, content_type="application/manifest+json")
+
+
+@require_POST
+@_con_rol_activo
+def push_suscribir(request):
+    """Guarda (o borra, con accion=baja) la suscripción push de este dispositivo."""
+    import json
+
+    from django.db import DatabaseError
+
+    try:
+        datos = json.loads(request.body or b"{}")
+        endpoint = datos["endpoint"]
+        with connection.cursor() as cursor:
+            if datos.get("accion") == "baja":
+                cursor.execute("SELECT rumbo.borrar_suscripcion_push(%s)", [endpoint])
+            else:
+                cursor.execute("SELECT rumbo.guardar_suscripcion_push(%s, %s, %s, %s)",
+                               [endpoint, datos["keys"]["p256dh"], datos["keys"]["auth"],
+                                request.headers.get("User-Agent", "")[:300]])
+    except (ValueError, KeyError, TypeError, DatabaseError):
+        return JsonResponse({"ok": False}, status=400)
+    return JsonResponse({"ok": True})

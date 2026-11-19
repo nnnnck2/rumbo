@@ -16,6 +16,9 @@ urlpatterns = [
     path("metricas/exportar/", views.exportar_metricas, name="exportar_metricas"),
     path("exportar/", views.exportar_leads, name="exportar_leads"),
     path("en-vivo/", views.en_vivo, name="en_vivo"),
+    path("buscar/", views.buscar, name="buscar"),
+    path("agenda/", views.agenda, name="agenda"),
+    path("datos-personales/", views.lopdp, name="lopdp"),
     path("alertas/contador/", views.alertas_contador, name="alertas_contador"),
     path("<int:pk>/", views.ficha, name="ficha"),
     path("<int:pk>/intento/", views.registrar_intento, name="registrar_intento"),
@@ -24,4 +27,6 @@ urlpatterns = [
     path("<int:pk>/datos/", views.guardar_datos, name="guardar_datos"),
     path("<int:pk>/nota/", views.agregar_nota, name="agregar_nota"),
     path("<int:pk>/reasignar/", views.reasignar, name="reasignar"),
+    path("<int:pk>/whatsapp/", views.responder_whatsapp, name="responder_whatsapp"),
+    path("<int:pk>/documento/", views.marcar_documento, name="marcar_documento"),
 ]

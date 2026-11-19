@@ -27,6 +27,11 @@ class UsuarioForm(Bootstrap, forms.Form):
                                              help_text="Solo asesores: número desde el que escribe a sus clientes.")
     codigo_callflow = forms.CharField(max_length=40, required=False, label="Código CALLFLOW",
                                       help_text="Solo asesores: código de empleado para comisiones.")
+    # SCRUM-118 · el reparto prefiere al especialista en el país o tipo de visa del cliente
+    especialidad_paises = forms.MultipleChoiceField(required=False, label="Países que domina",
+                                                    widget=forms.CheckboxSelectMultiple)
+    especialidad_visas = forms.MultipleChoiceField(required=False, label="Tipos de visa que domina",
+                                                   widget=forms.CheckboxSelectMultiple)
     password1 = forms.CharField(label="Contraseña", strip=False, required=False,
                                 widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}))
     password2 = forms.CharField(label="Repetir contraseña", strip=False, required=False,
@@ -36,6 +41,10 @@ class UsuarioForm(Bootstrap, forms.Form):
         """usuario=None → alta (contraseña obligatoria). Con usuario → edición (contraseña opcional)."""
         super().__init__(*args, **kwargs)
         self.usuario = usuario
+        from leads.forms import PAISES, TIPOS_VISA
+
+        self.fields["especialidad_paises"].choices = [(p, p) for p in PAISES]
+        self.fields["especialidad_visas"].choices = [(v, v) for v in TIPOS_VISA]
         self.fields["activo"].widget.attrs["class"] = "form-check-input"
         if usuario is not None:
             self.fields["username"].disabled = True

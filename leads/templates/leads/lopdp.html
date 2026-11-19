@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block titulo %}Datos personales{% endblock %}
+{% block contenido %}
+  <div class="encabezado-pagina">
+    <div>
+      <h1 class="titulo-pagina">Datos personales (LOPDP)</h1>
+      <p class="ayuda-pagina">Pedidos de clientes para ver, corregir, borrar u oponerse al uso de sus datos. Hay <strong>15 días</strong> para responder.</p>
+    </div>
+  </div>
+  {% include "leads/_mensajes.html" %}
+
+  <section class="tarjeta-rumbo mb-3">
+    <h2 class="titulo-tarjeta">Registrar una solicitud</h2>
+    <form method="post" class="row g-2 align-items-end">
+      {% csrf_token %}<input type="hidden" name="accion" value="registrar">
+      <div class="col-sm-6 col-lg-3">
+        <label class="form-label small mb-1" for="lo-tel">Teléfono del cliente</label>
+        <input id="lo-tel" name="telefono" class="form-control" inputmode="tel" placeholder="+593 99 123 4567" required>
+      </div>
+      <div class="col-sm-6 col-lg-2">
+        <label class="form-label small mb-1" for="lo-tipo">Pide</label>
+        <select id="lo-tipo" name="tipo" class="form-select">{% for v, n in tipos %}<option value="{{ v }}">{{ n }}</option>{% endfor %}</select>
+      </div>
+      <div class="col-sm-6 col-lg-2">
+        <label class="form-label small mb-1" for="lo-fecha">Recibida el</label>
+        <input id="lo-fecha" type="date" name="recibida_en" value="{{ hoy|date:'Y-m-d' }}" max="{{ hoy|date:'Y-m-d' }}" class="form-control" required>
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <label class="form-label small mb-1" for="lo-det">Detalle (opcional)</label>
+        <input id="lo-det" name="detalle" class="form-control" maxlength="2000" placeholder="Por dónde llegó, qué pide…">
+      </div>
+      <div class="col-lg-2 d-grid"><button class="btn btn-primary">Registrar</button></div>
+    </form>
+  </section>
+
+  <section class="tarjeta-rumbo">
+    <h2 class="titulo-tarjeta">Solicitudes {% if pendientes %}<span class="badge text-bg-warning">{{ pendientes }} pendiente{{ pendientes|pluralize }}</span>{% endif %}</h2>
+    {% if solicitudes %}
+    <div class="d-flex flex-column gap-2">
+      {% for s in solicitudes %}
+      <article class="solicitud-lopdp tono-{{ s.tono }}">
+        <div class="d-flex flex-wrap align-items-start gap-2">
+          <div class="flex-grow-1 min-w-0">
+            <div class="fw-semibold">{{ s.tipo_texto }} · {% if s.anonimizado_en %}<span class="text-body-secondary">cliente anonimizado</span>{% else %}<a href="{% url 'leads:ficha' s.lead_id %}">{{ s.nombre_perfil|default:s.telefono }}</a>{% endif %}</div>
+            <div class="small text-body-secondary">Recibida el {{ s.recibida_en|date:"d/m/Y" }}{% if s.detalle %} · {{ s.detalle }}{% endif %}</div>
+          </div>
+          {% if s.estado == "pendiente" %}
+            <span class="plazo-lopdp">{% if s.dias < 0 %}Vencida hace {{ s.dias|stringformat:"d"|slice:"1:" }} día{{ s.dias|pluralize }}{% elif s.dias == 0 %}Vence hoy{% else %}Quedan {{ s.dias }} día{{ s.dias|pluralize }}{% endif %}</span>
+          {% else %}
+            <span class="badge {% if s.estado == 'atendida' %}text-bg-success{% else %}text-bg-secondary{% endif %}">{{ s.estado|capfirst }} el {{ s.atendida_en|date:"d/m" }}</span>
+          {% endif %}
+        </div>
+        {% if s.estado == "pendiente" %}
+        <form method="post" class="row g-2 align-items-end mt-1">
+          {% csrf_token %}<input type="hidden" name="solicitud" value="{{ s.id }}">
+          <div class="col-md-8"><label class="visually-hidden" for="resp-{{ s.id }}">Qué se respondió</label>
+            <input id="resp-{{ s.id }}" name="respuesta" class="form-control form-control-sm" maxlength="2000" placeholder="Qué se le respondió al cliente" required></div>
+          <div class="col-6 col-md-2 d-grid"><button class="btn btn-sm btn-success" name="accion" value="atendida">Atendida</button></div>
+          <div class="col-6 col-md-2 d-grid"><button class="btn btn-sm btn-outline-secondary" name="accion" value="rechazada">Rechazar</button></div>
+        </form>
+        {% if s.tipo == "eliminacion" and not s.anonimizado_en %}
+        <details class="mt-2"><summary class="small text-danger">Anonimizar los datos de este cliente</summary>
+          <form method="post" class="d-flex flex-wrap gap-2 align-items-end mt-2">
+            {% csrf_token %}<input type="hidden" name="accion" value="anonimizar"><input type="hidden" name="lead" value="{{ s.lead_id }}">
+            <div><label class="form-label small mb-1" for="conf-{{ s.id }}">Se borran nombre, teléfono, datos y textos de los mensajes. <strong>No se puede deshacer.</strong> Escriba ANONIMIZAR:</label>
+              <input id="conf-{{ s.id }}" name="confirmar" class="form-control form-control-sm" autocomplete="off" required pattern="ANONIMIZAR"></div>
+            <button class="btn btn-sm btn-danger">Anonimizar</button>
+          </form>
+        </details>
+        {% endif %}
+        {% elif s.respuesta %}<p class="small mb-0 mt-1"><i class="bi bi-reply" aria-hidden="true"></i> {{ s.respuesta }}</p>{% endif %}
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+      <div class="estado-vacio"><i class="bi bi-shield-check" aria-hidden="true"></i><p class="mb-0">No hay solicitudes registradas.</p></div>
+    {% endif %}
+  </section>
+{% endblock %}

@@ -35,6 +35,7 @@ class MensajeEntrante:
     ocurrido_en: datetime
     payload: dict = field(default_factory=dict)
     referral: dict | None = None      # anuncio de origen (Click-to-WhatsApp), si lo hay
+    respuesta_id: str | None = None   # SCRUM-115: id del botón o de la opción de lista que tocó el cliente
 
 
 def a_e164(numero: str | None) -> str | None:
@@ -77,6 +78,16 @@ def _referral(mensaje: dict) -> dict | None:
     return limpio if (limpio.get("source_id") or limpio.get("source_url")) else None
 
 
+def _respuesta_id(mensaje: dict) -> str | None:
+    """Id de la opción elegida en un mensaje interactivo (lista o botón), p. ej. "bot:visa:Turismo"."""
+    if mensaje.get("type") != "interactive":
+        return None
+    contenido = mensaje.get("interactive") or {}
+    respuesta = contenido.get("list_reply") or contenido.get("button_reply") or {}
+    valor = respuesta.get("id")
+    return str(valor)[:200] if valor else None
+
+
 def _fecha(timestamp) -> datetime:
     try:
         return datetime.fromtimestamp(int(timestamp), tz=timezone.utc)
@@ -117,5 +128,6 @@ def extraer_mensajes(payload: dict) -> list[MensajeEntrante]:
                     ocurrido_en=_fecha(m.get("timestamp")),
                     payload={"mensaje": m, "metadata": metadata},
                     referral=_referral(m),
+                    respuesta_id=_respuesta_id(m),
                 ))
     return mensajes

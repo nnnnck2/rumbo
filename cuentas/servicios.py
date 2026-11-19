@@ -123,3 +123,8 @@ def actualizar_usuario(user, *, nombre, rol, activo, password=None, numero_whats
         if password:
             user.set_password(password)
         user.save()
+
+
+def guardar_especialidades(asesor_id, paises, visas):
+    """SCRUM-118 · Países y tipos de visa que domina el asesor (los usa el reparto). Solo admin (lo valida la base)."""
+    _sql("SELECT rumbo.guardar_especialidades(%s, %s, %s)", [asesor_id, list(paises), list(visas)])

@@ -12,6 +12,10 @@ urlpatterns = [
     path("notificaciones/leidas/", core_views.notificaciones_leidas, name="notificaciones_leidas"),
     path("notificaciones/<int:pk>/abrir/", core_views.notificacion_abrir, name="notificacion_abrir"),
     path("salud/", core_views.salud, name="salud"),
+    # SCRUM-122 · App instalable y notificaciones push
+    path("sw.js", core_views.service_worker, name="service_worker"),
+    path("manifest.webmanifest", core_views.manifest, name="manifest"),
+    path("push/suscribir/", core_views.push_suscribir, name="push_suscribir"),
     path("whatsapp/", include("whatsapp.urls")),
     path("leads/", include("leads.urls")),
     path("cuentas/", include("cuentas.urls")),

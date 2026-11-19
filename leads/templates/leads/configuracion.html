@@ -19,7 +19,8 @@
       <button type="button" class="pestana-config" role="tab" id="tab-reparto" aria-controls="panel-reparto" data-pestana="reparto"><i class="bi bi-shuffle" aria-hidden="true"></i> Reparto{% if "reparto" in pestanas_con_error %}<span class="punto-error" aria-label="con errores"></span>{% endif %}</button>
       <button type="button" class="pestana-config" role="tab" id="tab-whatsapp" aria-controls="panel-whatsapp" data-pestana="whatsapp"><i class="bi bi-whatsapp" aria-hidden="true"></i> WhatsApp{% if "whatsapp" in pestanas_con_error %}<span class="punto-error" aria-label="con errores"></span>{% endif %}</button>
       <button type="button" class="pestana-config" role="tab" id="tab-metas" aria-controls="panel-metas" data-pestana="metas"><i class="bi bi-bullseye" aria-hidden="true"></i> Metas{% if "metas" in pestanas_con_error %}<span class="punto-error" aria-label="con errores"></span>{% endif %}</button>
-      <button type="button" class="pestana-config" role="tab" id="tab-guiones" aria-controls="panel-guiones" data-pestana="guiones"><i class="bi bi-card-checklist" aria-hidden="true"></i> Guiones{% if "guiones" in pestanas_con_error %}<span class="punto-error" aria-label="con errores"></span>{% endif %}</button>
+      <button type="button" class="pestana-config" role="tab" id="tab-guiones" aria-controls="panel-guiones" data-pestana="guiones"><i class="bi bi-card-checklist" aria-hidden="true"></i> Guiones y documentos{% if "guiones" in pestanas_con_error %}<span class="punto-error" aria-label="con errores"></span>{% endif %}</button>
+      <button type="button" class="pestana-config" role="tab" id="tab-reportes" aria-controls="panel-reportes" data-pestana="reportes"><i class="bi bi-envelope" aria-hidden="true"></i> Reportes{% if "reportes" in pestanas_con_error %}<span class="punto-error" aria-label="con errores"></span>{% endif %}</button>
     </nav>
 
     <section class="panel-config tarjeta-rumbo" role="tabpanel" id="panel-horario" aria-labelledby="tab-horario" data-panel="horario">
@@ -101,6 +102,43 @@
           </div>
         </div>
       </div>
+
+      <div class="tarjeta-rumbo mt-3">
+        <h2 class="titulo-tarjeta">Preguntas antes de la llamada</h2>
+        <p class="small text-body-secondary">Después de la respuesta automática, el cliente elige su tipo de visa y país en una lista de WhatsApp.
+          Lo que responde aparece en la ficha. <strong>Pendiente de validar con el área.</strong></p>
+        <div class="form-check form-switch mb-3">{{ form.bot_activo }}
+          <label class="form-check-label" for="{{ form.bot_activo.id_for_label }}">{{ form.bot_activo.label }}</label></div>
+        <div class="row g-2">
+          <div class="col-md-4">{% include "leads/_campo.html" with campo=form.bot_texto_visa %}</div>
+          <div class="col-md-4">{% include "leads/_campo.html" with campo=form.bot_texto_pais %}</div>
+          <div class="col-md-4">{% include "leads/_campo.html" with campo=form.bot_texto_gracias %}</div>
+        </div>
+      </div>
+
+      <div class="tarjeta-rumbo mt-3">
+        <h2 class="titulo-tarjeta">Recordatorio de la cita</h2>
+        <div class="form-check form-switch mb-3">{{ form.rec_activo }}
+          <label class="form-check-label" for="{{ form.rec_activo.id_for_label }}">{{ form.rec_activo.label }}</label></div>
+        {% include "leads/_campo.html" with campo=form.rec_texto %}
+        <div class="row g-2">
+          <div class="col-sm-8">{% include "leads/_campo.html" with campo=form.rec_plantilla %}</div>
+          <div class="col-sm-4">{% include "leads/_campo.html" with campo=form.rec_idioma %}</div>
+        </div>
+      </div>
+
+      <div class="tarjeta-rumbo mt-3">
+        <h2 class="titulo-tarjeta">Respuestas rápidas del asesor</h2>
+        <p class="small text-body-secondary">Botones para responder por WhatsApp desde la ficha. {nombre}, {asesor}, {documentos} (lo que falta) y {cita} se completan solos.</p>
+        <div class="row g-3">
+          {% for titulo, texto in form.respuestas_rapidas %}
+          <div class="col-md-6"><div class="respuesta-config">
+            {% include "leads/_campo.html" with campo=titulo %}
+            {% include "leads/_campo.html" with campo=texto %}
+          </div></div>
+          {% endfor %}
+        </div>
+      </div>
     </section>
 
     <section class="panel-config tarjeta-rumbo" role="tabpanel" id="panel-metas" aria-labelledby="tab-metas" data-panel="metas">
@@ -110,6 +148,12 @@
         <div class="col-4">{% include "leads/_campo.html" with campo=form.meta_llamadas %}</div>
         <div class="col-4">{% include "leads/_campo.html" with campo=form.meta_citas %}</div>
         <div class="col-4">{% include "leads/_campo.html" with campo=form.meta_ventas %}</div>
+      </div>
+      <h2 class="titulo-tarjeta mt-4">Comisión estimada</h2>
+      <p class="small text-body-secondary">El asesor ve en su Inicio cuánto lleva vendido y una estimación de su comisión del mes.</p>
+      <div class="row g-2" style="max-width: 32rem">
+        <div class="col-7">{% include "leads/_campo.html" with campo=form.comision_tipo %}</div>
+        <div class="col-5">{% include "leads/_campo.html" with campo=form.comision_valor %}</div>
       </div>
     </section>
 
@@ -121,6 +165,20 @@
           <div class="col-md-6">{% include "leads/_campo.html" with campo=campo %}</div>
         {% endfor %}
       </div>
+      <h2 class="titulo-tarjeta mt-4">Documentos por tipo de visa</h2>
+      <p class="small text-body-secondary">La ficha muestra esta lista para marcar qué pidió y qué recibió. Un documento por línea.</p>
+      <div class="row g-3">
+        {% for campo in form.campos_documentos %}
+          <div class="col-md-6">{% include "leads/_campo.html" with campo=campo %}</div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="panel-config tarjeta-rumbo" role="tabpanel" id="panel-reportes" aria-labelledby="tab-reportes" data-panel="reportes">
+      <h2 class="titulo-tarjeta">Reporte semanal por correo</h2>
+      <p class="small text-body-secondary">Cada lunes a las 08:00 se envía el resumen de la semana anterior con el detalle en Excel.
+        Necesita el correo configurado en el servidor (EMAIL_HOST).</p>
+      <div style="max-width: 40rem">{% include "leads/_campo.html" with campo=form.reporte_destinatarios %}</div>
     </section>
 
     <div class="barra-guardar-config">

@@ -58,6 +58,18 @@
       </section>
     </div>
     <div class="col-lg-5 d-flex flex-column gap-3">
+      {% if comision %}
+      {# SCRUM-130 · Avance de comisiones del mes (estimado). #}
+      <section class="tarjeta-rumbo comision-mes">
+        <div class="d-flex align-items-baseline justify-content-between gap-2">
+          <h2 class="titulo-tarjeta mb-0">Comisión del mes</h2>
+          <span class="small text-body-secondary">estimada</span>
+        </div>
+        <div class="valor-comision">{{ comision.estimada|floatformat:2 }} <small>{{ comision.moneda }}</small></div>
+        <p class="small text-body-secondary mb-0">{{ comision.ventas }} venta{{ comision.ventas|pluralize }} · {{ comision.total|floatformat:2 }} {{ comision.moneda }} vendidos · {{ comision.regla }}.
+          La comisión oficial la calcula CALLFLOW.</p>
+      </section>
+      {% endif %}
       {% if metas %}
       {# SCRUM-97 · Meta del día #}
       <section class="tarjeta-rumbo meta-dia{% if meta_dia.cumplidas %} cumplida{% endif %}"{% if meta_dia.cumplidas %} data-celebrar="{% now 'Y-m-d' %}"{% endif %}>
@@ -114,6 +126,19 @@
       <span class="valor">{{ llamadas_hoy }}</span><span class="etiqueta">llamadas hoy · {{ ventas_hoy }} venta{{ ventas_hoy|pluralize }}</span></a></div>
   </div>
 
+{% if alertas_calidad %}
+  {# SCRUM-129 · Asesores muy por debajo del equipo (últimos 7 días). #}
+  <section class="tarjeta-rumbo alertas-calidad mb-3">
+    <h2 class="titulo-tarjeta"><i class="bi bi-clipboard-pulse" aria-hidden="true"></i> Para acompañar esta semana</h2>
+    <ul class="lista-simple">
+      {% for a in alertas_calidad %}
+      <li class="fila-equipo"><span class="flex-grow-1"><strong>{{ a.nombre }}</strong>
+        <span class="d-block small text-body-secondary">{{ a.llamadas }} llamadas · {{ a.motivos|join:" · " }}</span></span></li>
+      {% endfor %}
+    </ul>
+    <p class="small text-body-secondary mb-0 mt-2">Últimos 7 días, asesores con al menos 10 llamadas y menos del 60 % de la tasa del equipo.</p>
+  </section>
+  {% endif %}
   <div class="row g-3">
     <div class="col-lg-7">
       <section class="tarjeta-rumbo h-100">

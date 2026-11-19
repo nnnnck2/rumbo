@@ -47,3 +47,36 @@ def wamid(respuesta):
     """Id del mensaje enviado, o None si Meta no lo aceptó."""
     mensajes = respuesta.get("messages") or []
     return mensajes[0].get("id") if mensajes else None
+
+
+def cuerpo_plantilla_con_textos(destino, plantilla, idioma, textos):
+    """Plantilla con variables {{1}}, {{2}}… en el cuerpo (en el orden de `textos`)."""
+    return {"to": destino.lstrip("+"), "type": "template",
+            "template": {"name": plantilla, "language": {"code": idioma},
+                         "components": [{"type": "body",
+                                         "parameters": [{"type": "text", "text": str(t)[:1000]} for t in textos]}]}}
+
+
+def cuerpo_lista(destino, texto, boton, filas):
+    """Mensaje interactivo de lista (SCRUM-115). filas = [(id, titulo)], máx. 10; títulos de hasta 24 caracteres."""
+    return {"to": destino.lstrip("+"), "type": "interactive",
+            "interactive": {"type": "list", "body": {"text": texto[:1024]},
+                            "action": {"button": boton[:20],
+                                       "sections": [{"title": "Opciones",
+                                                     "rows": [{"id": i[:200], "title": t[:24]} for i, t in filas[:10]]}]}}}
+
+
+MENSAJES_ERROR = {
+    131047: "Pasaron más de 24 h desde el último mensaje del cliente: WhatsApp solo permite plantillas aprobadas.",
+    131026: "El número del cliente no puede recibir mensajes de WhatsApp.",
+    131051: "Tipo de mensaje no admitido.",
+    190: "El token de WhatsApp venció o no es válido.",
+    100: "Meta rechazó el mensaje (parámetro inválido).",
+    131056: "Demasiados mensajes seguidos a este cliente: espere un momento.",
+}
+
+
+def explicar_error(respuesta, status):
+    """Error de Meta en palabras simples, para mostrarlo al asesor."""
+    error = (respuesta or {}).get("error", {})
+    return MENSAJES_ERROR.get(error.get("code")) or f"Meta no aceptó el mensaje ({status}): {error.get('message') or 'sin detalle'}."

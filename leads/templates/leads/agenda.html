@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block titulo %}Agenda{% endblock %}
+{% block contenido %}
+  <div class="encabezado-pagina">
+    <div>
+      <h1 class="titulo-pagina">Agenda</h1>
+      <p class="ayuda-pagina">Llamadas programadas y citas de la semana del {{ lunes|date:"j \d\e F" }} al {{ domingo|date:"j \d\e F" }}.</p>
+    </div>
+    <div class="d-flex flex-wrap align-items-center gap-2">
+      {% if asesores %}
+      <form method="get" class="d-flex gap-2">
+        <input type="hidden" name="semana" value="{{ lunes|date:'Y-m-d' }}">
+        <label class="visually-hidden" for="ag-asesor">Asesor</label>
+        <select id="ag-asesor" name="asesor" class="form-select form-select-sm" onchange="this.form.submit()">
+          <option value="">Todo el equipo</option>
+          {% for a in asesores %}<option value="{{ a.pk }}" {% if asesor_id == a.pk %}selected{% endif %}>{{ a.usuario.nombre }}</option>{% endfor %}
+        </select>
+      </form>
+      {% endif %}
+      <div class="btn-group" role="group" aria-label="Cambiar de semana">
+        <a class="btn btn-sm btn-light border" href="?semana={{ anterior|date:'Y-m-d' }}{% if asesor_id and asesores %}&amp;asesor={{ asesor_id }}{% endif %}" aria-label="Semana anterior"><i class="bi bi-chevron-left" aria-hidden="true"></i></a>
+        <a class="btn btn-sm btn-light border" href="?{% if asesor_id and asesores %}asesor={{ asesor_id }}{% endif %}">Hoy</a>
+        <a class="btn btn-sm btn-light border" href="?semana={{ siguiente|date:'Y-m-d' }}{% if asesor_id and asesores %}&amp;asesor={{ asesor_id }}{% endif %}" aria-label="Semana siguiente"><i class="bi bi-chevron-right" aria-hidden="true"></i></a>
+      </div>
+    </div>
+  </div>
+
+  <div class="leyenda-agenda small mb-2"><span><i class="bi bi-telephone" aria-hidden="true"></i> Llamada programada</span>
+    <span><i class="bi bi-calendar-check" aria-hidden="true"></i> Cita del cliente</span> · {{ total }} en la semana</div>
+  <div class="agenda-semana">
+    {% for dia, eventos in dias.items %}
+    <section class="dia-agenda{% if dia == hoy %} hoy{% endif %}{% if dia < hoy %} pasado{% endif %}" aria-label="{{ dia|date:'l j' }}">
+      <h2 class="cabecera-dia"><span class="nombre-dia">{{ dia|date:"D" }}</span> <span class="numero-dia">{{ dia|date:"j" }}</span>
+        {% if dia == hoy %}<span class="badge text-bg-primary">Hoy</span>{% endif %}</h2>
+      {% for e in eventos %}
+        <a class="evento-agenda evento-{{ e.tipo }}" href="{% url 'leads:ficha' e.lead.pk %}">
+          <span class="hora-evento">{{ e.en|time:"H:i" }}</span>
+          <span class="min-w-0">
+            <span class="d-block fw-semibold text-truncate"><i class="bi bi-{% if e.tipo == 'cita' %}calendar-check{% else %}telephone{% endif %}" aria-hidden="true"></i> {{ e.lead.nombre_perfil|default:e.lead.telefono }}</span>
+            <span class="small text-body-secondary text-truncate d-block">{% if e.tipo == 'cita' %}Cita{% else %}Llamar{% endif %}{% if asesores and e.lead.asesor %} · {{ e.lead.asesor.usuario.nombre }}{% endif %}</span>
+          </span>
+        </a>
+      {% empty %}
+        <p class="sin-eventos">Sin nada agendado</p>
+      {% endfor %}
+    </section>
+    {% endfor %}
+  </div>
+{% endblock %}

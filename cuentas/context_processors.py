@@ -70,7 +70,10 @@ def rumbo(request):
         except DatabaseError:
             return None
 
-    return {"rumbo": SimpleLazyObject(_ctx), "mi_asesor": SimpleLazyObject(_asesor),
+    from django.conf import settings
+
+    return {"push_clave_publica": settings.WEBPUSH_VAPID_PUBLIC_KEY,                    # SCRUM-122
+            "rumbo": SimpleLazyObject(_ctx), "mi_asesor": SimpleLazyObject(_asesor),
             "meta_dia": SimpleLazyObject(_meta_dia),
             "por_llamar": SimpleLazyObject(_por_llamar),
             "notificaciones_sin_leer": SimpleLazyObject(_sin_leer),

@@ -33,13 +33,19 @@ def enviar_respuesta_automatica(self, lead_id, phone_number_id=None):
     """RF-04 · Respuesta al primer mensaje. Reintenta con espera creciente si Meta o la red fallan
     temporalmente (30 s, 1, 2, 4, 8 min); los errores definitivos (4xx) solo se registran."""
     try:
-        return respuesta_automatica.enviar(lead_id, phone_number_id)
+        resultado = respuesta_automatica.enviar(lead_id, phone_number_id)
     except respuesta_automatica.EnvioFallido as e:
         if e.reintentar and self.request.retries < self.max_retries:
             logger.warning("Respuesta automática al lead %s: %s · reintento %s", lead_id, e, self.request.retries + 1)
             raise self.retry(countdown=30 * 2 ** self.request.retries) from e
         logger.error("Respuesta automática al lead %s NO enviada: %s", lead_id, e)
         return f"fallido: {e}"
+    if resultado.startswith("enviado"):
+        try:                                          # SCRUM-115: si el bot está activo, empieza a preguntar
+            preguntar_bot.delay(lead_id, "visa")
+        except Exception:  # noqa: BLE001 — sin Redis: la respuesta ya salió, el bot no es crítico
+            logger.exception("No se pudo encolar el bot del lead %s", lead_id)
+    return resultado
 
 
 @shared_task(name="whatsapp.avisar_no_contesta", bind=True, max_retries=5)
@@ -63,3 +69,39 @@ def enviar_conversiones():
     from . import conversiones
 
     return conversiones.enviar_pendientes()
+
+
+@shared_task(name="whatsapp.preguntar_bot", bind=True, max_retries=3)
+def preguntar_bot(self, lead_id, paso="visa"):
+    """SCRUM-115: pregunta del bot (tipo de visa / destino) o agradecimiento."""
+    from . import bot
+
+    try:
+        return bot.preguntar(lead_id, paso)
+    except respuesta_automatica.EnvioFallido as e:
+        if e.reintentar and self.request.retries < self.max_retries:
+            raise self.retry(countdown=30 * 2 ** self.request.retries) from e
+        logger.error("Bot · pregunta %s al lead %s NO enviada: %s", paso, lead_id, e)
+        return f"fallido: {e}"
+
+
+@shared_task(name="whatsapp.respuesta_bot", bind=True, max_retries=3)
+def respuesta_bot(self, lead_id, respuesta_id):
+    """SCRUM-115: el cliente eligió una opción de la lista del bot."""
+    from . import bot
+
+    try:
+        return bot.procesar_respuesta(lead_id, respuesta_id)
+    except respuesta_automatica.EnvioFallido as e:
+        if e.reintentar and self.request.retries < self.max_retries:
+            raise self.retry(countdown=30 * 2 ** self.request.retries) from e
+        logger.error("Bot · respuesta del lead %s NO procesada: %s", lead_id, e)
+        return f"fallido: {e}"
+
+
+@shared_task(name="whatsapp.recordatorios_cita")
+def recordatorios_cita():
+    """SCRUM-116: recordatorios de cita 24 h y 2 h antes (cada 5 minutos)."""
+    from . import recordatorios
+
+    return recordatorios.enviar_pendientes()

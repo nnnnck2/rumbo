@@ -245,7 +245,7 @@ def categorizar_anuncio(anuncio_id, pais, nombre_campana=None):
     return _ejecutar("SELECT rumbo.categorizar_anuncio(%s, %s, %s)", [anuncio_id, pais, nombre_campana or None])
 
 
-def actualizar_datos_lead(lead_id, version, tipo_visa, pais_interes):
+def actualizar_datos_lead(lead_id, version, tipo_visa, pais_interes, cita_en=None):
     """Guarda tipo de visa y país en lead.datos (jsonb; la base genera las columnas tipo_visa y
     pais_interes para filtrar). Conserva el resto de datos. Bloqueo optimista por versión.
     Devuelve la nueva versión."""
@@ -253,11 +253,14 @@ def actualizar_datos_lead(lead_id, version, tipo_visa, pais_interes):
         with transaction.atomic(), connection.cursor() as cursor:
             cursor.execute(
                 """UPDATE rumbo.lead
-                   SET datos = (datos - 'tipo_visa' - 'pais_interes')
-                               || jsonb_strip_nulls(jsonb_build_object('tipo_visa', %s::text, 'pais_interes', %s::text))
+                   SET datos = (datos - 'tipo_visa' - 'pais_interes' - 'cita_en')
+                               || jsonb_strip_nulls(jsonb_build_object('tipo_visa', %s::text, 'pais_interes', %s::text,
+                                                                       'cita_en', %s::text))
                    WHERE id = %s AND version = %s
                    RETURNING version""",
-                [tipo_visa or None, pais_interes or None, lead_id, version],
+                # SCRUM-116: la cita se guarda en ISO con zona (la leen la agenda y los recordatorios)
+                [tipo_visa or None, pais_interes or None, timezone.localtime(cita_en).isoformat() if cita_en else None,
+                 lead_id, version],
             )
             fila = cursor.fetchone()
             if fila:
@@ -370,6 +373,9 @@ ORDER BY 1 NULLS FIRST
 """
 
 
+CONTEOS_METRICAS = {"leads", "llamados", "contactados", "ventas", "sin_respuesta_automatica", "en_cola"}
+
+
 def metricas_piloto(desde, hasta):
     """Indicadores del piloto (SCRUM-44) para los leads que llegaron entre desde y hasta.
     Devuelve {"total": {...}, "por_asesor": [...], "reasignaciones": {...}}. RLS: el supervisor
@@ -378,7 +384,9 @@ def metricas_piloto(desde, hasta):
     with connection.cursor() as cursor:
         cursor.execute(_SQL_METRICAS.format(grupo="NULL::text", union=""), params)
         cols = [c.name for c in cursor.description]
-        total = dict(zip(cols, cursor.fetchone()))
+        fila = cursor.fetchone()
+        # Sin leads en el período, GROUP BY no devuelve filas: totales en cero (antes la página fallaba).
+        total = dict(zip(cols, fila)) if fila else {c: (0 if c in CONTEOS_METRICAS else None) for c in cols}
         cursor.execute(_SQL_METRICAS.format(
             grupo="coalesce(u.nombre, 'Sin asesor')",
             union="LEFT JOIN rumbo.asesor a ON a.id = l.asesor_id LEFT JOIN rumbo.usuario u ON u.id = a.usuario_id"),

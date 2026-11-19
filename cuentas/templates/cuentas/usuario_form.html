@@ -26,6 +26,13 @@
       <div class="row g-3">
         <div class="col-md-6">{% include "leads/_campo.html" with campo=form.numero_whatsapp %}</div>
         <div class="col-md-6">{% include "leads/_campo.html" with campo=form.codigo_callflow %}</div>
+        {# SCRUM-118 · El reparto prefiere al especialista en el país o tipo de visa del cliente. #}
+        <div class="col-md-6"><div class="form-label small mb-1">{{ form.especialidad_paises.label }}</div>
+          <div class="opciones-especialidad">{% for o in form.especialidad_paises %}<label class="dia-semana">{{ o.tag }} <span>{{ o.choice_label }}</span></label>{% endfor %}</div></div>
+        <div class="col-md-6"><div class="form-label small mb-1">{{ form.especialidad_visas.label }}</div>
+          <div class="opciones-especialidad">{% for o in form.especialidad_visas %}<label class="dia-semana">{{ o.tag }} <span>{{ o.choice_label }}</span></label>{% endfor %}</div></div>
+        <p class="col-12 small text-body-secondary mb-0">Si un cliente ya tiene país o tipo de visa (por la campaña o las preguntas automáticas),
+          el reparto lo da primero a un especialista disponible. Sin especialidades, reparte por turno como siempre.</p>
       </div>
     </fieldset>
     <div class="col-md-6">{% include "leads/_campo.html" with campo=form.password1 %}</div>

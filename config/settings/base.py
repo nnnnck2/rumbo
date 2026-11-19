@@ -128,6 +128,19 @@ META_CAPI_TOKEN = env("META_CAPI_TOKEN", default="")          # Token de acceso 
 META_WABA_ID = env("META_WABA_ID", default="")                # Id de la cuenta de WhatsApp Business
 META_CAPI_TEST_CODE = env("META_CAPI_TEST_CODE", default="")  # Solo para probar en "Eventos de prueba"
 
+# ── Notificaciones push (SCRUM-122) · generar con: python manage.py generar_claves_push ──
+WEBPUSH_VAPID_PUBLIC_KEY = env("WEBPUSH_VAPID_PUBLIC_KEY", default="")
+WEBPUSH_VAPID_PRIVATE_KEY = env("WEBPUSH_VAPID_PRIVATE_KEY", default="")
+WEBPUSH_CONTACTO = env("WEBPUSH_CONTACTO", default="mailto:soporte@multivisa.ec")
+
+# ── Correo (SCRUM-121 · reporte semanal). Sin EMAIL_HOST no se envía nada. ──
+EMAIL_HOST = env("EMAIL_HOST", default="")
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Rumbo <no-responder@multivisa.ec>")
+
 # ── Celery + Redis (SCRUM-17) ─────────────────────────────────────────────────────
 REDIS_URL = env("REDIS_URL", default="redis://127.0.0.1:6379/0")
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", default=REDIS_URL)
@@ -155,6 +168,12 @@ CELERY_BEAT_SCHEDULE = {
     "liberar-cola": {"task": "core.liberar_cola", "schedule": crontab(minute="*/5")},
     # SCRUM-92: citas y ventas de leads de anuncios → Conversions API de Meta
     "enviar-conversiones": {"task": "whatsapp.enviar_conversiones", "schedule": 60.0},
+    # SCRUM-116: recordatorios de cita
+    "recordatorios-cita": {"task": "whatsapp.recordatorios_cita", "schedule": crontab(minute="*/5")},
+    # SCRUM-122: notificaciones push
+    "enviar-push": {"task": "core.enviar_push", "schedule": 20.0},
+    # SCRUM-121: reporte semanal (lunes 08:00, hora de Ecuador)
+    "reporte-semanal": {"task": "core.enviar_reporte_semanal", "schedule": crontab(minute=0, hour=8, day_of_week=1)},
 }
 
 # ── Logging ───────────────────────────────────────────────────────────────────────

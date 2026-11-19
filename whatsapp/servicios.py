@@ -75,6 +75,8 @@ def procesar_payload(cursor, payload: dict) -> list[tuple]:
         logger.info("Mensaje %s → lead %s (nuevo=%s, mensaje_nuevo=%s, asesor=%s)",
                     mensaje.wa_message_id, *resultado)
         lead_id, lead_nuevo, mensaje_nuevo, _ = resultado
+        if mensaje_nuevo and mensaje.respuesta_id and mensaje.respuesta_id.startswith("bot:"):
+            transaction.on_commit(partial(_encolar_bot, lead_id, mensaje.respuesta_id))     # SCRUM-115
         if lead_nuevo and mensaje_nuevo:
             # RF-04: se encola al confirmar; si este evento se deshace (savepoint), no se envía nada.
             transaction.on_commit(partial(_encolar_respuesta, lead_id, mensaje.phone_number_id))
@@ -88,6 +90,15 @@ def _encolar_respuesta(lead_id, phone_number_id):
         enviar_respuesta_automatica.delay(lead_id, phone_number_id)
     except Exception:  # noqa: BLE001 — sin Redis no hay worker; queda en el log para reenviar a mano
         logger.exception("No se pudo encolar la respuesta automática del lead %s", lead_id)
+
+
+def _encolar_bot(lead_id, respuesta_id):
+    from .tasks import respuesta_bot
+
+    try:
+        respuesta_bot.delay(lead_id, respuesta_id)
+    except Exception:  # noqa: BLE001
+        logger.exception("No se pudo encolar la respuesta del bot del lead %s", lead_id)
 
 
 def procesar_pendientes(lote: int = 10) -> dict:

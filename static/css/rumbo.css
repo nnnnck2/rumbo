@@ -955,3 +955,295 @@ a.dato-rapido:hover { border-color: #c5cce0; box-shadow: 0 2px 8px rgba(20, 37, 
 .pie-asesor-vivo { display: flex; align-items: center; justify-content: space-between; gap: .5rem; font-size: .8rem; color: #5d6785; }
 .pie-asesor-vivo .alerta-inactivo { font-size: .8rem; }
 .ventas-hoy { flex: none; padding: .05rem .5rem; border-radius: 999px; background: #e3f5ec; color: #136b48; font-weight: 700; }
+
+/* ─────────────── SCRUM-114 a 130 ─────────────── */
+/* SCRUM-114 · Responder por WhatsApp desde la ficha */
+.caja-whatsapp textarea { resize: vertical; min-height: 2.6rem; }
+.respuestas-rapidas { display: flex; flex-wrap: wrap; gap: .35rem; margin-bottom: .5rem; }
+.chip-respuesta { display: inline-flex; align-items: center; gap: .3rem; padding: .2rem .65rem; border-radius: 999px;
+  border: 1px solid #c8e8d8; background: #f0faf5; color: #136b48; font-size: .78rem; font-weight: 600; }
+.chip-respuesta:hover { background: #e3f5ec; border-color: #1f9d6b; }
+
+/* SCRUM-116 / 119 · Chips de cita y prioridad */
+.chip-prioridad { display: inline-flex; align-items: center; gap: .3rem; padding: .1rem .55rem; border-radius: 999px;
+  background: #fff0e6; color: #a5400b; font-size: .78rem; font-weight: 700; }
+.chip-prioridad.chip-mini { padding: 0 .45rem; font-size: .7rem; }
+.chip-cita { display: inline-flex; align-items: center; gap: .3rem; padding: .1rem .55rem; border-radius: 999px;
+  background: #e6effc; color: #1f4f9c; font-size: .78rem; font-weight: 600; }
+
+/* SCRUM-117 · Documentos */
+.lista-documentos { list-style: none; margin: 0 0 .5rem; padding: 0; display: grid; gap: .3rem; }
+.documento { display: flex; align-items: center; gap: .5rem; width: 100%; padding: .4rem .55rem; border-radius: 8px;
+  border: 1px solid #e3e7f0; background: transparent; font-size: .85rem; color: inherit; }
+.documento:hover { border-color: #c5cce0; }
+.documento .estado-doc { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
+.documento.estado-falta i, .documento.estado-falta .estado-doc { color: #8a93ad; }
+.documento.estado-pedido { border-color: #f3d38a; background: #fffaf0; }
+.documento.estado-pedido i, .documento.estado-pedido .estado-doc { color: #a06800; }
+.documento.estado-recibido { border-color: #b9e3cf; background: #f0faf5; }
+.documento.estado-recibido i, .documento.estado-recibido .estado-doc { color: #136b48; }
+
+/* SCRUM-123 · Búsqueda global */
+.boton-buscar { display: inline-flex; align-items: center; gap: .45rem; padding: .35rem .6rem; border-radius: 999px;
+  border: 1px solid #e3e7f0; background: #f7f8fc; color: #4a5576; font-size: .85rem; }
+.boton-buscar kbd, .modal-busqueda kbd { padding: .05rem .35rem; border-radius: 5px; background: #eef0f6; color: #5d6785;
+  font-size: .68rem; font-family: inherit; box-shadow: inset 0 -1px 0 #d6dbe8; }
+.modal-busqueda { max-width: 36rem; margin-top: 10vh; }
+.modal-busqueda .modal-header { padding: .6rem 1rem; }
+.modal-busqueda #campo-busqueda { font-size: 1.05rem; }
+.resultados-busqueda { list-style: none; margin: 0; padding: .35rem; }
+.resultados-busqueda .fila-enlace { border-radius: 10px; }
+.resultados-busqueda .fila-enlace.activo { background: #eef2fb; }
+
+/* SCRUM-124 · Deshacer */
+.deshacer-resultado { position: fixed; left: 50%; bottom: 1.25rem; z-index: 1090; display: flex; align-items: center; gap: .75rem;
+  min-width: min(22rem, calc(100vw - 2rem)); padding: .65rem .75rem .65rem 1rem; border-radius: 12px; overflow: hidden;
+  background: #14254f; color: #fff; box-shadow: 0 10px 30px rgba(10, 22, 51, .35);
+  transform: translate(-50%, 150%); transition: transform .2s ease; }
+.deshacer-resultado.visible { transform: translate(-50%, 0); }
+.deshacer-resultado .texto { flex: 1; font-size: .9rem; }
+.deshacer-resultado .barra { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: var(--rb-acento); transform-origin: left; }
+.deshacer-resultado.contando .barra { animation: cuenta var(--espera, 5s) linear forwards; }
+@keyframes cuenta { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@media (max-width: 991.98px) { .deshacer-resultado { bottom: 5rem; } }
+@media (prefers-reduced-motion: reduce) { .deshacer-resultado { transition: none; } .deshacer-resultado.contando .barra { animation: none; } }
+
+/* SCRUM-125 · Agenda */
+.leyenda-agenda { display: flex; flex-wrap: wrap; gap: 1rem; color: #5d6785; }
+.agenda-semana { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .6rem; }
+.dia-agenda { min-height: 10rem; padding: .6rem; border-radius: 14px; border: 1px solid #e3e7f0; background: #fff; }
+.dia-agenda.hoy { border-color: var(--rb-primario); box-shadow: inset 0 3px 0 var(--rb-acento); }
+.dia-agenda.pasado { opacity: .7; }
+.cabecera-dia { display: flex; align-items: baseline; gap: .35rem; margin: 0 0 .5rem; font-size: .85rem; font-weight: 600; }
+.cabecera-dia .nombre-dia { text-transform: capitalize; color: #6b7491; }
+.cabecera-dia .numero-dia { font-size: 1.2rem; font-weight: 700; }
+.evento-agenda { display: flex; gap: .45rem; margin-bottom: .35rem; padding: .4rem .5rem; border-radius: 8px; font-size: .8rem;
+  border-left: 4px solid #2f6fd1; background: #f3f7fe; color: inherit; text-decoration: none; }
+.evento-agenda:hover { filter: brightness(.97); }
+.evento-agenda.evento-cita { border-left-color: var(--rb-acento); background: #fdf0f7; }
+.hora-evento { flex: none; font-weight: 700; font-variant-numeric: tabular-nums; }
+.sin-eventos { margin: 0; color: #9aa3bb; font-size: .78rem; }
+@media (max-width: 991.98px) { .agenda-semana { grid-template-columns: 1fr; } .dia-agenda { min-height: 0; } .dia-agenda.pasado { display: none; } }
+
+/* SCRUM-126 · Línea de tiempo única */
+.linea-todo .icono-evento { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
+  background: #eef0f6; font-size: .75rem; margin-right: .25rem; }
+.linea-todo .evento-llamada .icono-evento { background: #e6effc; color: #1f4f9c; }
+.linea-todo .evento-mensaje .icono-evento { background: #e3f5ec; color: #136b48; }
+.linea-todo .evento-etapa .icono-evento { background: #f1e9fd; color: #5b2a9e; }
+.linea-todo .evento-nota .icono-evento { background: #fff1cc; color: #7a5300; }
+.linea-todo .detalle-evento { white-space: pre-line; overflow-wrap: anywhere; }
+
+/* SCRUM-120 · LOPDP */
+.solicitud-lopdp { padding: .75rem .9rem; border-radius: 12px; border: 1px solid #e3e7f0; border-left-width: 5px; }
+.solicitud-lopdp.tono-verde { border-left-color: #1f9d6b; } .solicitud-lopdp.tono-amarillo { border-left-color: #f0a500; }
+.solicitud-lopdp.tono-rojo { border-left-color: #d62839; background: #fffafa; } .solicitud-lopdp.tono-cerrada { opacity: .75; }
+.plazo-lopdp { flex: none; font-size: .78rem; font-weight: 700; }
+.tono-rojo .plazo-lopdp { color: #b4232f; } .tono-amarillo .plazo-lopdp { color: #7a5300; } .tono-verde .plazo-lopdp { color: #136b48; }
+
+/* SCRUM-128 · Mapa de calor */
+.mapa-calor { border-collapse: separate; border-spacing: 3px; font-size: .72rem; margin: 0 auto; }
+.mapa-calor th { padding: 0 .25rem; color: #6b7491; font-weight: 600; text-align: center; }
+.mapa-calor tbody th { text-align: right; }
+.mapa-calor td { width: 2.4rem; height: 1.9rem; border-radius: 6px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
+.mapa-calor td.sin-datos { background: #f4f6fb; }
+.mapa-calor td.nivel-0 { background: #fde8ea; color: #b4232f; }
+.mapa-calor td.nivel-1 { background: #fff1cc; color: #7a5300; }
+.mapa-calor td.nivel-2 { background: #d8efe3; color: #136b48; }
+.mapa-calor td.nivel-3 { background: #8fd3b2; color: #0c4a31; }
+.mapa-calor td.nivel-4 { background: #1f9d6b; color: #fff; }
+.mapa-calor td.poco { outline: 1px dashed #9aa3bb; outline-offset: -2px; font-weight: 500; }
+
+/* SCRUM-129 · Alertas de calidad · SCRUM-130 · Comisión */
+.alertas-calidad { border-left: 4px solid #f0a500; }
+.comision-mes .valor-comision { font-size: 1.8rem; font-weight: 800; line-height: 1.2; margin: .25rem 0; }
+.comision-mes .valor-comision small { font-size: .9rem; font-weight: 600; color: #6b7491; }
+.opciones-especialidad { display: flex; flex-wrap: wrap; gap: .35rem; }
+
+/* ─────────────── En vivo · cifras alineadas ─────────────── */
+/* El número va arriba y todos los números quedan en la misma línea, aunque la etiqueta ocupe dos renglones. */
+.cifras-asesor > div { display: flex; flex-direction: column; justify-content: flex-start; align-items: center; }
+.cifras-asesor dd { order: -1; min-height: 1.55rem; display: flex; align-items: center; font-variant-numeric: tabular-nums; }
+.cifras-asesor dt { min-height: 1.5em; display: flex; align-items: flex-start; justify-content: center; }
+
+/* ─────────────── SCRUM-127 · Tema oscuro ───────────────
+   Paleta propia (no solo invertir): fondo azul noche de la marca, superficies un poco más claras,
+   etiquetas de color como tintes translúcidos con texto claro (contraste AA sobre la superficie). */
+[data-bs-theme="dark"] {
+  color-scheme: dark;
+  --rb-fondo: #0c1120;
+  --rb-superficie: #141b2d;
+  --rb-superficie-2: #1a2236;
+  --rb-superficie-3: #222b42;
+  --rb-borde: #283149;
+  --rb-borde-fuerte: #36405c;
+  --rb-texto: #e7eaf3;
+  --rb-texto-suave: #a3adc4;
+  --rb-texto-tenue: #7b86a1;
+  --rb-primario: #a8bdf4;              /* texto/enlaces "de marca" en oscuro */
+  --rb-primario-fondo: #3d5fbf;        /* fondos de botones y elementos activos */
+  --rb-acento: #ff3d9c;
+  --rb-acento-oscuro: #e4097f;
+  --rb-acento-suave: rgba(255, 61, 156, .16);
+  --rb-foco: rgba(168, 189, 244, .35);
+  /* tintes */
+  --t-verde-bg: rgba(46, 196, 138, .16);  --t-verde: #7ee2b8;
+  --t-amarillo-bg: rgba(245, 180, 40, .16); --t-amarillo: #f6cf72;
+  --t-rojo-bg: rgba(255, 99, 117, .16);   --t-rojo: #ff97a2;
+  --t-azul-bg: rgba(110, 155, 245, .17);  --t-azul: #a4c2fb;
+  --t-morado-bg: rgba(170, 125, 245, .18); --t-morado: #cdb0fb;
+  --t-gris-bg: rgba(160, 170, 195, .14);  --t-gris: #c0c7d8;
+  --t-naranja-bg: rgba(255, 140, 70, .16); --t-naranja: #ffb37e;
+  --bs-body-bg: var(--rb-fondo);
+  --bs-body-color: var(--rb-texto);
+  --bs-secondary-color: var(--rb-texto-suave);
+  --bs-tertiary-color: var(--rb-texto-tenue);
+  --bs-border-color: var(--rb-borde);
+  --bs-link-color: var(--rb-primario); --bs-link-color-rgb: 168, 189, 244;
+  --bs-link-hover-color: #cfdcfb; --bs-link-hover-color-rgb: 207, 220, 251;
+  --bs-tertiary-bg: var(--rb-superficie-2);
+  --bs-secondary-bg: var(--rb-superficie-3);
+}
+
+/* Base y estructura */
+[data-bs-theme="dark"] body:has(.barra-superior) { background: var(--rb-fondo); color: var(--rb-texto); }
+[data-bs-theme="dark"] .barra-superior { background: var(--rb-superficie); border-color: var(--rb-borde); }
+[data-bs-theme="dark"] .menu-lateral { --bs-offcanvas-bg: #0f1527; background: #0f1527 !important; border-right: 1px solid var(--rb-borde); }
+[data-bs-theme="dark"] :is(.marca-barra, .marca-barra:hover) { color: var(--rb-texto); }
+[data-bs-theme="dark"] img.logo-barra { background: #fff; border-radius: 8px; padding: 2px; }
+[data-bs-theme="dark"] .btn-icono { color: var(--rb-texto-suave); }
+[data-bs-theme="dark"] :is(.btn-icono:hover, .btn-icono:focus-visible) { background: var(--rb-superficie-3); color: var(--rb-texto); }
+[data-bs-theme="dark"] .boton-usuario { color: var(--rb-texto); }
+
+/* Superficies */
+[data-bs-theme="dark"] :is(.tarjeta-rumbo, .dato-rapido, .tarjeta-tabla, .tarjeta-filtros, .columna-tablero, .tarjeta-tablero,
+  .aviso-flotante, .dia-agenda, .barra-contacto-fija, .modal-content, .dropdown-menu, .solicitud-lopdp, .opcion-estado,
+  .boton-resultado, .burbuja-cliente, .boton-estado, .pasos-recorrido li, .dia-semana, .pestana, .pestana-config,
+  .boton-buscar, .documento, .salto-tablero) {
+  background-color: var(--rb-superficie); border-color: var(--rb-borde); color: var(--rb-texto);
+}
+[data-bs-theme="dark"] :is(.tarjeta-rumbo, .dato-rapido, .tarjeta-tabla) { box-shadow: 0 1px 0 rgba(255, 255, 255, .02), 0 2px 8px rgba(0, 0, 0, .25); }
+[data-bs-theme="dark"] :is(.chat-lead, .panel-extra, .barra-lote, .dia-notificaciones, .vista-previa-wa, .columna-tablero.fuera,
+  .evento-agenda, .mapa-calor td.sin-datos, .recordatorio-guion) { background-color: var(--rb-superficie-2); border-color: var(--rb-borde); }
+[data-bs-theme="dark"] :is(.fila-enlace:hover, .notificacion:hover, .boton-estado:hover, .pestana:hover, .pestana-config:hover,
+  .resultados-busqueda .fila-enlace.activo, a.dato-rapido:hover, .documento:hover) { background-color: var(--rb-superficie-3); border-color: var(--rb-borde-fuerte); color: var(--rb-texto); }
+[data-bs-theme="dark"] .notificacion.no-leida { background-color: rgba(110, 155, 245, .08); }
+
+/* Bordes y separadores */
+[data-bs-theme="dark"] :is(.lista-simple > li, .linea-tiempo li, .gestion-lead .bloque-gestion, .recorrido, .pasos-ayuda li,
+  .notificacion, .cifras-asesor, .cifras-asesor > div + div, .tabla-apilable tr, .tabla-leads tr.fila-lead,
+  .barra-superior, hr) { border-color: var(--rb-borde) !important; }
+
+/* Texto */
+[data-bs-theme="dark"] :is(.titulo-pagina, .titulo-tarjeta, .titulo-bloque, .dato-rapido .valor, .nombre-lead, .nombre-asesor-vivo,
+  .cifras-asesor dd, .cifras-meta dd, .valor-comision, .numero-dia, .llamada-pendiente, .barras-grafico .barra b, h1, h2, h3) { color: var(--rb-texto); }
+[data-bs-theme="dark"] .nombre-lead:hover { color: var(--rb-acento); }
+[data-bs-theme="dark"] :is(.ayuda-pagina, .dato-rapido .etiqueta, .cifras-asesor dt, .cifras-meta dt, .estado-asesor-vivo, .pie-asesor-vivo,
+  .leyenda-embudo, .leyenda-agenda, .nombre-dia, .mapa-calor th, .hora-burbuja, .contador-wa, .titulo-vista-previa,
+  .enlace-volver, .campo-buscar > i, .linea-tiempo .fecha, .tabla-embudo .pct, .entradas-anuncios summary, .sin-eventos) { color: var(--rb-texto-suave); }
+[data-bs-theme="dark"] .dato-rapido .valor small { color: var(--rb-texto-tenue); }
+
+/* Tabla de leads */
+[data-bs-theme="dark"] .table { --bs-table-bg: transparent; --bs-table-color: var(--rb-texto); --bs-table-border-color: var(--rb-borde);
+  --bs-table-striped-bg: rgba(255, 255, 255, .02); --bs-table-hover-bg: var(--rb-superficie-2); --bs-table-hover-color: var(--rb-texto); }
+[data-bs-theme="dark"] .tabla-leads { --bs-table-hover-bg: var(--rb-superficie-2); }
+[data-bs-theme="dark"] .tabla-leads thead th { background: var(--rb-superficie-2); color: var(--rb-texto-tenue); border-color: var(--rb-borde); }
+[data-bs-theme="dark"] .tabla-leads td { border-color: var(--rb-borde); }
+[data-bs-theme="dark"] .tabla-leads tr.fila-marcada > td { background: rgba(110, 155, 245, .12); }
+[data-bs-theme="dark"] .tabla-embudo .fila-campana :is(th, td) { background: var(--rb-superficie-2); }
+
+/* Pestañas, contadores y botones */
+[data-bs-theme="dark"] .cuenta { background: var(--rb-superficie-3); color: var(--rb-texto-suave); }
+[data-bs-theme="dark"] :is(.pestana.activa, .pestana-config.activa, .pasos-recorrido li.actual) { background: var(--rb-primario-fondo); border-color: var(--rb-primario-fondo); color: #fff; }
+[data-bs-theme="dark"] .pestana.urgente:not(.activa) { border-color: var(--rb-acento); color: #ff8cc4; }
+[data-bs-theme="dark"] .pestanas-historial { --bs-nav-pills-link-active-bg: var(--rb-primario-fondo); --bs-nav-link-color: var(--rb-texto-suave); --bs-nav-link-hover-color: var(--rb-texto); }
+[data-bs-theme="dark"] .btn-primary { --bs-btn-bg: var(--rb-primario-fondo); --bs-btn-border-color: var(--rb-primario-fondo); --bs-btn-color: #fff;
+  --bs-btn-hover-bg: #4b6dcc; --bs-btn-hover-border-color: #4b6dcc; --bs-btn-active-bg: #3353ab; --bs-btn-active-border-color: #3353ab;
+  --bs-btn-disabled-bg: var(--rb-primario-fondo); --bs-btn-disabled-border-color: var(--rb-primario-fondo); }
+[data-bs-theme="dark"] .btn-outline-primary { --bs-btn-color: var(--rb-primario); --bs-btn-border-color: #4a5e95;
+  --bs-btn-hover-bg: var(--rb-primario-fondo); --bs-btn-hover-border-color: var(--rb-primario-fondo); --bs-btn-hover-color: #fff; }
+[data-bs-theme="dark"] .btn-light { --bs-btn-bg: var(--rb-superficie-2); --bs-btn-border-color: var(--rb-borde); --bs-btn-color: var(--rb-texto);
+  --bs-btn-hover-bg: var(--rb-superficie-3); --bs-btn-hover-border-color: var(--rb-borde-fuerte); --bs-btn-hover-color: #fff; }
+[data-bs-theme="dark"] .btn-acento { --bs-btn-bg: #d1087a; --bs-btn-border-color: #d1087a; --bs-btn-hover-bg: #e4097f; --bs-btn-hover-border-color: #e4097f; }
+[data-bs-theme="dark"] .barra-ronda { background: var(--rb-primario-fondo); }
+[data-bs-theme="dark"] .boton-buscar kbd, [data-bs-theme="dark"] .modal-busqueda kbd { background: var(--rb-superficie-3); color: var(--rb-texto-suave); box-shadow: none; }
+
+/* Formularios */
+[data-bs-theme="dark"] :is(.form-control, .form-select) { background-color: var(--rb-superficie-2); border-color: var(--rb-borde-fuerte); color: var(--rb-texto); }
+[data-bs-theme="dark"] :is(.form-control, .form-select):focus { border-color: var(--rb-primario); box-shadow: 0 0 0 .2rem var(--rb-foco); }
+[data-bs-theme="dark"] .form-control::placeholder { color: var(--rb-texto-tenue); }
+[data-bs-theme="dark"] .form-control:disabled { background-color: var(--rb-superficie); color: var(--rb-texto-tenue); }
+
+/* Etiquetas de color → tintes
+   (con html[…] para ganar en especificidad a los grupos :is() de arriba, que incluyen selectores con elemento) */
+html[data-bs-theme="dark"] :is(.etiqueta-etapa, .chip-cita, .situacion-azul, .icono-notificacion.tono-azul, .linea-todo .evento-llamada .icono-evento) { background: var(--t-azul-bg); color: var(--t-azul); }
+html[data-bs-theme="dark"] :is(.situacion-verde, .icono-notificacion.tono-verde, .chip-respuesta, .chip-destacado.mejor, .mensaje-celebracion,
+  .linea-todo .evento-mensaje .icono-evento, .ventas-hoy) { background: var(--t-verde-bg); color: var(--t-verde); border-color: rgba(46, 196, 138, .3); }
+html[data-bs-theme="dark"] :is(.situacion-amarillo, .situacion-cola, .icono-notificacion.tono-amarillo, .minutos-atraso, .aviso-hora.tono-ambar,
+  .linea-todo .evento-nota .icono-evento) { background: var(--t-amarillo-bg); color: var(--t-amarillo); }
+html[data-bs-theme="dark"] :is(.situacion-rojo, .llamada-vencida, .minutos-atraso.grave, .icono-notificacion.tono-rojo, .aviso-hora.tono-rojo,
+  .chip-destacado.peor) { background: var(--t-rojo-bg); color: var(--t-rojo); }
+html[data-bs-theme="dark"] :is(.origen-anuncio, .chip-reabierto, .icono-notificacion.tono-morado, .linea-todo .evento-etapa .icono-evento) { background: var(--t-morado-bg); color: var(--t-morado); }
+html[data-bs-theme="dark"] :is(.situacion-pausa, .situacion-gris, .situacion-cerrado, .icono-notificacion.tono-gris, .linea-todo .icono-evento) { background: var(--t-gris-bg); color: var(--t-gris); }
+html[data-bs-theme="dark"] .chip-prioridad { background: var(--t-naranja-bg); color: var(--t-naranja); }
+html[data-bs-theme="dark"] .avatar-lead { background: var(--rb-acento-suave); color: #ff8cc4; }
+html[data-bs-theme="dark"] .hora-cliente.tono-rojo { color: var(--t-rojo); }
+html[data-bs-theme="dark"] .hora-cliente.tono-ambar { color: var(--t-amarillo); }
+html[data-bs-theme="dark"] :is(.cifras-asesor .destacada dd, .tarjeta-asesor-vivo.con-pendientes .cifras-asesor .destacada dd, .alerta-inactivo, .cifras-meta .con-error dd) { color: var(--t-rojo); }
+
+/* Avisos y alertas */
+html[data-bs-theme="dark"] .aviso-llamada { background: var(--t-amarillo-bg); border-color: rgba(245, 180, 40, .35); color: var(--t-amarillo); }
+html[data-bs-theme="dark"] .dato-alerta { background: var(--t-rojo-bg); border-color: rgba(255, 99, 117, .35); }
+html[data-bs-theme="dark"] .dato-alerta .valor { color: var(--t-rojo); }
+html[data-bs-theme="dark"] .tarjeta-asesor-vivo.inactivo { background: linear-gradient(var(--t-rojo-bg), var(--t-rojo-bg)), var(--rb-superficie); border-color: rgba(255, 99, 117, .35); border-left-color: #ff6375; }
+html[data-bs-theme="dark"] .solicitud-lopdp.tono-rojo { background: linear-gradient(var(--t-rojo-bg), var(--t-rojo-bg)), var(--rb-superficie); }
+html[data-bs-theme="dark"] .tono-rojo .plazo-lopdp { color: var(--t-rojo); }
+html[data-bs-theme="dark"] .tono-amarillo .plazo-lopdp { color: var(--t-amarillo); }
+html[data-bs-theme="dark"] .tono-verde .plazo-lopdp { color: var(--t-verde); }
+html[data-bs-theme="dark"] .alert-danger { --bs-alert-bg: var(--t-rojo-bg); --bs-alert-color: var(--t-rojo); --bs-alert-border-color: rgba(255, 99, 117, .35); }
+html[data-bs-theme="dark"] .alert-success { --bs-alert-bg: var(--t-verde-bg); --bs-alert-color: var(--t-verde); --bs-alert-border-color: rgba(46, 196, 138, .35); }
+html[data-bs-theme="dark"] .alert-warning { --bs-alert-bg: var(--t-amarillo-bg); --bs-alert-color: var(--t-amarillo); --bs-alert-border-color: rgba(245, 180, 40, .35); }
+html[data-bs-theme="dark"] .alert-info { --bs-alert-bg: var(--t-azul-bg); --bs-alert-color: var(--t-azul); --bs-alert-border-color: rgba(110, 155, 245, .35); }
+
+/* Ficha: conversación, notas, documentos */
+html[data-bs-theme="dark"] .burbuja-multivisa { background: #17392e; color: #d8f2e6; }
+html[data-bs-theme="dark"] .burbuja.burbuja-automatica { background: var(--rb-superficie-3); color: var(--rb-texto-suave); border-color: var(--rb-borde-fuerte); }
+html[data-bs-theme="dark"] .lista-notas li { background: rgba(245, 180, 40, .1); border-color: rgba(245, 180, 40, .25); color: #f1dfb0; }
+html[data-bs-theme="dark"] .documento.estado-pedido { background: var(--t-amarillo-bg); border-color: rgba(245, 180, 40, .35); }
+html[data-bs-theme="dark"] .documento.estado-pedido :is(i, .estado-doc) { color: var(--t-amarillo); }
+html[data-bs-theme="dark"] .documento.estado-recibido { background: var(--t-verde-bg); border-color: rgba(46, 196, 138, .35); }
+html[data-bs-theme="dark"] .documento.estado-recibido :is(i, .estado-doc) { color: var(--t-verde); }
+html[data-bs-theme="dark"] .documento.estado-falta :is(i, .estado-doc) { color: var(--rb-texto-tenue); }
+
+/* Barras y gráficos */
+html[data-bs-theme="dark"] :is(.barra-plazo, .barra-embudo) { background-color: var(--rb-superficie-3); }
+html[data-bs-theme="dark"] .relleno-meta { background: var(--rb-primario-fondo); }
+html[data-bs-theme="dark"] .tramo-leads { background: #2f3a58; }
+html[data-bs-theme="dark"] .tramo-contacto { background: #3f5a99; }
+html[data-bs-theme="dark"] .tramo-cita { background: #6c8fe0; }
+html[data-bs-theme="dark"] .mapa-calor td.nivel-0 { background: var(--t-rojo-bg); color: var(--t-rojo); }
+html[data-bs-theme="dark"] .mapa-calor td.nivel-1 { background: var(--t-amarillo-bg); color: var(--t-amarillo); }
+html[data-bs-theme="dark"] .mapa-calor td.nivel-2 { background: rgba(46, 196, 138, .2); color: #9fe9c8; }
+html[data-bs-theme="dark"] .mapa-calor td.nivel-3 { background: rgba(46, 196, 138, .42); color: #e6fbf1; }
+html[data-bs-theme="dark"] .mapa-calor td.nivel-4 { background: #1f9d6b; color: #fff; }
+
+/* Agenda, WhatsApp de ejemplo y configuración */
+html[data-bs-theme="dark"] .evento-agenda { background: var(--t-azul-bg); }
+html[data-bs-theme="dark"] .evento-agenda.evento-cita { background: var(--rb-acento-suave); }
+html[data-bs-theme="dark"] .dia-agenda.hoy { border-color: var(--rb-primario-fondo); }
+html[data-bs-theme="dark"] .vista-previa-wa { background: #0b141a; }
+html[data-bs-theme="dark"] .burbuja-wa { background: #202c33; color: #e9edef; }
+html[data-bs-theme="dark"] .titulo-vista-previa { color: #8696a0; }
+html[data-bs-theme="dark"] .dia-semana:has(input:checked) { background: rgba(110, 155, 245, .14); border-color: var(--rb-primario-fondo); }
+html[data-bs-theme="dark"] .barra-guardar-config { background: linear-gradient(to top, var(--rb-fondo) 70%, transparent); }
+html[data-bs-theme="dark"] .deshacer-resultado { background: var(--rb-superficie-3); border: 1px solid var(--rb-borde-fuerte); }
+html[data-bs-theme="dark"] .estado-meta.desconectado { border-left-color: #f5b428; }
+
+/* Ficha en oscuro: separador del resumen, valores en texto normal y marcas del recorrido */
+html[data-bs-theme="dark"] .resumen-lead { border-color: var(--rb-borde) !important; }
+html[data-bs-theme="dark"] .resumen-lead dt { color: var(--rb-texto-tenue); }
+html[data-bs-theme="dark"] .resumen-lead dd { color: var(--rb-texto); }
+html[data-bs-theme="dark"] .pasos-recorrido .marca { background: var(--rb-superficie-3); color: var(--rb-texto-suave); }
+html[data-bs-theme="dark"] .pasos-recorrido li.actual .marca { background: rgba(255, 255, 255, .2); color: #fff; }
+html[data-bs-theme="dark"] .pasos-recorrido li.pasado { color: var(--rb-texto-tenue); text-decoration-color: var(--rb-borde-fuerte); }
+html[data-bs-theme="dark"] .pasos-recorrido li.vuelve { background: none; color: var(--rb-texto-tenue); }

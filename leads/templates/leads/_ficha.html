@@ -37,6 +37,8 @@
         <span class="etiqueta-etapa">{{ lead.etapa.nombre }}</span>
         <span class="estado-lead estado-lead-{{ lead.estado_asignacion }}">{{ lead.get_estado_asignacion_display }}{% if lead.asesor %} · {{ lead.asesor.usuario.nombre }}{% endif %}</span>
         {% if lead.motivo_descarte %}<span class="text-body-secondary">Motivo: {{ lead.motivo_descarte.nombre }}</span>{% endif %}
+        {% if prioridad_alta %}<span class="chip-prioridad" title="{{ razones_prioridad|capfirst }}"><i class="bi bi-fire" aria-hidden="true"></i> Prioridad alta</span>{% endif %}
+        {% if cita %}<span class="chip-cita"><i class="bi bi-calendar-check" aria-hidden="true"></i> Cita {{ cita|date:"D d/m H:i" }}</span>{% endif %}
         {% if reapertura %}<span class="chip-reabierto" title="Se reabrió el {{ reapertura.en|date:'d/m H:i' }} porque volvió a escribir"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> Reabierto{% if reapertura.motivo %} · antes: {{ reapertura.motivo }}{% endif %}</span>{% endif %}
       </div>
     </div>
@@ -123,8 +125,32 @@
     {% endif %}
     {% include "leads/_accion_intento.html" %}
 
-    <section class="tarjeta-rumbo">
-      <h2 class="titulo-tarjeta">Conversación de WhatsApp</h2>
+    <section class="tarjeta-rumbo" id="conversacion">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+        <h2 class="titulo-tarjeta mb-0">Conversación de WhatsApp</h2>
+        {% if ventana_abierta %}<span class="small text-success"><i class="bi bi-chat-dots" aria-hidden="true"></i> Puede escribirle hasta las {{ ventana_cierra|date:"H:i" }}{% if ventana_cierra|date:"Ymd" != hoy|date:"Ymd" %} del {{ ventana_cierra|date:"d/m" }}{% endif %}</span>
+        {% else %}<span class="small text-body-secondary"><i class="bi bi-lock" aria-hidden="true"></i> Sin mensaje del cliente en 24 h: solo plantillas</span>{% endif %}
+      </div>
+      {% if puede_escribir %}
+      {# SCRUM-114 · Responder con el número de la empresa: queda en la ficha y en la auditoría. #}
+      <form class="caja-whatsapp mb-3" method="post" action="{% url 'leads:responder_whatsapp' lead.pk %}"
+            hx-post="{% url 'leads:responder_whatsapp' lead.pk %}" hx-target="#ficha" hx-swap="innerHTML" hx-disabled-elt="find button[type=submit]">
+        {% csrf_token %}
+        {% if respuestas_rapidas or pedir_documentos %}
+        <div class="respuestas-rapidas" aria-label="Respuestas rápidas">
+          {% for r in respuestas_rapidas %}<button type="button" class="chip-respuesta" data-insertar="{{ r.texto }}">{{ r.titulo }}</button>{% endfor %}
+          {% if pedir_documentos %}<button type="button" class="chip-respuesta" data-insertar="{{ pedir_documentos }}"><i class="bi bi-folder2-open" aria-hidden="true"></i> Pedir lo que falta</button>{% endif %}
+        </div>
+        {% endif %}
+        <div class="d-flex gap-2 align-items-end">
+          <label class="visually-hidden" for="texto-whatsapp">Mensaje para el cliente</label>
+          <textarea id="texto-whatsapp" name="texto" class="form-control" rows="2" maxlength="4096" required
+                    placeholder="{% if ventana_abierta %}Escriba al cliente…{% else %}Fuera de las 24 h no se puede enviar texto libre{% endif %}"
+                    {% if not ventana_abierta %}disabled{% endif %}></textarea>
+          <button type="submit" class="btn btn-success" {% if not ventana_abierta %}disabled{% endif %} aria-label="Enviar por WhatsApp"><i class="bi bi-send" aria-hidden="true"></i></button>
+        </div>
+      </form>
+      {% endif %}
       <div class="chat-lead">
         {% for m in mensajes %}
           <div class="burbuja {% if m.direccion == 'entrante' %}burbuja-cliente{% elif m.payload.automatica %}burbuja-multivisa burbuja-automatica{% else %}burbuja-multivisa{% endif %}">
@@ -139,13 +165,21 @@
       <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
         <h2 class="titulo-tarjeta mb-0">Historial</h2>
         <ul class="nav nav-pills pestanas-historial" role="tablist">
-          <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#hist-intentos" type="button" role="tab">Llamadas <span class="cuenta">{{ intentos|length }}</span></button></li>
+          <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#hist-todo" type="button" role="tab">Todo <span class="cuenta">{{ linea_tiempo|length }}</span></button></li>
+          <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#hist-intentos" type="button" role="tab">Llamadas <span class="cuenta">{{ intentos|length }}</span></button></li>
           <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#hist-etapas" type="button" role="tab">Etapas <span class="cuenta">{{ historial_etapas|length }}</span></button></li>
           <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#hist-asignaciones" type="button" role="tab">Asignaciones <span class="cuenta">{{ asignaciones|length }}</span></button></li>
         </ul>
       </div>
       <div class="tab-content">
-        <ul class="tab-pane fade show active linea-tiempo" id="hist-intentos" role="tabpanel">
+        <ul class="tab-pane fade show active linea-tiempo linea-todo" id="hist-todo" role="tabpanel">
+          {% for e in linea_tiempo %}
+            <li class="evento-{{ e.tipo }}"><span class="fecha">{{ e.en|date:"d/m H:i" }}</span>
+              <div><span class="icono-evento" aria-hidden="true"><i class="bi bi-{{ e.icono }}"></i></span> <strong>{{ e.titulo }}</strong>
+                {% if e.detalle %}<div class="text-body-secondary detalle-evento">{{ e.detalle }}</div>{% endif %}</div></li>
+          {% empty %}<li class="vacio">Todavía no pasó nada con este cliente.</li>{% endfor %}
+        </ul>
+        <ul class="tab-pane fade linea-tiempo" id="hist-intentos" role="tabpanel">
           {% for i in intentos %}
             <li><span class="fecha">{{ i.creado_en|date:"d/m H:i" }}</span>
               <div><strong>#{{ i.numero }} · {{ i.resultado.nombre }}</strong> <span class="text-body-secondary">· {{ i.asesor.usuario.nombre }}{% if i.agendado_para %} · agendado {{ i.agendado_para|date:"d/m H:i" }}{% endif %}</span>
@@ -173,6 +207,26 @@
     <section class="tarjeta-rumbo gestion-lead">
       <h2 class="titulo-tarjeta">Gestión del lead</h2>
       {% include "leads/_accion_datos.html" %}
+      {% if documentos %}
+      {# SCRUM-117 · Documentos del trámite: toque para pasar de falta → pedido → recibido. #}
+      <div class="bloque-gestion">
+        <h3 class="titulo-bloque d-flex justify-content-between"><span>Documentos</span><span class="fw-normal">{{ docs_recibidos }} de {{ documentos|length }}</span></h3>
+        <div class="barra-plazo mb-2" role="progressbar" aria-label="Documentos recibidos" aria-valuemin="0" aria-valuemax="{{ documentos|length }}" aria-valuenow="{{ docs_recibidos }}">
+          <span class="relleno-verde" style="width: {% widthratio docs_recibidos documentos|length 100 %}%"></span></div>
+        <ul class="lista-documentos">
+          {% for d in documentos %}
+          <li><form method="post" action="{% url 'leads:marcar_documento' lead.pk %}" hx-post="{% url 'leads:marcar_documento' lead.pk %}" hx-target="#ficha" hx-swap="innerHTML">
+            {% csrf_token %}<input type="hidden" name="documento" value="{{ d.nombre }}"><input type="hidden" name="actual" value="{{ d.estado }}">
+            <button type="submit" class="documento estado-{{ d.estado }}" title="Cambiar estado">
+              <i class="bi bi-{% if d.estado == 'recibido' %}check-circle-fill{% elif d.estado == 'pedido' %}hourglass-split{% else %}circle{% endif %}" aria-hidden="true"></i>
+              <span class="flex-grow-1 text-start">{{ d.nombre }}</span>
+              <span class="estado-doc">{{ d.estado|capfirst }}</span></button>
+          </form></li>
+          {% endfor %}
+        </ul>
+        {% if pedir_documentos and puede_escribir %}<a class="small" href="#conversacion" data-insertar="{{ pedir_documentos }}"><i class="bi bi-whatsapp" aria-hidden="true"></i> Pedir lo que falta por WhatsApp</a>{% endif %}
+      </div>
+      {% endif %}
       {% include "leads/_accion_agendar.html" %}
       {% include "leads/_accion_etapa.html" %}
       {% include "leads/_accion_reasignar.html" %}
