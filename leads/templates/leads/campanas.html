@@ -17,6 +17,29 @@
   </div>
   {% endif %}
 
+  {# SCRUM-113 · Estado de la conexión con Meta (Conversions API). #}
+  <section class="tarjeta-rumbo estado-meta mb-3 {% if meta.configurado %}conectado{% else %}desconectado{% endif %}">
+    <div class="d-flex flex-wrap align-items-start gap-3">
+      <span class="icono-notificacion {% if meta.configurado %}tono-verde{% else %}tono-amarillo{% endif %}" aria-hidden="true"><i class="bi bi-{% if meta.configurado %}plug-fill{% else %}plug{% endif %}"></i></span>
+      <div class="flex-grow-1 min-w-0">
+        <h2 class="titulo-tarjeta mb-1">Conversiones para Meta {% if meta.configurado %}<span class="badge text-bg-success">Conectado</span>{% else %}<span class="badge text-bg-warning">Sin configurar</span>{% endif %}{% if meta.prueba %} <span class="badge text-bg-secondary">Modo prueba</span>{% endif %}</h2>
+        {% if meta.configurado %}
+          <p class="small text-body-secondary mb-0">Las citas y ventas de clientes que llegaron por un anuncio se informan a Meta para optimizar las campañas.{% if meta.ultimo_envio %} Último envío: {{ meta.ultimo_envio|date:"d/m H:i" }}.{% endif %}</p>
+        {% else %}
+          <p class="small text-body-secondary mb-0">Faltan en el <code>.env</code> del servidor: {% for v in meta.faltan %}<code>{{ v }}</code>{% if not forloop.last %}, {% endif %}{% endfor %}. Mientras tanto los eventos esperan (hasta 7 días).</p>
+        {% endif %}
+      </div>
+      <dl class="cifras-meta">
+        <div><dt>Enviados</dt><dd>{{ meta.enviados }}</dd></div>
+        <div><dt>Pendientes</dt><dd>{{ meta.pendientes }}</dd></div>
+        <div{% if meta.errores %} class="con-error"{% endif %}><dt>Con error</dt><dd>{{ meta.errores }}</dd></div>
+        <div><dt>Vencidos</dt><dd>{{ meta.vencidos }}</dd></div>
+      </dl>
+    </div>
+    {% if meta.ultimo_error %}<p class="small text-danger mb-0 mt-2"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> Último error ({{ meta.ultimo_error_en|date:"d/m H:i" }}): {{ meta.ultimo_error|truncatechars:200 }}</p>{% endif %}
+    <p class="small text-body-tertiary mb-0 mt-2">Últimos {{ meta.dias }} días.</p>
+  </section>
+
   <datalist id="paises-campana">{% for p in paises %}<option value="{{ p }}">{% endfor %}</datalist>
   {% if anuncios %}
   <div class="d-flex flex-column gap-3">
@@ -56,6 +79,16 @@
             <div class="col-sm-3 d-grid"><button class="btn btn-sm btn-primary">Guardar</button></div>
           </form>
           {% if a.pais %}<div class="small text-body-secondary mt-1"><i class="bi bi-check-circle text-success" aria-hidden="true"></i> {{ a.pais }}{% if a.categorizado_en %} · desde {{ a.categorizado_en|date:"d/m/Y" }}{% endif %}</div>{% endif %}
+          {# SCRUM-99 · Inversión total del anuncio → costo por lead y por venta en Métricas. #}
+          <form method="post" class="row g-2 align-items-end mt-1">
+            {% csrf_token %}<input type="hidden" name="anuncio" value="{{ a.pk }}"><input type="hidden" name="accion" value="inversion">
+            <div class="col-sm-5">
+              <label class="form-label small mb-1" for="inv-{{ a.pk }}">Inversión total ({{ a.inversion_moneda }})</label>
+              <input id="inv-{{ a.pk }}" name="inversion" inputmode="decimal" class="form-control form-control-sm"
+                     value="{{ a.inversion|default_if_none:''|stringformat:'s' }}" placeholder="Ej.: 150.00" maxlength="14">
+            </div>
+            <div class="col-sm-4 d-grid"><button class="btn btn-sm btn-light border">Guardar inversión</button></div>
+          </form>
         </div>
       </div>
     </section>

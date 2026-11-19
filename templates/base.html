@@ -80,6 +80,13 @@
         <a class="enlace-menu{% if vista == 'inicio' %} activo{% endif %}" href="{% url 'inicio' %}"{% if vista == 'inicio' %} aria-current="page"{% endif %}>
           <i class="bi bi-house" aria-hidden="true"></i><span class="texto-menu">Inicio</span></a>
 
+        {% if meta_dia %}
+        {# SCRUM-106 · Meta del día del asesor, visible desde cualquier pantalla. #}
+        <a class="meta-menu{% if meta_dia.cumplidas %} cumplida{% endif %}" href="{% url 'inicio' %}" title="{{ meta_dia.resumen }}">
+          <span class="d-flex justify-content-between"><span class="texto-menu">Meta de hoy</span><span class="pct-meta">{% if meta_dia.cumplidas %}<i class="bi bi-trophy-fill" aria-hidden="true"></i> {% endif %}{{ meta_dia.pct }}%</span></span>
+          <span class="barra-meta-menu" role="progressbar" aria-label="Meta de hoy" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ meta_dia.pct }}"><span style="width: {{ meta_dia.pct }}%"></span></span>
+        </a>
+        {% endif %}
         <div class="titulo-seccion">{% if rumbo.es_supervisor %}Leads{% else %}Mi trabajo{% endif %}</div>
         {% with pend=request.GET.pendientes %}
         <a class="enlace-menu{% if vista == 'leads:lista' and pend %} activo{% endif %}" href="{% url 'leads:lista' %}?pendientes=1">
@@ -91,6 +98,8 @@
 
         {% if rumbo.es_supervisor %}
         <div class="titulo-seccion">Equipo</div>
+        <a class="enlace-menu{% if vista == 'leads:en_vivo' %} activo{% endif %}" href="{% url 'leads:en_vivo' %}">
+          <i class="bi bi-broadcast" aria-hidden="true"></i><span class="texto-menu">En vivo</span></a>
         <a class="enlace-menu{% if vista == 'leads:tablero' %} activo{% endif %}" href="{% url 'leads:tablero' %}">
           <i class="bi bi-kanban" aria-hidden="true"></i><span class="texto-menu">Tablero</span></a>
         <a class="enlace-menu{% if vista == 'leads:alertas' %} activo{% endif %}" href="{% url 'leads:alertas' %}">

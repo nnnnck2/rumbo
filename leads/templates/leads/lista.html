@@ -6,6 +6,21 @@
       <h1 class="titulo-pagina">{% if rumbo.es_supervisor %}Leads{% else %}Mis leads{% endif %}</h1>
       <p class="ayuda-pagina">{% if activa == "pendientes" %}Clientes a los que ya toca llamar, del más atrasado al más reciente. Abra uno, llame y registre el resultado.{% else %}Toque un cliente para ver su ficha y registrar llamadas.{% endif %}</p>
     </div>
+    {% if rumbo.es_supervisor %}
+    {# SCRUM-93 · Descarga lo que se está viendo (pestaña, búsqueda y filtros). #}
+    <div class="dropdown">
+      <button class="btn btn-light border dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="bi bi-download" aria-hidden="true"></i> Exportar a Excel</button>
+      <ul class="dropdown-menu dropdown-menu-end menu-exportar">
+        <li><a class="dropdown-item" href="{% url 'leads:exportar_leads' %}{% if consulta %}?{{ consulta }}{% endif %}">
+          <span class="d-block fw-semibold">Lo que estoy viendo</span>
+          <span class="small text-body-secondary">{{ pagina.paginator.count }} lead{{ pagina.paginator.count|pluralize }} · pestaña y filtros actuales</span></a></li>
+        <li><a class="dropdown-item" href="{% url 'leads:exportar_leads' %}">
+          <span class="d-block fw-semibold">Todos los leads</span>
+          <span class="small text-body-secondary">{{ total_leads }} lead{{ total_leads|pluralize }} · sin filtros</span></a></li>
+      </ul>
+    </div>
+    {% endif %}
   </div>
   {% include "leads/_mensajes.html" %}
   {% if mi_asesor and activa == "pendientes" and pagina.paginator.count %}
@@ -54,6 +69,12 @@
             {% for p in paises_leads %}<option value="{{ p }}" {% if filtros.pais == p %}selected{% endif %}>{{ p }}</option>{% endfor %}
           </select>
         </div>
+        <div class="col-sm-6 col-lg-3 d-flex align-items-end">
+          <div class="form-check mb-1">
+            <input class="form-check-input" type="checkbox" id="f-varias" name="varias" value="1" {% if filtros.varias %}checked{% endif %} onchange="this.form.submit()">
+            <label class="form-check-label small" for="f-varias">Llegaron por varios anuncios</label>
+          </div>
+        </div>
         {% if rumbo.es_supervisor %}
         <div class="col-sm-6 col-lg-3">
           <label class="form-label small mb-1" for="f-asesor">Asesor</label>
@@ -85,7 +106,8 @@
                 <span class="avatar-lead" aria-hidden="true">{{ l.nombre_perfil|default:"?"|slice:":1"|upper }}</span>
                 <div class="lh-sm">
                   <a class="nombre-lead stretched-link" href="{% url 'leads:ficha' l.pk %}">{{ l.nombre_perfil|default:"Sin nombre" }}</a>
-                  <div class="small text-body-secondary">{{ l.telefono }}{% if l.anuncio_clave %} · <span class="origen-anuncio origen-mini" title="Llegó desde un anuncio"><i class="bi bi-megaphone" aria-hidden="true"></i>{% if l.anuncio_pais %}{{ l.anuncio_pais }} · {% endif %}{{ l.anuncio_titulo|default:"Anuncio"|truncatechars:24 }}</span>{% endif %}</div>
+                  {% if l.estado_asignacion != "cerrado" %}<a class="enlace-whatsapp" href="https://wa.me/{{ l.telefono|slice:'1:' }}" target="_blank" rel="noopener noreferrer" title="Escribir por WhatsApp" aria-label="Escribir a {{ l.nombre_perfil|default:l.telefono }} por WhatsApp"><i class="bi bi-whatsapp" aria-hidden="true"></i></a>{% endif %}
+                  <div class="small text-body-secondary">{{ l.telefono }}{% if l.anuncio_clave %} · <span class="origen-anuncio origen-mini" title="Llegó desde un anuncio"><i class="bi bi-megaphone" aria-hidden="true"></i>{% if l.anuncio_pais %}{{ l.anuncio_pais }} · {% endif %}{{ l.anuncio_titulo|default:"Anuncio"|truncatechars:24 }}</span>{% endif %}{% if l.reabierto %} <span class="chip-reabierto chip-mini" title="Volvió a escribir después de ser descartado"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Reabierto</span>{% endif %}{% if l.n_anuncios > 1 %} <span class="origen-anuncio origen-mini" title="Llegó por {{ l.n_anuncios }} anuncios distintos"><i class="bi bi-intersect" aria-hidden="true"></i>{{ l.n_anuncios }}</span>{% endif %}</div>
                 </div>
               </div>
             </td>

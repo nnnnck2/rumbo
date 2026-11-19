@@ -9,10 +9,13 @@ Cada llamada corre en su propio savepoint: el request ya está dentro de una tra
 (core.middleware), y un error de la base la dejaría inutilizable para el resto de la página.
 """
 import json
+import logging
 from dataclasses import dataclass
 
 from django.db import DatabaseError, connection, transaction
 from django.utils import timezone
+
+logger = logging.getLogger("rumbo.leads")
 
 
 class ErrorNegocio(Exception):
@@ -419,3 +422,250 @@ def errores_webhook(desde, hasta):
                FROM rumbo.webhook_evento WHERE recibido_en >= %s AND recibido_en < %s""", [desde, hasta])
         con_error, pendientes, total = cursor.fetchone()
     return {"con_error": con_error, "pendientes": pendientes, "total": total}
+
+
+# ─────────────── SCRUM-88 · WhatsApp cuando el cliente no contesta ───────────────
+
+def programar_aviso_no_contesta(lead_id, usuario_id):
+    """Encola el WhatsApp de "le llamamos y no contestó" al confirmar la transacción. La tarea decide
+    si corresponde (activo, ventana de 24 h, ya avisado hace poco…)."""
+
+    def encolar():
+        from whatsapp.tasks import avisar_no_contesta
+
+        try:
+            avisar_no_contesta.delay(lead_id, usuario_id)
+        except Exception:  # noqa: BLE001 — sin Redis no hay worker: que no rompa el registro de la llamada
+            logger.exception("No se pudo encolar el aviso de no contesta del lead %s", lead_id)
+
+    transaction.on_commit(encolar)
+
+
+# ─────────────── SCRUM-93 · Exportaciones ───────────────
+
+def registrar_exportacion(que, filas, filtros):
+    """Deja constancia de la exportación (quién, qué y cuántas filas). Solo supervisión (lo valida la base)."""
+    return _ejecutar("SELECT rumbo.registrar_exportacion(%s, %s, %s::jsonb)",
+                     [que, filas, json.dumps(filtros, ensure_ascii=False, default=str)])
+
+
+# ─────────────── SCRUM-96 · Guion de llamada ───────────────
+
+GUION_GENERAL = "General"
+
+
+def guion_para(tipo_visa, guiones):
+    """(título, [pasos]) del guion del tipo de visa del lead; si no hay, el general. None si no hay ninguno."""
+    por_clave = {k.strip().lower(): (k, v) for k, v in (guiones or {}).items() if (v or "").strip()}
+    elegido = por_clave.get((tipo_visa or "").strip().lower()) or por_clave.get(GUION_GENERAL.lower())
+    if not elegido:
+        return None
+    titulo, texto = elegido
+    pasos = [linea.strip().lstrip("-•*·").strip() for linea in texto.splitlines()]
+    return titulo, [p for p in pasos if p]
+
+
+# ─────────────── SCRUM-97 · Meta del día del asesor ───────────────
+
+METAS_POR_DEFECTO = {"llamadas": 20, "citas": 3, "ventas": 1}
+NOMBRES_META = {"llamadas": ("llamada", "llamadas"), "citas": ("cita", "citas"), "ventas": ("venta", "ventas")}
+
+
+def medir_metas(hecho, metas):
+    """[{"clave", "nombre", "hecho", "meta", "pct", "cumplida"}]. Una meta en 0 no se muestra."""
+    metas = {**METAS_POR_DEFECTO, **(metas or {})}
+    filas = []
+    for clave in ("llamadas", "citas", "ventas"):
+        meta = int(metas.get(clave) or 0)
+        if meta <= 0:
+            continue
+        n = hecho.get(clave, 0)
+        singular, plural = NOMBRES_META[clave]
+        filas.append({"clave": clave, "nombre": singular if meta == 1 else plural, "hecho": n, "meta": meta,
+                      "pct": min(100, round(100 * n / meta)), "cumplida": n >= meta})
+    return filas
+
+
+def progreso_del_dia(asesor_id, usuario_id, metas, desde):
+    """Lo hecho hoy frente a la meta. Citas = leads que este usuario pasó a "Cita agendada" hoy."""
+    from .models import IntentoLlamada, LeadEtapaHistorial, Venta
+
+    hecho = {
+        "llamadas": IntentoLlamada.objects.filter(asesor_id=asesor_id, creado_en__gte=desde).count(),
+        "citas": LeadEtapaHistorial.objects.filter(usuario_id=usuario_id, hacia_id="cita_agendada",
+                                                   creado_en__gte=desde).count(),
+        "ventas": Venta.objects.filter(asesor_id=asesor_id, anulada_en__isnull=True, cerrada_en__gte=desde).count(),
+    }
+    return medir_metas(hecho, metas)
+
+
+# ─────────────── SCRUM-98 · Panel en vivo del equipo ───────────────
+
+def panel_en_vivo(desde):
+    """Estado del equipo ahora mismo. RLS: solo supervisión ve a todos."""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """WITH plazos AS (SELECT p.lead_id FROM rumbo.plazos_gestion() p)
+               SELECT a.id, u.nombre, a.estado::text AS estado, a.estado_desde,
+                      count(l.id) AS abiertos,
+                      count(l.id) FILTER (WHERE l.proxima_accion_en <= now()) AS por_llamar,
+                      count(l.id) FILTER (WHERE l.id IN (SELECT lead_id FROM plazos)) AS sin_gestionar,
+                      (SELECT count(*) FROM rumbo.intento_llamada i
+                       WHERE i.asesor_id = a.id AND i.creado_en >= %(desde)s) AS llamadas_hoy,
+                      (SELECT max(i.creado_en) FROM rumbo.intento_llamada i WHERE i.asesor_id = a.id) AS ultima_llamada,
+                      (SELECT count(*) FROM rumbo.venta v WHERE v.asesor_id = a.id AND v.anulada_en IS NULL
+                                                            AND v.cerrada_en >= %(desde)s) AS ventas_hoy
+               FROM rumbo.asesor a
+               JOIN rumbo.usuario u ON u.id = a.usuario_id
+               LEFT JOIN rumbo.lead l ON l.asesor_id = a.id AND l.estado_asignacion = 'asignado'
+               WHERE u.activo
+               GROUP BY a.id, u.nombre, a.estado, a.estado_desde
+               ORDER BY array_position(ARRAY['disponible', 'ocupado', 'pausa', 'fuera_turno'], a.estado::text), u.nombre""",
+            {"desde": desde})
+        columnas = [c.name for c in cursor.description]
+        asesores = [dict(zip(columnas, f)) for f in cursor.fetchall()]
+        cursor.execute(
+            """SELECT count(*) FILTER (WHERE estado_asignacion = 'en_cola'),
+                      (SELECT count(*) FROM rumbo.plazos_gestion()),
+                      count(*) FILTER (WHERE estado_asignacion = 'asignado' AND proxima_accion_en <= now())
+               FROM rumbo.lead""")
+        en_cola, sin_gestionar, por_llamar = cursor.fetchone()
+        # Sin horario configurado la base devuelve -infinity, que Python no puede representar.
+        cursor.execute("SELECT nullif(rumbo.inicio_turno(), '-infinity')")
+        inicio_turno = cursor.fetchone()[0]
+    return {"asesores": asesores, "en_cola": en_cola, "sin_gestionar": sin_gestionar, "por_llamar": por_llamar,
+            "atrasadas": len(leads_sin_llamar()), "abierto": en_horario(), "inicio_turno": inicio_turno}
+
+
+def hace_corto(desde, ahora):
+    """'ahora', '12 min', '5 h', '5 h 20', '2 días': para tarjetas angostas."""
+    if desde is None:
+        return None
+    minutos = max(0, int((ahora - desde).total_seconds() // 60))
+    if minutos < 1:
+        return "ahora"
+    if minutos < 60:
+        return f"{minutos} min"
+    if minutos < 24 * 60:
+        h, m = divmod(minutos, 60)
+        return f"{h} h {m:02d}" if m and h < 10 else f"{h} h"
+    dias = minutos // (24 * 60)
+    return f"{dias} día{'s' if dias != 1 else ''}"
+
+
+# ─────────────── SCRUM-99 · Embudo por campaña y anuncio ───────────────
+
+_SQL_EMBUDO = """
+WITH origen AS (
+    SELECT DISTINCT ON (o.lead_id) o.lead_id, o.anuncio_id
+    FROM rumbo.lead_origen o ORDER BY o.lead_id, o.llegado_en, o.id
+), leads AS (
+    SELECT l.id, og.anuncio_id,
+           (l.primer_contacto_en >= %(desde)s AND l.primer_contacto_en < %(hasta)s) AS en_periodo,
+           EXISTS (SELECT 1 FROM rumbo.intento_llamada i
+                   WHERE i.lead_id = l.id AND i.resultado_codigo = ANY(%(contacto)s)) AS contactado,
+           EXISTS (SELECT 1 FROM rumbo.lead_etapa_historial h
+                   WHERE h.lead_id = l.id AND h.hacia = 'cita_agendada') AS cita,
+           EXISTS (SELECT 1 FROM rumbo.venta v WHERE v.lead_id = l.id AND v.anulada_en IS NULL) AS vendido
+    FROM rumbo.lead l JOIN origen og ON og.lead_id = l.id
+    WHERE l.anonimizado_en IS NULL
+)
+SELECT an.id, an.pais, an.nombre_campana, an.titulo, an.clave, an.inversion, an.inversion_moneda,
+       count(*) FILTER (WHERE x.en_periodo)                             AS leads,
+       count(*) FILTER (WHERE x.en_periodo AND x.contactado)            AS contactados,
+       count(*) FILTER (WHERE x.en_periodo AND (x.cita OR x.vendido))   AS citas,
+       count(*) FILTER (WHERE x.en_periodo AND x.vendido)               AS ventas,
+       count(*)                                                         AS leads_total,
+       count(*) FILTER (WHERE x.vendido)                                AS ventas_total
+FROM leads x JOIN rumbo.anuncio an ON an.id = x.anuncio_id
+GROUP BY an.id
+HAVING count(*) FILTER (WHERE x.en_periodo) > 0
+ORDER BY an.pais NULLS LAST, count(*) FILTER (WHERE x.en_periodo) DESC
+"""
+
+
+def _pct(parte, total):
+    return round(100 * parte / total) if total else None
+
+
+def armar_embudo(anuncios):
+    """Agrupa las filas de anuncios por campaña (país) y calcula porcentajes y costos."""
+    campanas = {}
+    for a in anuncios:
+        a["nombre"] = a["nombre_campana"] or a["titulo"] or f"Anuncio {a['clave'][:20]}"
+        a["pct_contacto"], a["pct_cita"], a["pct_venta"] = (_pct(a["contactados"], a["leads"]),
+                                                            _pct(a["citas"], a["leads"]), _pct(a["ventas"], a["leads"]))
+        inv = a["inversion"]
+        a["costo_lead"] = (inv / a["leads_total"]) if inv is not None and a["leads_total"] else None
+        a["costo_venta"] = (inv / a["ventas_total"]) if inv is not None and a["ventas_total"] else None
+        clave = a["pais"] or "Sin país"
+        c = campanas.setdefault(clave, {"pais": clave, "anuncios": [], "leads": 0, "contactados": 0, "citas": 0,
+                                        "ventas": 0})
+        c["anuncios"].append(a)
+        for k in ("leads", "contactados", "citas", "ventas"):
+            c[k] += a[k]
+    for c in campanas.values():
+        c["pct_contacto"], c["pct_cita"], c["pct_venta"] = (_pct(c["contactados"], c["leads"]),
+                                                            _pct(c["citas"], c["leads"]), _pct(c["ventas"], c["leads"]))
+    resultado = sorted(campanas.values(), key=lambda c: (c["pais"] == "Sin país", -c["leads"]))
+    # SCRUM-108 · Escala del gráfico (la campaña con más leads ocupa todo el ancho).
+    maximo = max((c["leads"] for c in resultado), default=0)
+    for c in resultado:
+        c["ancho"] = {k: round(100 * c[k] / maximo) if maximo else 0
+                      for k in ("leads", "contactados", "citas", "ventas")}
+    # SCRUM-108 · Mejor y peor costo por venta (solo si hay al menos dos anuncios comparables).
+    con_costo = [a for c in resultado for a in c["anuncios"] if a["costo_venta"] is not None]
+    if len(con_costo) >= 2:
+        min(con_costo, key=lambda a: a["costo_venta"])["destacado"] = "mejor"
+        max(con_costo, key=lambda a: a["costo_venta"])["destacado"] = "peor"
+    return resultado
+
+
+def embudo_por_anuncio(desde, hasta):
+    """Embudo leads → contactados → citas → ventas de cada anuncio (leads llegados en el período, contados
+    en su primer anuncio), agrupado por campaña (país). Los costos usan la inversión TOTAL del anuncio
+    sobre TODOS sus leads: la inversión no se registra por fecha."""
+    params = {"desde": desde, "hasta": hasta, "contacto": list(RESULTADOS_CONTACTO)}
+    with connection.cursor() as cursor:
+        cursor.execute(_SQL_EMBUDO, params)
+        columnas = [c.name for c in cursor.description]
+        return armar_embudo([dict(zip(columnas, f)) for f in cursor.fetchall()])
+
+
+def registrar_inversion(anuncio_id, monto):
+    _ejecutar("SELECT rumbo.registrar_inversion_anuncio(%s, %s)", [anuncio_id, monto])
+
+
+# ─────────────── SCRUM-113 · Estado de la conexión con Meta ───────────────
+
+VARIABLES_META = ("META_DATASET_ID", "META_CAPI_TOKEN", "META_WABA_ID")
+
+
+def estado_conversiones(dias=30):
+    """Si la Conversions API está configurada y cómo van los eventos de los últimos `dias` (solo admin, RLS)."""
+    from django.conf import settings
+
+    faltan = [v for v in VARIABLES_META if not getattr(settings, v, "")]
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """SELECT count(*) FILTER (WHERE estado = 'enviado'), count(*) FILTER (WHERE estado = 'pendiente'),
+                      count(*) FILTER (WHERE estado = 'error'), count(*) FILTER (WHERE estado = 'vencido'),
+                      max(enviado_en)
+               FROM rumbo.evento_conversion WHERE creado_en >= now() - make_interval(days => %s)""", [dias])
+        enviados, pendientes, errores, vencidos, ultimo_envio = cursor.fetchone()
+        cursor.execute("""SELECT ultimo_error, creado_en FROM rumbo.evento_conversion
+                          WHERE ultimo_error IS NOT NULL AND estado IN ('error', 'pendiente')
+                          ORDER BY id DESC LIMIT 1""")
+        error = cursor.fetchone()
+    return {"configurado": not faltan, "faltan": faltan, "dias": dias, "enviados": enviados, "pendientes": pendientes,
+            "errores": errores, "vencidos": vencidos, "ultimo_envio": ultimo_envio,
+            "ultimo_error": error[0] if error else None, "ultimo_error_en": error[1] if error else None,
+            "prueba": bool(getattr(settings, "META_CAPI_TEST_CODE", ""))}
+
+
+def avance_total(metas):
+    """SCRUM-106 · Promedio del avance de las metas del día (0–100) y si se cumplieron todas."""
+    if not metas:
+        return None
+    return {"pct": round(sum(m["pct"] for m in metas) / len(metas)), "cumplidas": all(m["cumplida"] for m in metas),
+            "resumen": " · ".join(f"{m['hecho']}/{m['meta']} {m['nombre']}" for m in metas)}

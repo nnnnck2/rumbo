@@ -44,7 +44,7 @@ Al colgar, en **Resultado de la llamada** toque la opción que corresponde y lue
 
 | Resultado | Cuándo usarlo | Qué hace Rumbo |
 |---|---|---|
-| **No contesta / buzón** | No respondió o salió el buzón. | Programa el reintento en 30 minutos. Al **3.er** intento sin contacto, el lead pasa a otro asesor. |
+| **No contesta / buzón** | No respondió o salió el buzón. | Le envía al cliente un WhatsApp ("le llamamos y no pudimos comunicarnos") y programa el reintento en 30 minutos. Al **3.er** intento sin contacto, el lead pasa a otro asesor. Si entre todos los asesores se llega al tope (9 por defecto), el lead se descarta solo. |
 | **Llamar después** | Habló con el cliente y le pidió que lo llame otro día u otra hora. | Pide la fecha y hora, y el lead le vuelve a aparecer en ese momento. |
 | **Contactado · interesado** | Habló con el cliente y quiere avanzar. | Pasa el lead a "En asesoría". |
 | **Contactado · no interesado** | Habló con el cliente y no quiere seguir. | Descarta el lead con ese motivo. |
@@ -52,6 +52,12 @@ Al colgar, en **Resultado de la llamada** toque la opción que corresponde y lue
 | **Venta cerrada** | El cliente contrató. | Pide **tipo de visa y valor**, registra la venta para las comisiones (CALLFLOW) y cierra el lead. |
 
 Puede agregar una nota corta en cada resultado, por ejemplo "prefiere que lo llamen en la tarde".
+
+### Antes de llamar
+
+- **Hora del cliente:** la ficha muestra qué hora es donde está el cliente (por el prefijo de su teléfono). Si allá es muy temprano o muy tarde, aparece un aviso junto a **Llamar**.
+- **Guion de llamada:** las preguntas y documentos clave según el tipo de visa del cliente. Se abre solo en la primera llamada.
+- **WhatsApp:** el botón verde junto a **Llamar** abre el chat del cliente con un saludo ya escrito.
 
 ### 4. Mantenga la ficha al día
 
@@ -68,9 +74,20 @@ La campana de arriba avisa con un sonido y un mensaje en la esquina de la pantal
 
 Le llega a usted, que ya conoce su caso, aunque esté en pausa. Si usted ya no está en la empresa, pasa a otro asesor.
 
+- Si el cliente estaba **descartado**, el lead se reabre como **Nuevo** y entra al reparto.
+- Si el cliente ya **compró**, el lead no cambia, pero a usted le llega el aviso "cliente con venta le escribió".
+
+### Su meta del día
+
+En **Inicio** ve cuántas llamadas, citas y ventas lleva hoy frente a la meta que fijó la empresa. La barra se pone verde cuando la cumple.
+
 ---
 
 ## Supervisor
+
+### En vivo
+
+**En vivo** muestra al equipo en este momento: el estado de cada asesor y desde cuándo está así, sus clientes abiertos, los que ya toca llamar, los que aún no gestionó, sus llamadas de hoy y cuándo hizo la última. Arriba están los clientes en cola, los que no han recibido la primera llamada y las llamadas atrasadas. Se actualiza sola cada 15 segundos.
 
 ### Asesores
 
@@ -103,15 +120,21 @@ En **Métricas**, elija el período y vea:
 - tasa de contacto;
 - ventas;
 - posibles errores, como leads sin respuesta automática;
+- el **embudo por campaña y anuncio** (leads, contactados, citas y ventas), con el costo por lead y por venta si el administrador registró la inversión;
 - el detalle por asesor.
+
+**Exportar a Excel:** en **Métricas** y en **Leads** (respeta la pestaña, la búsqueda y los filtros). Cada exportación queda registrada.
+
+En **Leads → Más filtros**, **"Llegaron por varios anuncios"** muestra a los clientes que escribieron desde más de un anuncio. Esos clientes cuentan solo para el primer anuncio.
 
 ---
 
 ## Administrador
 
 - **Usuarios:** crear cuentas (asesor, supervisor o administrador), asignar a cada asesor su número de WhatsApp y su código de CALLFLOW, cambiar contraseñas y desactivar a quien deja la empresa. Un usuario desactivado no puede ingresar, y sus leads pasan a otros asesores cuando el cliente vuelve a escribir o cuando se reasignan.
-- **Campañas:** cada anuncio de Facebook / Instagram del que llegan clientes aparece solo. Asígnele su **país**: los clientes de ese anuncio (los que llegaron y los que lleguen) quedan con ese país de interés. En **Métricas** se ven leads, contacto y ventas por campaña.
-- **Configuración:** horario de atención, intentos por asesor, minutos para la primera llamada, minutos entre reintentos, minutos para alertar al supervisor y textos automáticos de WhatsApp (bienvenida, fuera de horario y aviso de privacidad). Los cambios rigen de inmediato.
+- **Campañas:** cada anuncio de Facebook / Instagram del que llegan clientes aparece solo. Asígnele su **país**: los clientes de ese anuncio (los que llegaron y los que lleguen) quedan con ese país de interés. En **Métricas** se ven leads, contacto y ventas por campaña. Escriba la **inversión total** de cada anuncio para ver el costo por lead y por venta.
+- **Configuración:** horario de atención, intentos por asesor, tope de intentos por cliente, minutos para la primera llamada, minutos entre reintentos, minutos para alertar al supervisor, textos automáticos de WhatsApp (bienvenida, fuera de horario con `{proxima_apertura}` y aviso de privacidad), el WhatsApp de "no contesta" (texto y plantilla de Meta), la meta del día de los asesores y el guion de llamada por tipo de visa. Los cambios rigen de inmediato.
+- **Conversiones para Meta:** cuando un cliente que llegó por un anuncio agenda una cita o compra, Rumbo se lo informa a Meta para que optimice los anuncios. Para activarlo hay que poner `META_DATASET_ID`, `META_CAPI_TOKEN` y `META_WABA_ID` en el `.env` del servidor. A Meta solo se envía el teléfono cifrado (hash), el id del clic y el valor de la venta.
 
 ---
 

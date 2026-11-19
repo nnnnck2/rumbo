@@ -1,0 +1,52 @@
+{# SCRUM-98 / 107 · Panel en vivo: arriba lo que espera, abajo una tarjeta por asesor (lo urgente primero). #}
+<p class="actualizado-hace small text-body-secondary mb-2" aria-live="off">
+  <span class="punto-vivo" aria-hidden="true"></span> <span data-actualizado>Actualizado recién</span> · se actualiza cada 15 s</p>
+{% if not abierto %}
+  <div class="aviso-llamada mb-3" role="status"><i class="bi bi-moon" aria-hidden="true"></i>
+    <span>Fuera del horario de atención: los clientes nuevos esperan en cola y los plazos están en pausa.</span></div>
+{% endif %}
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-3"><a class="dato-rapido{% if en_cola %} dato-alerta{% endif %}" href="{% url 'leads:lista' %}?estado=en_cola">
+    <span class="valor">{{ en_cola }}</span><span class="etiqueta">en cola, sin asesor</span></a></div>
+  <div class="col-6 col-lg-3"><a class="dato-rapido" href="{% url 'leads:tablero' %}">
+    <span class="valor">{{ sin_gestionar }}</span><span class="etiqueta">nuevos sin primera llamada</span></a></div>
+  <div class="col-6 col-lg-3"><a class="dato-rapido" href="{% url 'leads:lista' %}?pendientes=1">
+    <span class="valor">{{ por_llamar }}</span><span class="etiqueta">llamadas que ya toca hacer</span></a></div>
+  <div class="col-6 col-lg-3"><a class="dato-rapido{% if atrasadas %} dato-alerta{% endif %}" href="{% url 'leads:alertas' %}">
+    <span class="valor">{{ atrasadas }}</span><span class="etiqueta">llamadas atrasadas</span></a></div>
+</div>
+
+{% if asesores %}
+<div class="grilla-en-vivo">
+  {% for a in asesores %}
+  <section class="tarjeta-rumbo tarjeta-asesor-vivo estado-{{ a.estado }}{% if a.inactivo %} inactivo{% endif %}">
+    <div class="cabecera-asesor-vivo">
+      <span class="avatar-lead" aria-hidden="true">{{ a.nombre|slice:":1"|upper }}</span>
+      <div class="min-w-0">
+        <h2 class="nombre-asesor-vivo" title="{{ a.nombre }}">{{ a.nombre }}</h2>
+        <span class="estado-asesor-vivo"><span class="punto-estado punto-{{ a.estado }}" aria-hidden="true"></span>
+          {% if a.estado == 'disponible' %}Disponible{% elif a.estado == 'pausa' %}En pausa{% elif a.estado == 'ocupado' %}Ocupado{% else %}Fuera de turno{% endif %}
+          <span class="text-body-tertiary">· hace {{ a.estado_hace }}</span></span>
+      </div>
+    </div>
+    <dl class="cifras-asesor">
+      <div><dt>Abiertos</dt><dd>{{ a.abiertos }}</dd></div>
+      <div{% if a.por_llamar %} class="destacada"{% endif %}><dt>Por llamar</dt><dd>{{ a.por_llamar }}</dd></div>
+      <div{% if a.sin_gestionar %} class="destacada"{% endif %}><dt>Sin gestionar</dt><dd>{{ a.sin_gestionar }}</dd></div>
+      <div><dt>Llamadas hoy</dt><dd>{{ a.llamadas_hoy }}</dd></div>
+    </dl>
+    <div class="pie-asesor-vivo">
+      {% if a.inactivo %}
+        <span class="alerta-inactivo"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i> Sin llamar hace {{ a.sin_actividad }}</span>
+      {% else %}
+        <span><i class="bi bi-telephone" aria-hidden="true"></i> {% if a.ultima_hace %}Última llamada hace {{ a.ultima_hace }}{% else %}Sin llamadas{% endif %}</span>
+      {% endif %}
+      {% if a.ventas_hoy %}<span class="ventas-hoy"><i class="bi bi-trophy" aria-hidden="true"></i> {{ a.ventas_hoy }}</span>{% endif %}
+    </div>
+    <a class="stretched-link" href="{% url 'leads:lista' %}?asesor={{ a.id }}&amp;estado=asignado" aria-label="Ver los clientes de {{ a.nombre }}"></a>
+  </section>
+  {% endfor %}
+</div>
+{% else %}
+<section class="tarjeta-rumbo"><p class="small text-body-secondary mb-0">No hay asesores activos.</p></section>
+{% endif %}

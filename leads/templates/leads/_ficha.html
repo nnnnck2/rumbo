@@ -12,7 +12,22 @@
 </div>
 {% endif %}
 
-<section class="tarjeta-rumbo encabezado-lead mb-3">
+{# SCRUM-101 · Barra fija: aparece al bajar más allá del encabezado (static/js/rumbo.js). #}
+<div class="barra-contacto-fija" data-barra-contacto hidden>
+  <span class="avatar-lead" aria-hidden="true">{{ lead.nombre_perfil|default:"?"|slice:":1"|upper }}</span>
+  <div class="min-w-0 flex-grow-1 lh-sm">
+    <span class="d-block fw-semibold text-truncate">{{ lead.nombre_perfil|default:lead.telefono }}</span>
+    <span class="d-flex flex-wrap align-items-center gap-2 small">
+      {% include "leads/_situacion.html" with s=lead.situacion %}
+      {% if hora_cliente %}<span class="hora-cliente tono-{{ hora_cliente.tono }}" data-zona="{{ hora_cliente.zona }}"><span class="punto-hora" aria-hidden="true"></span><span data-hora>{{ hora_cliente.hora|time:"H:i" }}</span> allá</span>{% endif %}
+    </span>
+  </div>
+  <a class="btn btn-sm btn-outline-success" href="{{ whatsapp_url }}" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp"><i class="bi bi-whatsapp" aria-hidden="true"></i></a>
+  <a class="btn btn-sm btn-success" href="tel:{{ lead.telefono }}"{% if puede_registrar %} data-llamar="{{ lead.pk }}" data-nombre="{{ lead.nombre_perfil|default:lead.telefono }}" data-url="{% url 'leads:ficha' lead.pk %}{% if modo_siguiente %}?siguiente=1{% endif %}"{% endif %}{% if hora_cliente %} data-zona-llamada="{{ hora_cliente.zona }}"{% endif %}>
+    <i class="bi bi-telephone-fill" aria-hidden="true"></i><span class="d-none d-sm-inline"> Llamar</span></a>
+</div>
+
+<section class="tarjeta-rumbo encabezado-lead mb-3" data-encabezado-lead>
   <div class="d-flex flex-wrap align-items-center gap-3">
     <span class="avatar-lead avatar-lead-grande" aria-hidden="true">{{ lead.nombre_perfil|default:"?"|slice:":1"|upper }}</span>
     <div class="me-auto">
@@ -22,22 +37,48 @@
         <span class="etiqueta-etapa">{{ lead.etapa.nombre }}</span>
         <span class="estado-lead estado-lead-{{ lead.estado_asignacion }}">{{ lead.get_estado_asignacion_display }}{% if lead.asesor %} · {{ lead.asesor.usuario.nombre }}{% endif %}</span>
         {% if lead.motivo_descarte %}<span class="text-body-secondary">Motivo: {{ lead.motivo_descarte.nombre }}</span>{% endif %}
+        {% if reapertura %}<span class="chip-reabierto" title="Se reabrió el {{ reapertura.en|date:'d/m H:i' }} porque volvió a escribir"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> Reabierto{% if reapertura.motivo %} · antes: {{ reapertura.motivo }}{% endif %}</span>{% endif %}
       </div>
     </div>
-    <a class="btn btn-success boton-llamar" href="tel:{{ lead.telefono }}"{% if puede_registrar %} data-llamar="{{ lead.pk }}" data-nombre="{{ lead.nombre_perfil|default:lead.telefono }}" data-url="{% url 'leads:ficha' lead.pk %}{% if modo_siguiente %}?siguiente=1{% endif %}"{% endif %}>
+    <div class="d-flex flex-wrap gap-2 acciones-contacto">
+    {% if hora_cliente %}<span class="aviso-hora tono-{{ hora_cliente.tono }}" data-aviso-hora data-zona="{{ hora_cliente.zona }}"{% if hora_cliente.tono == "verde" %} hidden{% endif %} title="Hora del cliente según el prefijo de su teléfono"><i class="bi bi-moon-stars" aria-hidden="true"></i> Allá son las <span data-hora>{{ hora_cliente.hora|time:"H:i" }}</span></span>{% endif %}
+    <a class="btn btn-outline-success boton-whatsapp" href="{{ whatsapp_url }}" target="_blank" rel="noopener noreferrer" title="Abrir el chat con un saludo listo">
+      <i class="bi bi-whatsapp" aria-hidden="true"></i> WhatsApp</a>
+    <a class="btn btn-success boton-llamar" href="tel:{{ lead.telefono }}"{% if puede_registrar %} data-llamar="{{ lead.pk }}" data-nombre="{{ lead.nombre_perfil|default:lead.telefono }}" data-url="{% url 'leads:ficha' lead.pk %}{% if modo_siguiente %}?siguiente=1{% endif %}"{% endif %}{% if hora_cliente %} data-zona-llamada="{{ hora_cliente.zona }}"{% endif %}>
       <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" focusable="false"><path d="M1.885.511a1.745 1.745 0 0 1 2.61.163L6.29 2.98c.329.423.445.974.315 1.494l-.547 2.19a.68.68 0 0 0 .178.643l2.457 2.457a.68.68 0 0 0 .644.178l2.189-.547a1.75 1.75 0 0 1 1.494.315l2.306 1.794c.829.645.905 1.87.163 2.611l-1.034 1.034c-.74.74-1.846 1.065-2.877.702a18.6 18.6 0 0 1-7.01-4.42 18.6 18.6 0 0 1-4.42-7.009c-.362-1.03-.037-2.137.703-2.877z"/></svg>
       Llamar
     </a>
+    </div>
   </div>
 
   <dl class="resumen-lead">
     <div><dt>Situación</dt><dd>{% include "leads/_situacion.html" with s=lead.situacion %}</dd></div>
-    <div><dt>Intentos</dt><dd>{{ lead.intentos_asesor_actual }} con el asesor · {{ lead.intentos_totales }} en total</dd></div>
+    <div><dt>Intentos</dt><dd>{{ lead.intentos_asesor_actual }} con el asesor · {{ lead.intentos_totales }} en total
+      {% if ultimo_aviso %}<span class="d-block small text-body-secondary mt-1"><i class="bi bi-whatsapp text-success" aria-hidden="true"></i> Aviso de no contesta enviado {% if ultimo_aviso.ocurrido_en|date:"Ymd" == hoy|date:"Ymd" %}hoy{% else %}el {{ ultimo_aviso.ocurrido_en|date:"d/m" }}{% endif %} {{ ultimo_aviso.ocurrido_en|date:"H:i" }}</span>{% endif %}</dd></div>
     <div><dt>Visa / país</dt><dd>{{ lead.tipo_visa|default:"—" }}{% if lead.pais_interes %} · {{ lead.pais_interes }}{% endif %}</dd></div>
     <div><dt>Primer contacto</dt><dd>{{ lead.primer_contacto_en|date:"d/m/Y H:i" }}</dd></div>
+    {# SCRUM-95 · Hora local del cliente (por el prefijo del teléfono); se actualiza sola cada minuto. #}
+    <div><dt>Hora del cliente</dt><dd>{% if hora_cliente %}
+      <span class="hora-cliente tono-{{ hora_cliente.tono }}" data-zona="{{ hora_cliente.zona }}">
+        <span class="punto-hora" aria-hidden="true"></span> <span data-hora>{{ hora_cliente.hora|time:"H:i" }}</span>
+        <span class="visually-hidden" data-tono-texto>{% if hora_cliente.tono == "verde" %}buena hora{% elif hora_cliente.tono == "ambar" %}hora límite{% else %}muy temprano o muy tarde{% endif %}</span></span>
+      <span class="small text-body-secondary">· {{ hora_cliente.pais }}</span>
+    {% else %}<span class="text-body-secondary">—</span>{% endif %}</dd></div>
     <div><dt>Llegó desde</dt><dd>{% if origen %}
       <span class="origen-anuncio" title="{{ origen.anuncio.texto|default:'' }}"><i class="bi bi-megaphone" aria-hidden="true"></i>{% if origen.anuncio.pais %}{{ origen.anuncio.pais }} · {% endif %}{{ origen.anuncio.nombre_campana|default:origen.anuncio.titulo|default:"Anuncio sin título" }}</span>
       <span class="d-block small text-body-secondary mt-1">Anuncio {{ origen.anuncio.meta_source_id|default:origen.anuncio.clave|truncatechars:24 }}{% if origen.anuncio.enlace %} · <a href="{{ origen.anuncio.enlace }}" target="_blank" rel="noopener noreferrer">ver anuncio</a>{% endif %}{% if otras_llegadas %} · volvió {{ otras_llegadas }} vez{{ otras_llegadas|pluralize:"es" }} por anuncios{% endif %}</span>
+      {% if entradas_anuncios|length > 1 %}
+      {# SCRUM-100 · El mismo cliente llegó por varios anuncios: se cuenta para el primero. #}
+      <details class="entradas-anuncios mt-1">
+        <summary><i class="bi bi-intersect" aria-hidden="true"></i> Llegó por {{ entradas_anuncios|length }} anuncios</summary>
+        <ol>
+          {% for e in entradas_anuncios %}
+            <li>{% if e.anuncio.pais %}{{ e.anuncio.pais }} · {% endif %}{{ e.anuncio.nombre_campana|default:e.anuncio.titulo|default:e.anuncio.clave|truncatechars:40 }}
+              <span class="text-body-secondary">· {{ e.primera|date:"d/m H:i" }}{% if e.veces > 1 %} · {{ e.veces }} veces{% endif %}{% if forloop.first %} · origen{% endif %}</span></li>
+          {% endfor %}
+        </ol>
+      </details>
+      {% endif %}
     {% else %}<span class="text-body-secondary">WhatsApp directo</span>{% endif %}</dd></div>
   </dl>
 
@@ -70,15 +111,25 @@
 
 <div class="row g-3">
   <div class="col-lg-8 d-flex flex-column gap-3">
+    {% if guion %}
+    {# SCRUM-96 · Guion de llamada según el tipo de visa (o el general). #}
+    <details class="tarjeta-rumbo guion-llamada" data-guion="{{ lead.pk }}"{% if lead.intentos_totales == 0 %} open{% endif %}>
+      <summary><span class="titulo-tarjeta mb-0"><i class="bi bi-card-checklist" aria-hidden="true"></i> Guion de llamada</span>
+        <span class="small text-body-secondary">{{ guion.0 }} · <span data-avance-guion>0 de {{ guion.1|length }}</span></span></summary>
+      <ol class="pasos-guion">{% for paso in guion.1 %}
+        <li><label class="paso-guion"><input type="checkbox" class="form-check-input" data-paso="{{ forloop.counter0 }}"> <span>{{ paso }}</span></label></li>{% endfor %}</ol>
+      <p class="small text-body-secondary mb-0 mt-2">Marque lo que ya preguntó. Se limpia al registrar el resultado.</p>
+    </details>
+    {% endif %}
     {% include "leads/_accion_intento.html" %}
 
     <section class="tarjeta-rumbo">
       <h2 class="titulo-tarjeta">Conversación de WhatsApp</h2>
       <div class="chat-lead">
         {% for m in mensajes %}
-          <div class="burbuja {% if m.direccion == 'entrante' %}burbuja-cliente{% else %}burbuja-multivisa{% endif %}">
+          <div class="burbuja {% if m.direccion == 'entrante' %}burbuja-cliente{% elif m.payload.automatica %}burbuja-multivisa burbuja-automatica{% else %}burbuja-multivisa{% endif %}">
             <div style="white-space: pre-line">{% if m.cuerpo %}{{ m.cuerpo }}{% else %}<em>[{{ m.tipo }}]</em>{% endif %}</div>
-            <div class="hora-burbuja">{% if m.direccion == "entrante" %}Cliente{% else %}Multivisa{% endif %} · {{ m.ocurrido_en|date:"d/m H:i" }}</div>
+            <div class="hora-burbuja">{% if m.direccion == "entrante" %}Cliente{% elif m.payload.automatica %}<i class="bi bi-robot" aria-hidden="true"></i> Automático · {% if m.payload.aviso_no_contesta %}no contesta{% else %}respuesta al primer mensaje{% endif %}{% else %}Multivisa{% endif %} · {{ m.ocurrido_en|date:"d/m H:i" }}</div>
           </div>
         {% empty %}<p class="text-body-secondary small mb-0">Sin mensajes.</p>{% endfor %}
       </div>
@@ -135,8 +186,10 @@
 {% if puede_registrar %}
 {# Celular: lo principal siempre a mano, abajo de la pantalla. #}
 <div class="barra-movil-ficha d-lg-none">
-  <a class="btn btn-success flex-grow-1" href="tel:{{ lead.telefono }}" data-llamar="{{ lead.pk }}" data-nombre="{{ lead.nombre_perfil|default:lead.telefono }}" data-url="{% url 'leads:ficha' lead.pk %}{% if modo_siguiente %}?siguiente=1{% endif %}">
+  <a class="btn btn-success flex-grow-1" href="tel:{{ lead.telefono }}"{% if hora_cliente %} data-zona-llamada="{{ hora_cliente.zona }}"{% endif %} data-llamar="{{ lead.pk }}" data-nombre="{{ lead.nombre_perfil|default:lead.telefono }}" data-url="{% url 'leads:ficha' lead.pk %}{% if modo_siguiente %}?siguiente=1{% endif %}">
     <i class="bi bi-telephone-fill" aria-hidden="true"></i> Llamar</a>
+  <a class="btn btn-outline-success" href="{{ whatsapp_url }}" target="_blank" rel="noopener noreferrer" aria-label="Escribir por WhatsApp">
+    <i class="bi bi-whatsapp" aria-hidden="true"></i></a>
   <a class="btn btn-primary flex-grow-1" href="#tarjeta-resultado"><i class="bi bi-check2-square" aria-hidden="true"></i> Resultado</a>
 </div>
 {# SCRUM-78 · Al volver de la llamada: "¿Cómo le fue?". Cada botón toca el botón real del formulario de resultado. #}
@@ -148,6 +201,9 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
       </div>
       <div class="modal-body">
+        {% if guion %}<div class="recordatorio-guion" data-recordatorio-guion hidden>
+          <span class="small fw-semibold"><i class="bi bi-card-checklist" aria-hidden="true"></i> Quedó sin preguntar:</span>
+          <ul class="small mb-0" data-pendientes-guion></ul></div>{% endif %}
         <div class="botones-resultado">
           {% for o in intento_form.opciones %}
             <button type="button" class="boton-resultado tono-{{ o.tono }}" data-proxy="{{ o.codigo }}">

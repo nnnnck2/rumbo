@@ -58,6 +58,24 @@
       </section>
     </div>
     <div class="col-lg-5 d-flex flex-column gap-3">
+      {% if metas %}
+      {# SCRUM-97 · Meta del día #}
+      <section class="tarjeta-rumbo meta-dia{% if meta_dia.cumplidas %} cumplida{% endif %}"{% if meta_dia.cumplidas %} data-celebrar="{% now 'Y-m-d' %}"{% endif %}>
+        {% if meta_dia.cumplidas %}<div class="celebracion" aria-hidden="true">{% for i in "123456789012" %}<i></i>{% endfor %}</div>
+        <p class="mensaje-celebracion" role="status"><i class="bi bi-trophy-fill" aria-hidden="true"></i> ¡Cumplió la meta de hoy!</p>{% endif %}
+        <h2 class="titulo-tarjeta">Su meta de hoy</h2>
+        {% for m in metas %}
+          <div class="fila-meta{% if m.cumplida %} cumplida{% endif %}">
+            <div class="d-flex justify-content-between small mb-1">
+              <span class="fw-semibold">{% if m.cumplida %}<i class="bi bi-check-circle-fill" aria-hidden="true"></i> {% endif %}{{ m.nombre|capfirst }}</span>
+              <span><strong>{{ m.hecho }}</strong> / {{ m.meta }}</span>
+            </div>
+            <div class="barra-plazo" role="progressbar" aria-label="{{ m.nombre|capfirst }}: {{ m.hecho }} de {{ m.meta }}" aria-valuemin="0" aria-valuemax="{{ m.meta }}" aria-valuenow="{{ m.hecho }}">
+              <span class="{% if m.cumplida %}relleno-verde{% else %}relleno-meta{% endif %}" style="width: {{ m.pct }}%"></span></div>
+          </div>
+        {% endfor %}
+      </section>
+      {% endif %}
       <div class="row g-3">
         <div class="col-4"><div class="dato-rapido"><span class="valor">{{ llamadas_hoy }}</span><span class="etiqueta">llamadas hoy</span></div></div>
         <div class="col-4"><a class="dato-rapido" href="{% url 'leads:lista' %}?estado=asignado"><span class="valor">{{ abiertos }}</span><span class="etiqueta">clientes abiertos</span></a></div>

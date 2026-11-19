@@ -55,7 +55,23 @@ def rumbo(request):
         except DatabaseError:
             return 0
 
+    def _meta_dia():
+        # SCRUM-106: mini barra de la meta del día en el menú del asesor.
+        ctx = _ctx()
+        if not ctx.asesor_id:
+            return None
+        try:
+            import datetime as dt
+
+            from leads.servicios import avance_total, leer_configuracion, progreso_del_dia
+            inicio = dt.datetime.combine(timezone.localdate(), dt.time.min, timezone.get_current_timezone())
+            return avance_total(progreso_del_dia(ctx.asesor_id, ctx.usuario_id,
+                                                 leer_configuracion().get("metas_diarias"), inicio))
+        except DatabaseError:
+            return None
+
     return {"rumbo": SimpleLazyObject(_ctx), "mi_asesor": SimpleLazyObject(_asesor),
+            "meta_dia": SimpleLazyObject(_meta_dia),
             "por_llamar": SimpleLazyObject(_por_llamar),
             "notificaciones_sin_leer": SimpleLazyObject(_sin_leer),
             "anuncios_sin_pais": SimpleLazyObject(_anuncios_sin_pais)}

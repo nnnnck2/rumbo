@@ -4,45 +4,128 @@
   <div class="encabezado-pagina">
     <div>
       <h1 class="titulo-pagina">Configuración</h1>
-      <p class="ayuda-pagina">Horario, reparto y mensajes automáticos. Los cambios rigen de inmediato, sin reiniciar nada.</p>
+      <p class="ayuda-pagina">Horario, reparto, mensajes automáticos, metas y guiones. Los cambios rigen de inmediato, sin reiniciar nada.</p>
     </div>
   </div>
   {% include "leads/_mensajes.html" %}
   {% for e in form.non_field_errors %}<div class="alert alert-danger py-2">{{ e }}</div>{% endfor %}
+  {% if pestanas_con_error %}<div class="alert alert-danger py-2" role="alert">Revise los campos marcados en las pestañas con punto rojo.</div>{% endif %}
 
-  <form method="post" class="row g-3" style="max-width: 60rem">
+  {# SCRUM-111 · Pestañas: una sección a la vista; la elegida queda en la URL (#whatsapp). #}
+  <form method="post" class="formulario-configuracion" data-pestanas-config data-pestana-inicial="{{ pestana_inicial|default:'' }}">
     {% csrf_token %}
-    <section class="col-md-6"><div class="tarjeta-rumbo h-100">
+    <nav class="pestanas-config" role="tablist" aria-label="Secciones de la configuración">
+      <button type="button" class="pestana-config" role="tab" id="tab-horario" aria-controls="panel-horario" data-pestana="horario"><i class="bi bi-clock" aria-hidden="true"></i> Horario{% if "horario" in pestanas_con_error %}<span class="punto-error" aria-label="con errores"></span>{% endif %}</button>
+      <button type="button" class="pestana-config" role="tab" id="tab-reparto" aria-controls="panel-reparto" data-pestana="reparto"><i class="bi bi-shuffle" aria-hidden="true"></i> Reparto{% if "reparto" in pestanas_con_error %}<span class="punto-error" aria-label="con errores"></span>{% endif %}</button>
+      <button type="button" class="pestana-config" role="tab" id="tab-whatsapp" aria-controls="panel-whatsapp" data-pestana="whatsapp"><i class="bi bi-whatsapp" aria-hidden="true"></i> WhatsApp{% if "whatsapp" in pestanas_con_error %}<span class="punto-error" aria-label="con errores"></span>{% endif %}</button>
+      <button type="button" class="pestana-config" role="tab" id="tab-metas" aria-controls="panel-metas" data-pestana="metas"><i class="bi bi-bullseye" aria-hidden="true"></i> Metas{% if "metas" in pestanas_con_error %}<span class="punto-error" aria-label="con errores"></span>{% endif %}</button>
+      <button type="button" class="pestana-config" role="tab" id="tab-guiones" aria-controls="panel-guiones" data-pestana="guiones"><i class="bi bi-card-checklist" aria-hidden="true"></i> Guiones{% if "guiones" in pestanas_con_error %}<span class="punto-error" aria-label="con errores"></span>{% endif %}</button>
+    </nav>
+
+    <section class="panel-config tarjeta-rumbo" role="tabpanel" id="panel-horario" aria-labelledby="tab-horario" data-panel="horario">
       <h2 class="titulo-tarjeta">Horario de atención</h2>
       <p class="small text-body-secondary">Fuera de este horario los leads quedan en cola y se reparten al abrir.</p>
-      <div class="row g-2">
+      <div class="row g-2" style="max-width: 28rem">
         <div class="col-6">{% include "leads/_campo.html" with campo=form.hora_inicio %}</div>
         <div class="col-6">{% include "leads/_campo.html" with campo=form.hora_fin %}</div>
       </div>
       <div class="mb-2">
         <div class="form-label small mb-1">{{ form.dias.label }}</div>
-        <div class="d-flex flex-wrap gap-3">
-          {% for d in form.dias %}<label class="form-check-label">{{ d.tag }} {{ d.choice_label }}</label>{% endfor %}
+        <div class="dias-semana">
+          {% for d in form.dias %}<label class="dia-semana">{{ d.tag }} <span>{{ d.choice_label }}</span></label>{% endfor %}
         </div>
         {% for e in form.dias.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
       </div>
-    </div></section>
+    </section>
 
-    <section class="col-md-6"><div class="tarjeta-rumbo h-100">
+    <section class="panel-config tarjeta-rumbo" role="tabpanel" id="panel-reparto" aria-labelledby="tab-reparto" data-panel="reparto">
       <h2 class="titulo-tarjeta">Reparto y reintentos</h2>
-      {% include "leads/_campo.html" with campo=form.max_intentos_por_asesor %}
-      {% include "leads/_campo.html" with campo=form.minutos_primera_llamada %}
-      {% include "leads/_campo.html" with campo=form.minutos_entre_reintentos %}
-      {% include "leads/_campo.html" with campo=form.minutos_alerta_supervisor %}
-    </div></section>
+      <div class="row g-3">
+        <div class="col-md-6">
+          {% include "leads/_campo.html" with campo=form.minutos_primera_llamada %}
+          {% include "leads/_campo.html" with campo=form.max_intentos_por_asesor %}
+          {% include "leads/_campo.html" with campo=form.max_intentos_por_lead %}
+        </div>
+        <div class="col-md-6">
+          {% include "leads/_campo.html" with campo=form.minutos_entre_reintentos %}
+          {% include "leads/_campo.html" with campo=form.minutos_alerta_supervisor %}
+        </div>
+      </div>
+    </section>
 
-    <section class="col-12"><div class="tarjeta-rumbo">
-      <h2 class="titulo-tarjeta">Textos automáticos de WhatsApp</h2>
-      {% include "leads/_campo.html" with campo=form.texto_bienvenida %}
-      {% include "leads/_campo.html" with campo=form.texto_fuera_horario %}
-      {% include "leads/_campo.html" with campo=form.texto_privacidad %}
-    </div></section>
+    <section class="panel-config" role="tabpanel" id="panel-whatsapp" aria-labelledby="tab-whatsapp" data-panel="whatsapp">
+      {# SCRUM-112 · A la derecha, cómo le llega cada mensaje al cliente (se actualiza al escribir). #}
+      <div class="tarjeta-rumbo mb-3">
+        <h2 class="titulo-tarjeta">Respuesta al primer mensaje</h2>
+        <div class="row g-3">
+          <div class="col-lg-7">
+            {% include "leads/_campo.html" with campo=form.texto_bienvenida %}
+            {% include "leads/_campo.html" with campo=form.texto_fuera_horario %}
+            <p class="small text-body-secondary">Escriba <code>{proxima_apertura}</code> donde quiera que diga cuándo abren.</p>
+            {% include "leads/_campo.html" with campo=form.texto_privacidad %}
+          </div>
+          <div class="col-lg-5">
+            <div class="vista-previa-wa" aria-live="polite">
+              <span class="titulo-vista-previa">Así le llega · en horario</span>
+              <div class="burbuja-wa" data-vista-previa="bienvenida"></div>
+              <span class="contador-wa" data-contador="bienvenida"></span>
+              <span class="titulo-vista-previa mt-3">Así le llega · fuera de horario</span>
+              <div class="burbuja-wa" data-vista-previa="fuera"></div>
+              <span class="contador-wa" data-contador="fuera"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="tarjeta-rumbo">
+        <h2 class="titulo-tarjeta">Cuando el cliente no contesta</h2>
+        <p class="small text-body-secondary">Al registrar «No contesta», Rumbo le escribe al cliente para que sepa quién lo llamó.</p>
+        <div class="row g-3">
+          <div class="col-lg-7">
+            <div class="form-check form-switch mb-3">
+              {{ form.aviso_activo }}
+              <label class="form-check-label" for="{{ form.aviso_activo.id_for_label }}">{{ form.aviso_activo.label }}</label>
+            </div>
+            {% include "leads/_campo.html" with campo=form.aviso_texto %}
+            <div class="row g-2">
+              <div class="col-sm-6">{% include "leads/_campo.html" with campo=form.aviso_plantilla %}</div>
+              <div class="col-6 col-sm-3">{% include "leads/_campo.html" with campo=form.aviso_idioma %}</div>
+              <div class="col-6 col-sm-3">{% include "leads/_campo.html" with campo=form.aviso_horas %}</div>
+            </div>
+          </div>
+          <div class="col-lg-5">
+            <div class="vista-previa-wa" aria-live="polite">
+              <span class="titulo-vista-previa">Así le llega · ejemplo: cliente Ana, asesor Carlos</span>
+              <div class="burbuja-wa" data-vista-previa="aviso"></div>
+              <span class="contador-wa" data-contador="aviso"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
 
-    <div class="col-12"><button class="btn btn-primary px-5">Guardar cambios</button></div>
+    <section class="panel-config tarjeta-rumbo" role="tabpanel" id="panel-metas" aria-labelledby="tab-metas" data-panel="metas">
+      <h2 class="titulo-tarjeta">Meta del día de cada asesor</h2>
+      <p class="small text-body-secondary">Se muestra en el Inicio y en el menú del asesor con una barra de progreso. 0 = no se mide.</p>
+      <div class="row g-2" style="max-width: 32rem">
+        <div class="col-4">{% include "leads/_campo.html" with campo=form.meta_llamadas %}</div>
+        <div class="col-4">{% include "leads/_campo.html" with campo=form.meta_citas %}</div>
+        <div class="col-4">{% include "leads/_campo.html" with campo=form.meta_ventas %}</div>
+      </div>
+    </section>
+
+    <section class="panel-config tarjeta-rumbo" role="tabpanel" id="panel-guiones" aria-labelledby="tab-guiones" data-panel="guiones">
+      <h2 class="titulo-tarjeta">Guion de llamada por tipo de visa</h2>
+      <p class="small text-body-secondary">Aparece en la ficha del cliente como lista para marcar, según su tipo de visa. Escriba un paso por línea.</p>
+      <div class="row g-3">
+        {% for campo in form.campos_guion %}
+          <div class="col-md-6">{% include "leads/_campo.html" with campo=campo %}</div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <div class="barra-guardar-config">
+      <button class="btn btn-primary px-5">Guardar cambios</button>
+      <span class="small text-body-secondary">Se guardan todas las pestañas juntas.</span>
+    </div>
   </form>
 {% endblock %}

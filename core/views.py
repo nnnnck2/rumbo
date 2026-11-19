@@ -23,9 +23,12 @@ def _panel_asesor(ctx):
     abiertos = Lead.objects.filter(estado_asignacion=EstadoAsignacion.ASIGNADO, asesor_id=ctx.asesor_id)
     ya = abiertos.filter(proxima_accion_en__lte=ahora).select_related("etapa").order_by("proxima_accion_en")
     inicio_mes = _inicio_del_dia().replace(day=1)
-    from leads.servicios import con_situacion
+    from leads.servicios import con_situacion, leer_configuracion, progreso_del_dia
 
     return {
+        # SCRUM-97: lo hecho hoy frente a la meta diaria
+        "metas": progreso_del_dia(ctx.asesor_id, ctx.usuario_id, leer_configuracion().get("metas_diarias"),
+                                  _inicio_del_dia()),
         "por_llamar_lista": con_situacion(ya[:6]),
         "por_llamar_total": ya.count(),
         "proximas": abiertos.filter(proxima_accion_en__gt=ahora).select_related("etapa").order_by("proxima_accion_en")[:5],

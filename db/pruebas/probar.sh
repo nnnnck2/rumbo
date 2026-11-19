@@ -25,7 +25,7 @@ dc up -d --build --wait db
 dc logs db 2>&1 | grep -E "aplicando|migraciones al día|backup command end|stanza-create command end" || true
 
 titulo "Pruebas SQL"
-for f in pruebas/0*.sql; do
+for f in pruebas/[0-9][0-9]_*.sql; do
     echo "· $(basename "$f")"
     cat pruebas/_comun.sql "$f" | dc exec -T -u postgres db psql -d rumbo -v ON_ERROR_STOP=1 -q 2>&1 \
         | sed -n 's/^.*NOTICE:  /    /p; /ERROR/p'

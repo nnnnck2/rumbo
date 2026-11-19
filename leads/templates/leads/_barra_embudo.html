@@ -1,0 +1,6 @@
+{# SCRUM-99 · Embudo de un anuncio: cuánto de los leads llega a contacto, cita y venta. #}
+<span class="barra-embudo" role="img" aria-label="Contactados {{ a.pct_contacto|default_if_none:0 }}%, citas {{ a.pct_cita|default_if_none:0 }}%, ventas {{ a.pct_venta|default_if_none:0 }}%">
+  <span class="tramo tramo-contacto" style="width: {{ a.pct_contacto|default_if_none:0 }}%"></span>
+  <span class="tramo tramo-cita" style="width: {{ a.pct_cita|default_if_none:0 }}%"></span>
+  <span class="tramo tramo-venta" style="width: {{ a.pct_venta|default_if_none:0 }}%"></span>
+</span>

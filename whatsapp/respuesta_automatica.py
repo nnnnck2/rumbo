@@ -4,12 +4,16 @@ Cuando un número escribe por primera vez (lead nuevo), el worker encola el env�
 la transacción. El envío:
   1. Lee los textos de rumbo.configuracion (editables en Configuración, rigen al instante).
   2. Elige bienvenida o fuera de horario según rumbo.en_horario() y agrega el aviso de privacidad.
+     SCRUM-91: en el texto de fuera de horario, {proxima_apertura} se cambia por cuándo abre la
+     atención ("mañana martes desde las 09:00"), calculado con rumbo.proxima_apertura().
   3. Lo envía por el mismo número al que escribió el cliente (ventana de 24 h abierta: texto libre).
   4. Lo registra como mensaje saliente automático del lead.
 No se piden datos antes de asignar el lead (definido con el área).
 """
 import json
 import logging
+
+from django.utils import timezone
 
 from core.db import como_sistema
 
@@ -21,8 +25,24 @@ LIMITE = 4096                                   # máximo de un texto de WhatsAp
 POR_DEFECTO = {
     "texto_bienvenida": "¡Hola, te saluda Multivisa! ¿Cómo podemos ayudarlo?",
     "texto_fuera_horario": "¡Hola, te saluda Multivisa! Estamos fuera del horario de atención. "
-                           "Un asesor te contactará en cuanto abramos.",
+                           "Un asesor te llamará {proxima_apertura}.",
 }
+DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
+
+
+def texto_apertura(momento, ahora=None):
+    """'hoy desde las 09:00' · 'mañana martes desde las 09:00' · 'el lunes 24/11 desde las 09:00'."""
+    if momento is None:
+        return "en cuanto abramos"
+    local = timezone.localtime(momento)
+    hoy = timezone.localtime(ahora or timezone.now()).date()
+    dias = (local.date() - hoy).days
+    hora = local.strftime("%H:%M")
+    if dias <= 0:
+        return f"hoy desde las {hora}"
+    if dias == 1:
+        return f"mañana {DIAS[local.weekday()]} desde las {hora}"
+    return f"el {DIAS[local.weekday()]} {local:%d/%m} desde las {hora}"
 
 
 class EnvioFallido(Exception):
@@ -31,10 +51,13 @@ class EnvioFallido(Exception):
         self.reintentar = reintentar
 
 
-def componer(config: dict, en_horario: bool) -> str:
+def componer(config: dict, en_horario: bool, proxima_apertura=None) -> str:
     """Texto final: bienvenida (o fuera de horario) + aviso de privacidad si está configurado."""
     clave = "texto_bienvenida" if en_horario else "texto_fuera_horario"
-    partes = [(config.get(clave) or POR_DEFECTO[clave]).strip()]
+    texto = (config.get(clave) or POR_DEFECTO[clave]).strip()
+    if "{proxima_apertura}" in texto:
+        texto = texto.replace("{proxima_apertura}", texto_apertura(proxima_apertura))
+    partes = [texto]
     privacidad = (config.get("texto_privacidad") or "").strip()
     if privacidad:
         partes.append(privacidad)
@@ -49,7 +72,7 @@ def _leer_estado(lead_id):
                       EXISTS (SELECT 1 FROM rumbo.mensaje_whatsapp m
                               WHERE m.lead_id = l.id AND m.direccion = 'saliente'
                                 AND m.payload ? 'automatica'),
-                      rumbo.en_horario()
+                      rumbo.en_horario(), rumbo.proxima_apertura()
                FROM rumbo.lead l LEFT JOIN rumbo.numero_whatsapp n ON n.id = l.numero_whatsapp_id
                WHERE l.id = %s""",
             [lead_id],
@@ -60,7 +83,8 @@ def _leer_estado(lead_id):
         cursor.execute("SELECT clave, valor FROM rumbo.configuracion "
                        "WHERE clave IN ('texto_bienvenida', 'texto_fuera_horario', 'texto_privacidad')")
         config = {c: (json.loads(v) if isinstance(v, str) else v) for c, v in cursor.fetchall()}
-    telefono, pnid, ya, en_horario = fila
+    telefono, pnid, ya, en_horario, proxima = fila
+    config["_proxima_apertura"] = proxima
     return telefono, pnid, ya, config, en_horario
 
 
@@ -79,7 +103,7 @@ def enviar(lead_id: int, phone_number_id: str | None = None) -> str:
                        "meta_phone_number_id", lead_id)
         return "sin phone_number_id"
 
-    texto = componer(config, en_horario)
+    texto = componer(config, en_horario, config.get("_proxima_apertura"))
     try:
         status, respuesta = cliente.llamar_api(pnid, cliente.cuerpo_texto(telefono, texto))
     except cliente.SinToken:

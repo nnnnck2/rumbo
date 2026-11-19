@@ -308,6 +308,8 @@ class Anuncio(ModeloRumbo):
     nombre_campana = models.TextField(null=True)
     categorizado_en = models.DateTimeField(null=True)
     categorizado_por_usuario = models.ForeignKey(Usuario, models.DO_NOTHING, null=True, related_name="+")
+    inversion = models.DecimalField(max_digits=12, decimal_places=2, null=True)   # 018: costo por lead / venta
+    inversion_moneda = models.CharField(max_length=3, default="USD")
     primer_visto_en = models.DateTimeField()
     ultimo_visto_en = models.DateTimeField()
     creado_en = models.DateTimeField()

@@ -121,6 +121,13 @@ WHATSAPP_APP_SECRET = env("WHATSAPP_APP_SECRET", default="")
 WHATSAPP_ACCESS_TOKEN = env("WHATSAPP_ACCESS_TOKEN", default="")
 WHATSAPP_API_VERSION = env("WHATSAPP_API_VERSION", default="v21.0")
 
+# ── Conversions API de Meta (SCRUM-92) ─────────────────────────────────────────────
+# Sin estas tres variables no se envía nada a Meta (los eventos esperan hasta 7 días).
+META_DATASET_ID = env("META_DATASET_ID", default="")          # Dataset (pixel) del Administrador de eventos
+META_CAPI_TOKEN = env("META_CAPI_TOKEN", default="")          # Token de acceso de la Conversions API
+META_WABA_ID = env("META_WABA_ID", default="")                # Id de la cuenta de WhatsApp Business
+META_CAPI_TEST_CODE = env("META_CAPI_TEST_CODE", default="")  # Solo para probar en "Eventos de prueba"
+
 # ── Celery + Redis (SCRUM-17) ─────────────────────────────────────────────────────
 REDIS_URL = env("REDIS_URL", default="redis://127.0.0.1:6379/0")
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", default=REDIS_URL)
@@ -146,6 +153,8 @@ CELERY_BEAT_SCHEDULE = {
     "generar-avisos": {"task": "core.generar_avisos", "schedule": 60.0},
     # RF-13: cada 5 minutos (incluye las 9:00, apertura del horario).
     "liberar-cola": {"task": "core.liberar_cola", "schedule": crontab(minute="*/5")},
+    # SCRUM-92: citas y ventas de leads de anuncios → Conversions API de Meta
+    "enviar-conversiones": {"task": "whatsapp.enviar_conversiones", "schedule": 60.0},
 }
 
 # ── Logging ───────────────────────────────────────────────────────────────────────

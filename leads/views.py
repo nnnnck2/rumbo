@@ -7,13 +7,17 @@ Las acciones responden con el bloque #ficha actualizado (HTMX) o redirigen (sin 
 Permisos: los decide la base. Un asesor solo ve (RLS) y solo puede tocar (funciones SQL) sus
 leads. Aquí además se ocultan los botones que su rol no puede usar.
 """
+import csv
 import datetime as dt
-from urllib.parse import quote, urlsplit
+import re
+from urllib.parse import quote, urlencode, urlsplit
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
-from django.db.models import Count, F, OuterRef, Q, Subquery
+from django.db.models import Count, Exists, F, OuterRef, Q, Subquery
+from django.db.models.functions import Coalesce
+from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -21,10 +25,11 @@ from django.views.decorators.http import require_http_methods, require_POST
 
 from cuentas.permisos import SUPERVISION, TODOS, con_rol
 
-from . import servicios
+from . import servicios, zonas
 from .forms import (PAISES, TIPOS_VISA, AgendarForm, ConfiguracionForm, DatosLeadForm, EtapaForm, IntentoForm,
                     NotaForm, ReasignarForm, ReasignarLoteForm, asesores_activos)
-from .models import Anuncio, Asesor, Asignacion, Etapa, EstadoAsignacion, Lead, LeadOrigen
+from .models import (Anuncio, Asesor, Asignacion, Etapa, EstadoAsignacion, Lead, LeadEtapaHistorial, LeadOrigen,
+                     Usuario)
 
 
 # ─────────────────────────────── Ficha ───────────────────────────────
@@ -40,11 +45,20 @@ def _contexto_ficha(request, lead, intento_form=None, etapa_form=None, reasignar
     puede_editar = request.rumbo.es_supervisor or (lead.asesor_id and lead.asesor_id == request.rumbo.asesor_id)
     servicios.con_situacion([lead])
     origenes = list(lead.origenes.select_related("anuncio").order_by("llegado_en"))
+    config = servicios.leer_configuracion()
     return {
         "lead": lead,
         **_recorrido(request, lead),
         "origen": origenes[0] if origenes else None,        # 016: anuncio del que llegó
         "otras_llegadas": len(origenes) - 1 if origenes else 0,
+        "entradas_anuncios": entradas_por_anuncio(origenes),  # SCRUM-100
+        "whatsapp_url": enlace_whatsapp(lead, _nombre_usuario(request)),   # SCRUM-94
+        "hora_cliente": zonas.hora_cliente(lead.telefono),  # SCRUM-95
+        "guion": servicios.guion_para(lead.tipo_visa, config.get("guiones_llamada")),   # SCRUM-96
+        "ultimo_aviso": lead.mensajes.filter(direccion="saliente", payload__has_key="aviso_no_contesta")
+                        .order_by("-ocurrido_en").first(),                                # SCRUM-104
+        "reapertura": reapertura(lead),                                                   # SCRUM-110
+        "hoy": timezone.localdate(),
         **_modo_siguiente(request),
         "datos_form": (datos_form or DatosLeadForm(initial={"version": lead.version, "tipo_visa": lead.tipo_visa,
                                                             "pais_interes": lead.pais_interes}))
@@ -69,6 +83,45 @@ def _contexto_ficha(request, lead, intento_form=None, etapa_form=None, reasignar
                           if request.rumbo.es_supervisor and lead.estado_asignacion != EstadoAsignacion.CERRADO
                           else None,
     }
+
+
+def _nombre_usuario(request):
+    nombre = Usuario.objects.filter(pk=request.rumbo.usuario_id).values_list("nombre", flat=True).first()
+    return nombre or request.user.get_full_name() or request.user.get_username()
+
+
+def enlace_whatsapp(lead, asesor):
+    """SCRUM-94 · Abre el chat del cliente en WhatsApp (wa.me) con un saludo listo para enviar."""
+    nombre = (lead.nombre_perfil or "").split()
+    saludo = f"Hola {nombre[0]}, " if nombre else "Hola, "
+    saludo += f"le saluda {asesor} de Multivisa."
+    return f"https://wa.me/{lead.telefono.lstrip('+')}?{urlencode({'text': saludo})}"
+
+
+DIAS_REABIERTO = 30
+
+
+def reapertura(lead):
+    """SCRUM-110 · {"en", "motivo"} si el lead se reabrió (descartado → nuevo) en los últimos 30 días."""
+    h = (LeadEtapaHistorial.objects.filter(lead=lead, desde_id="descartado", hacia_id="nuevo",
+                                           creado_en__gte=timezone.now() - dt.timedelta(days=DIAS_REABIERTO))
+         .order_by("-creado_en").first())
+    if h is None:
+        return None
+    # El motivo del descarte anterior queda en la nota automática de la reapertura (018).
+    nota = (lead.notas.filter(autor_usuario_id=0, texto__startswith="Reabierto automáticamente")
+            .order_by("-creado_en").values_list("texto", flat=True).first() or "")
+    motivo = re.search(r"«(.+?)»", nota)
+    return {"en": h.creado_en, "motivo": motivo.group(1) if motivo else None}
+
+
+def entradas_por_anuncio(origenes):
+    """SCRUM-100 · Anuncios distintos por los que llegó el cliente: [{"anuncio", "primera", "veces"}]."""
+    por_anuncio = {}
+    for o in origenes:
+        e = por_anuncio.setdefault(o.anuncio_id, {"anuncio": o.anuncio, "primera": o.llegado_en, "veces": 0})
+        e["veces"] += 1
+    return sorted(por_anuncio.values(), key=lambda e: e["primera"])
 
 
 def _recorrido(request, lead):
@@ -153,9 +206,24 @@ def registrar_intento(request, pk):
             return _lead_ya_no_visible(request, e.mensaje)
         return _responder_ficha(request, lead, intento_form=None if e.tipo == "conflicto" else form)
 
-    resultado = form.resultados[d["resultado"]].nombre
+    res = form.resultados[d["resultado"]]
+    resultado = res.nombre
     nombre = nombre_cliente(lead)
+    if res.cuenta_como_intento:              # SCRUM-88: "no contesta" → WhatsApp al cliente (si corresponde)
+        from whatsapp.aviso_no_contesta import prever
+
+        servicios.programar_aviso_no_contesta(lead.pk, request.rumbo.usuario_id)
+        envia, texto_aviso = prever(lead.pk, request.rumbo.usuario_id)          # SCRUM-104
+        if texto_aviso:
+            (messages.info if envia else messages.warning)(request, texto_aviso)
     lead = _lead(pk)
+    if lead is not None and lead.motivo_descarte_id == "sin_contacto" and res.cuenta_como_intento:
+        # SCRUM-89: se llegó al tope de intentos del cliente
+        messages.warning(request, f"{nombre} se descartó solo: llegó al tope de intentos sin contacto. "
+                                  "Si vuelve a escribir, se reabre.")
+        if request.POST.get("siguiente"):
+            return _ir_a(request, reverse("leads:siguiente"))
+        return _responder_ficha(request, lead)
     if request.POST.get("siguiente"):          # SCRUM-76: pasa solo al siguiente cliente pendiente
         messages.success(request, f"Guardado: {nombre} · {resultado}.")
         return _ir_a(request, reverse("leads:siguiente"))
@@ -352,16 +420,25 @@ def reasignar_lote(request):
 
 # ─────────────────────────────── Lista con filtros (RF-25: filtro por etapa) ───────────────────────────────
 
-@require_http_methods(["GET"])
-@con_rol(*TODOS)
-def lista(request):
+FILTROS_LISTA = ("q", "etapa", "asesor", "pais", "varias")
+
+
+def _leads_filtrados(request):
+    """Leads con los filtros que se combinan con cualquier pestaña (búsqueda, etapa, asesor, país y
+    "llegó por varios anuncios"). Los usan la lista y la exportación."""
     f = request.GET
     primer_anuncio = LeadOrigen.objects.filter(lead=OuterRef("pk")).order_by("llegado_en")
+    # Subconsulta (no JOIN + GROUP BY) para no alterar los conteos de las pestañas.
+    anuncios_distintos = (LeadOrigen.objects.filter(lead=OuterRef("pk")).order_by().values("lead")
+                          .annotate(n=Count("anuncio", distinct=True)).values("n"))
     qs = (Lead.objects.select_related("etapa", "asesor__usuario").order_by("-primer_contacto_en")
           .annotate(anuncio_titulo=Subquery(primer_anuncio.values("anuncio__titulo")[:1]),     # 016
                     anuncio_clave=Subquery(primer_anuncio.values("anuncio__clave")[:1]),
-                    anuncio_pais=Subquery(primer_anuncio.values("anuncio__pais")[:1])))
-    # Filtros que se combinan con cualquier pestaña: búsqueda, etapa y asesor.
+                    anuncio_pais=Subquery(primer_anuncio.values("anuncio__pais")[:1]),
+                    n_anuncios=Coalesce(Subquery(anuncios_distintos), 0),                # SCRUM-100
+                    reabierto=Exists(LeadEtapaHistorial.objects.filter(                   # SCRUM-110
+                        lead=OuterRef("pk"), desde_id="descartado", hacia_id="nuevo",
+                        creado_en__gte=timezone.now() - dt.timedelta(days=DIAS_REABIERTO)))))
     if f.get("etapa"):
         qs = qs.filter(etapa_id=f["etapa"])
     if f.get("asesor") and request.rumbo.es_supervisor:
@@ -370,6 +447,27 @@ def lista(request):
         qs = qs.filter(Q(telefono__icontains=f["q"]) | Q(nombre_perfil__icontains=f["q"]))
     if f.get("pais"):                       # 017: las campañas se organizan por país
         qs = qs.filter(pais_interes=f["pais"]) if f["pais"] != "sin_pais" else qs.filter(pais_interes__isnull=True)
+    if f.get("varias"):                     # SCRUM-100: llegó por más de un anuncio
+        qs = qs.filter(n_anuncios__gte=2)
+    return qs
+
+
+def _pestana(request, qs):
+    """Aplica la pestaña elegida: Por llamar ahora, Abiertos, En cola, Cerrados o Todos."""
+    f = request.GET
+    if f.get("pendientes"):
+        return "pendientes", qs.filter(estado_asignacion=EstadoAsignacion.ASIGNADO,
+                                       proxima_accion_en__lte=timezone.now()).order_by("proxima_accion_en")
+    if f.get("estado") in EstadoAsignacion.values:
+        return f["estado"], qs.filter(estado_asignacion=f["estado"])
+    return "", qs
+
+
+@require_http_methods(["GET"])
+@con_rol(*TODOS)
+def lista(request):
+    f = request.GET
+    qs = _leads_filtrados(request)
 
     # Pestañas (RF-24: "Por llamar ahora" = llamadas que ya toca hacer, vencidas incluidas).
     ahora = timezone.now()
@@ -386,19 +484,12 @@ def lista(request):
         {"clave": "cerrado", "nombre": "Cerrados", "n": conteo.get(EstadoAsignacion.CERRADO, 0), "url": "estado=cerrado"},
         {"clave": "", "nombre": "Todos", "n": sum(conteo.values()), "url": ""},
     ]
-    if f.get("pendientes"):
-        activa = "pendientes"
-        qs = pendientes.order_by("proxima_accion_en")
-    elif f.get("estado") in EstadoAsignacion.values:
-        activa = f["estado"]
-        qs = qs.filter(estado_asignacion=activa)
-    else:
-        activa = ""
+    activa, qs = _pestana(request, qs)
 
     pagina = Paginator(qs, 50).get_page(f.get("pagina"))
     pagina.object_list = servicios.con_situacion(pagina.object_list)
     # Para mantener la búsqueda y los filtros al cambiar de pestaña o de página.
-    extra = "&".join(f"{k}={quote(v)}" for k, v in f.items() if k in ("q", "etapa", "asesor", "pais") and v)
+    extra = "&".join(f"{k}={quote(v)}" for k, v in f.items() if k in FILTROS_LISTA and v)
     return render(request, "leads/lista.html", {
         "pagina": pagina,
         "rumbo": request.rumbo,
@@ -408,7 +499,9 @@ def lista(request):
         "pestanas": pestanas,
         "activa": activa,
         "extra": extra,
-        "mas_filtros": bool(f.get("etapa") or f.get("asesor") or f.get("pais")),
+        "mas_filtros": bool(f.get("etapa") or f.get("asesor") or f.get("pais") or f.get("varias")),
+        "consulta": request.GET.urlencode(),
+        "total_leads": Lead.objects.count() if request.rumbo.es_supervisor else None,     # SCRUM-109
         "paises_leads": sorted(p for p in Lead.objects.exclude(pais_interes__isnull=True)
                                .values_list("pais_interes", flat=True).distinct() if p),
         "lote_form": ReasignarForm() if request.rumbo.es_supervisor else None,
@@ -424,6 +517,8 @@ def lista(request):
 def campanas(request):
     """Cada anuncio de Meta del que llegaron leads, con su país. Al asignar el país, los leads de esa
     campaña (los que llegaron y los que lleguen) quedan con ese país de interés."""
+    if request.method == "POST" and request.POST.get("accion") == "inversion":     # SCRUM-99
+        return _guardar_inversion(request)
     if request.method == "POST":
         anuncio_id = request.POST.get("anuncio")
         try:
@@ -455,8 +550,28 @@ def campanas(request):
     paises = sorted({a.pais for a in anuncios if a.pais} | set(PAISES))
     return render(request, "leads/campanas.html", {
         "anuncios": anuncios, "paises": paises, "rumbo": request.rumbo,
+        "meta": servicios.estado_conversiones(),                                          # SCRUM-113
         "sin_pais": sum(1 for a in anuncios if not a.pais),
     })
+
+
+def _guardar_inversion(request):
+    from decimal import Decimal, InvalidOperation
+
+    anuncio_id = request.POST.get("anuncio", "")
+    texto = request.POST.get("inversion", "").strip().replace(",", ".")
+    try:
+        monto = Decimal(texto) if texto else None
+        if monto is not None and (not monto.is_finite() or monto < 0 or monto >= Decimal("1e10")):
+            raise InvalidOperation
+        servicios.registrar_inversion(int(anuncio_id), monto)
+    except (ValueError, InvalidOperation):
+        messages.error(request, "Escriba la inversión como un número (por ejemplo 150.50).")
+    except servicios.ErrorNegocio as e:
+        messages.error(request, e.mensaje)
+    else:
+        messages.success(request, "Inversión guardada." if monto is not None else "Inversión borrada.")
+    return redirect(f"{reverse('leads:campanas')}#anuncio-{anuncio_id}")
 
 
 # ─────────────────────────────── 015 · Tablero de gestión (supervisor) ───────────────────────────────
@@ -515,6 +630,18 @@ MOTIVOS_REASIGNACION = {
 @require_http_methods(["GET"])
 @con_rol(*SUPERVISION)
 def metricas(request):
+    desde, hasta, inicio, fin = _rango_metricas(request)
+    datos = servicios.metricas_piloto(inicio, fin)
+    datos["reasignaciones"] = [(MOTIVOS_REASIGNACION.get(m, m), n) for m, n in sorted(datos["reasignaciones"].items())]
+    datos["por_campana"] = servicios.metricas_por_campana(inicio, fin)
+    datos["embudo"] = servicios.embudo_por_anuncio(inicio, fin)          # SCRUM-99
+    return render(request, "leads/metricas.html", {
+        **datos, "desde": desde, "hasta": hasta, "rumbo": request.rumbo,
+        "webhook": servicios.errores_webhook(inicio, fin) if request.rumbo.es_admin else None,
+    })
+
+
+def _rango_metricas(request):
     hoy = timezone.localdate()
     try:
         desde = dt.date.fromisoformat(request.GET.get("desde", ""))
@@ -529,13 +656,120 @@ def metricas(request):
     zona = timezone.get_current_timezone()
     inicio = dt.datetime.combine(desde, dt.time.min, zona)
     fin = dt.datetime.combine(hasta + dt.timedelta(days=1), dt.time.min, zona)
+    return desde, hasta, inicio, fin
+
+
+# ─────────────────────────────── SCRUM-93 · Exportar a CSV ───────────────────────────────
+# CSV en UTF-8 con BOM y separador ";": Excel en español lo abre directo, con tildes y columnas.
+
+def _respuesta_csv(nombre):
+    respuesta = HttpResponse(content_type="text/csv; charset=utf-8")
+    respuesta["Content-Disposition"] = f'attachment; filename="{nombre}"'
+    respuesta.write("﻿")
+    return respuesta, csv.writer(respuesta, delimiter=";")
+
+
+def _celda(valor):
+    """Evita que Excel interprete un texto del cliente como fórmula (inyección CSV)."""
+    if isinstance(valor, str) and valor[:1] in ("=", "+", "-", "@", "\t", "\r"):
+        return "'" + valor
+    return "" if valor is None else valor
+
+
+def _fecha(valor):
+    return timezone.localtime(valor).strftime("%d/%m/%Y %H:%M") if valor else ""
+
+
+COLUMNAS_LEADS = ["Id", "Nombre", "Teléfono", "Etapa", "Estado", "Asesor", "Intentos con el asesor", "Intentos totales",
+                  "Tipo de visa", "País de interés", "Anuncio de origen", "País de la campaña", "Anuncios distintos",
+                  "Primer contacto", "Último mensaje", "Próxima llamada", "Cerrado"]
+
+
+@require_http_methods(["GET"])
+@con_rol(*SUPERVISION)
+def exportar_leads(request):
+    """La lista de leads con los mismos filtros y pestaña que se están viendo."""
+    _activa, qs = _pestana(request, _leads_filtrados(request))
+    filas = list(qs[:20000])
+    servicios.registrar_exportacion("leads", len(filas), {k: v for k, v in request.GET.items()})
+    respuesta, w = _respuesta_csv(f"rumbo-leads-{timezone.localdate():%Y%m%d}.csv")
+    w.writerow(COLUMNAS_LEADS)
+    for l in filas:
+        w.writerow([_celda(x) for x in (
+            l.pk, l.nombre_perfil, l.telefono, l.etapa.nombre, l.get_estado_asignacion_display(),
+            l.asesor.usuario.nombre if l.asesor else "", l.intentos_asesor_actual, l.intentos_totales,
+            l.tipo_visa, l.pais_interes, l.anuncio_titulo or l.anuncio_clave, l.anuncio_pais, l.n_anuncios,
+            _fecha(l.primer_contacto_en), _fecha(l.ultimo_mensaje_en), _fecha(l.proxima_accion_en), _fecha(l.cerrado_en))])
+    return respuesta
+
+
+@require_http_methods(["GET"])
+@con_rol(*SUPERVISION)
+def exportar_metricas(request):
+    """Las tablas de Métricas del rango elegido, una debajo de la otra."""
+    desde, hasta, inicio, fin = _rango_metricas(request)
     datos = servicios.metricas_piloto(inicio, fin)
-    datos["reasignaciones"] = [(MOTIVOS_REASIGNACION.get(m, m), n) for m, n in sorted(datos["reasignaciones"].items())]
-    datos["por_campana"] = servicios.metricas_por_campana(inicio, fin)
-    return render(request, "leads/metricas.html", {
-        **datos, "desde": desde, "hasta": hasta, "rumbo": request.rumbo,
-        "webhook": servicios.errores_webhook(inicio, fin) if request.rumbo.es_admin else None,
-    })
+    por_campana = servicios.metricas_por_campana(inicio, fin)
+    embudo = servicios.embudo_por_anuncio(inicio, fin)
+    respuesta, w = _respuesta_csv(f"rumbo-metricas-{desde:%Y%m%d}-{hasta:%Y%m%d}.csv")
+    w.writerow([f"Métricas de Rumbo · leads llegados del {desde:%d/%m/%Y} al {hasta:%d/%m/%Y}"])
+    w.writerow([])
+    w.writerow(["Por asesor", "Leads", "Llamados", "Contactados", "Contacto %", "Ventas",
+                "Asignado → primera llamada (min, mediana)"])
+    for f in [*datos["por_asesor"], {**datos["total"], "grupo": "TOTAL"}]:
+        mediana = f["min_asignado_a_llamada_mediana"]
+        w.writerow([_celda(f["grupo"]), f["leads"], f["llamados"], f["contactados"], f["tasa_contacto"], f["ventas"],
+                    round(mediana) if mediana is not None else ""])
+    w.writerow([])
+    w.writerow(["Por campaña (país)", "Leads", "Llamados", "Contacto %", "Ventas", "Conversión %"])
+    for f in por_campana:
+        w.writerow([_celda(f["grupo"]), f["leads"], f["llamados"], f["tasa_contacto"], f["ventas"], f["tasa_venta"]])
+    w.writerow([])
+    w.writerow(["Campaña", "Anuncio", "Leads", "Contactados", "Citas", "Ventas", "Inversión total",
+                "Costo por lead", "Costo por venta"])
+    for c in embudo:
+        for a in c["anuncios"]:
+            w.writerow([_celda(c["pais"]), _celda(a["nombre"]), a["leads"], a["contactados"], a["citas"], a["ventas"],
+                        a["inversion"] if a["inversion"] is not None else "",
+                        round(a["costo_lead"], 2) if a["costo_lead"] is not None else "",
+                        round(a["costo_venta"], 2) if a["costo_venta"] is not None else ""])
+    filas = len(datos["por_asesor"]) + len(por_campana) + sum(len(c["anuncios"]) for c in embudo)
+    servicios.registrar_exportacion("metricas", filas, {"desde": desde.isoformat(), "hasta": hasta.isoformat()})
+    return respuesta
+
+
+# ─────────────────────────────── SCRUM-98 · Panel en vivo ───────────────────────────────
+
+MINUTOS_INACTIVO = 60
+ORDEN_ESTADO = {"disponible": 0, "ocupado": 1, "pausa": 2, "fuera_turno": 3}
+
+
+def orden_urgencia(a):
+    """Primero lo que necesita atención: clientes sin gestionar, por llamar, asesor inactivo; después el estado."""
+    return (-a["sin_gestionar"], -a["por_llamar"], not a.get("inactivo"), ORDEN_ESTADO.get(a["estado"], 9), a["nombre"])
+
+
+@require_http_methods(["GET"])
+@con_rol(*SUPERVISION)
+def en_vivo(request):
+    """Quién está disponible, en pausa o desconectado, cuánto tiene cada uno y qué espera. HTMX cada 15 s."""
+    hoy = dt.datetime.combine(timezone.localdate(), dt.time.min, timezone.get_current_timezone())
+    panel = servicios.panel_en_vivo(hoy)
+    ahora = timezone.now()
+    for a in panel["asesores"]:
+        a["estado_hace"] = servicios.hace_corto(a["estado_desde"], ahora)
+        a["ultima_hace"] = servicios.hace_corto(a["ultima_llamada"], ahora)
+        # SCRUM-107: disponible y sin llamar hace más de 60 min DE TURNO (desde su última llamada, desde que se
+        # conectó o desde que abrió la atención hoy: la noche y el fin de semana no cuentan).
+        desde = max(filter(None, [a["ultima_llamada"], a["estado_desde"], panel["inicio_turno"]]))
+        a["sin_actividad_min"] = max(0, int((ahora - desde).total_seconds() // 60))
+        a["sin_actividad"] = servicios.hace_corto(desde, ahora)
+        a["inactivo"] = (panel["abierto"] and a["estado"] == "disponible"
+                         and a["sin_actividad_min"] >= MINUTOS_INACTIVO)
+    panel["asesores"].sort(key=orden_urgencia)
+    contexto = {**panel, "rumbo": request.rumbo, "ahora": ahora, "minutos_inactivo": MINUTOS_INACTIVO}
+    plantilla = "leads/_en_vivo.html" if request.htmx else "leads/en_vivo.html"
+    return render(request, plantilla, contexto)
 
 
 # ─────────────────────────────── RF-31 · Configuración ───────────────────────────────
@@ -557,4 +791,8 @@ def configuracion(request):
                 return redirect("leads:configuracion")
     else:
         form = ConfiguracionForm(initial=ConfiguracionForm.desde_configuracion(actual))
-    return render(request, "leads/configuracion.html", {"form": form, "rumbo": request.rumbo})
+    con_error = {p for p, campos in ConfiguracionForm.PESTANAS.items() if any(c in form.errors for c in campos)}
+    return render(request, "leads/configuracion.html", {
+        "form": form, "rumbo": request.rumbo, "pestanas_con_error": con_error,                 # SCRUM-111
+        # La primera pestaña con errores, en el orden en que se muestran.
+        "pestana_inicial": next((p for p in ConfiguracionForm.PESTANAS if p in con_error), None)})

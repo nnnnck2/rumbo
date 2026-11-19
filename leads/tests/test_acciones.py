@@ -58,7 +58,9 @@ class ConfiguracionFormTests(SimpleTestCase):
     datos = {"hora_inicio": "09:00", "hora_fin": "18:00", "dias": ["1", "2", "3", "4", "5"],
              "max_intentos_por_asesor": 3, "minutos_primera_llamada": 15, "minutos_entre_reintentos": 30,
              "minutos_alerta_supervisor": 30,
-             "texto_bienvenida": "¡Hola!", "texto_fuera_horario": "Fuera de horario", "texto_privacidad": ""}
+             "texto_bienvenida": "¡Hola!", "texto_fuera_horario": "Fuera de horario", "texto_privacidad": "",
+             "max_intentos_por_lead": 9, "aviso_activo": "on", "aviso_texto": "Hola {nombre}", "aviso_plantilla": "",
+             "aviso_idioma": "es", "aviso_horas": 24, "meta_llamadas": 20, "meta_citas": 3, "meta_ventas": 1}
 
     def test_cambios_en_el_formato_de_la_base(self):
         f = ConfiguracionForm(self.datos)

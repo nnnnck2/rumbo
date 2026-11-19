@@ -263,3 +263,237 @@
   document.addEventListener("DOMContentLoaded", preparar);
   document.addEventListener("htmx:afterSettle", function (e) { if (e.target.id === "tablero") preparar(); });
 })();
+
+// SCRUM-95 / 102 · Hora del cliente con semáforo (verde 9–19, ámbar 8–9 y 19–21, rojo el resto; mismas
+// reglas que leads/zonas.py). Se actualiza cada minuto. Si allá es muy temprano o muy tarde, "Llamar"
+// pide confirmar antes de abrir el teléfono.
+(function () {
+  "use strict";
+  function horaEn(zona) {
+    const partes = new Intl.DateTimeFormat("es-EC", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: zona })
+      .formatToParts(new Date());
+    const h = parseInt(partes.find(function (p) { return p.type === "hour"; }).value, 10) % 24;
+    const m = parseInt(partes.find(function (p) { return p.type === "minute"; }).value, 10);
+    return { h: h, m: m, texto: String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0") };
+  }
+  function tono(h) {
+    if (h >= 9 && h < 19) return "verde";
+    if (h >= 8 && h < 21) return "ambar";
+    return "rojo";
+  }
+  const TEXTO_TONO = { verde: "buena hora", ambar: "hora límite", rojo: "muy temprano o muy tarde" };
+
+  function actualizar() {
+    document.querySelectorAll("[data-zona]").forEach(function (el) {
+      let hora;
+      try { hora = horaEn(el.dataset.zona); } catch (e) { return; }   // zona desconocida: queda la del servidor
+      const t = tono(hora.h);
+      el.querySelectorAll("[data-hora]").forEach(function (d) { d.textContent = hora.texto; });
+      el.classList.remove("tono-verde", "tono-ambar", "tono-rojo");
+      el.classList.add("tono-" + t);
+      const texto = el.querySelector("[data-tono-texto]");
+      if (texto) texto.textContent = TEXTO_TONO[t];
+      if (el.hasAttribute("data-aviso-hora")) el.hidden = t === "verde";
+    });
+  }
+  window.setInterval(actualizar, 60000);
+  document.addEventListener("DOMContentLoaded", actualizar);
+  document.addEventListener("htmx:afterSettle", actualizar);
+
+  // Fase de captura: corre antes del recordatorio "¿Cómo le fue?" y puede cancelar la llamada.
+  document.addEventListener("click", function (ev) {
+    const boton = ev.target.closest("[data-zona-llamada]");
+    if (!boton) return;
+    let hora;
+    try { hora = horaEn(boton.dataset.zonaLlamada); } catch (e) { return; }
+    if (tono(hora.h) !== "rojo") return;
+    if (!window.confirm("Allá son las " + hora.texto + ". ¿Llamar igual?")) {
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+    }
+  }, true);
+})();
+
+// SCRUM-101 · Barra fija de contacto en la ficha: aparece cuando el encabezado sale de la pantalla.
+(function () {
+  "use strict";
+  let observador = null;
+  function preparar() {
+    if (observador) { observador.disconnect(); observador = null; }
+    const barra = document.querySelector("[data-barra-contacto]");
+    const encabezado = document.querySelector("[data-encabezado-lead]");
+    if (!barra || !encabezado || !("IntersectionObserver" in window)) return;
+    observador = new IntersectionObserver(function (entradas) {
+      const fuera = !entradas[0].isIntersecting && entradas[0].boundingClientRect.top < 0;
+      barra.hidden = !fuera;
+      barra.classList.toggle("visible", fuera);
+    }, { rootMargin: "-64px 0px 0px 0px" });
+    observador.observe(encabezado);
+  }
+  document.addEventListener("DOMContentLoaded", preparar);
+  document.addEventListener("htmx:afterSettle", preparar);
+})();
+
+// SCRUM-103 · Guion como lista de chequeo. Las marcas se guardan en este navegador por cliente y se
+// borran al registrar el resultado. "¿Cómo le fue?" recuerda los pasos que quedaron sin marcar.
+(function () {
+  "use strict";
+  const PREFIJO = "rumbo-guion-";
+  function leer(lead) { try { return JSON.parse(localStorage.getItem(PREFIJO + lead) || "[]"); } catch (e) { return []; } }
+  function guardar(lead, marcas) {
+    try {
+      if (marcas.length) localStorage.setItem(PREFIJO + lead, JSON.stringify(marcas));
+      else localStorage.removeItem(PREFIJO + lead);
+    } catch (e) {}
+  }
+  function pintar(guion) {
+    const marcas = leer(guion.dataset.guion);
+    const casillas = guion.querySelectorAll("[data-paso]");
+    casillas.forEach(function (c) { c.checked = marcas.indexOf(c.dataset.paso) !== -1; c.closest("li").classList.toggle("hecho", c.checked); });
+    const avance = guion.querySelector("[data-avance-guion]");
+    if (avance) avance.textContent = marcas.length + " de " + casillas.length;
+  }
+  function preparar() { document.querySelectorAll("[data-guion]").forEach(pintar); }
+  document.addEventListener("change", function (ev) {
+    const casilla = ev.target.closest("[data-paso]");
+    if (!casilla) return;
+    const guion = casilla.closest("[data-guion]");
+    const marcas = Array.from(guion.querySelectorAll("[data-paso]:checked")).map(function (c) { return c.dataset.paso; });
+    guardar(guion.dataset.guion, marcas);
+    pintar(guion);
+  });
+  // Al registrar el resultado de la llamada, el guion empieza de cero.
+  document.addEventListener("submit", function (ev) {
+    if (ev.target.id === "form-intento" && ev.target.dataset.lead) guardar(ev.target.dataset.lead, []);
+  }, true);
+  // Recordatorio en "¿Cómo le fue?"
+  document.addEventListener("show.bs.modal", function (ev) {
+    const caja = ev.target.querySelector("[data-recordatorio-guion]");
+    const guion = document.querySelector('[data-guion="' + ev.target.dataset.lead + '"]');
+    if (!caja || !guion) return;
+    const lista = caja.querySelector("[data-pendientes-guion]");
+    lista.replaceChildren();
+    guion.querySelectorAll("[data-paso]:not(:checked)").forEach(function (c) {
+      const li = document.createElement("li");
+      li.textContent = c.closest("label").querySelector("span").textContent;   // texto, nunca HTML
+      lista.appendChild(li);
+    });
+    // Solo si empezó a usar el guion en esta llamada (si no marcó nada, no se insiste).
+    caja.hidden = !lista.children.length || !leer(guion.dataset.guion).length;
+  });
+  document.addEventListener("DOMContentLoaded", preparar);
+  document.addEventListener("htmx:afterSettle", preparar);
+})();
+
+// SCRUM-106 · Celebración al cumplir la meta del día: una sola vez por día y por navegador.
+(function () {
+  "use strict";
+  document.addEventListener("DOMContentLoaded", function () {
+    const caja = document.querySelector("[data-celebrar]");
+    if (!caja) return;
+    const clave = "rumbo-meta-celebrada";
+    let ya = null;
+    try { ya = localStorage.getItem(clave); } catch (e) {}
+    if (ya === caja.dataset.celebrar) return;
+    try { localStorage.setItem(clave, caja.dataset.celebrar); } catch (e) {}
+    caja.classList.add("celebrando");
+    window.setTimeout(function () { caja.classList.remove("celebrando"); }, 2600);
+  });
+})();
+
+// SCRUM-107 · "Actualizado hace N s" en el panel En vivo (se reinicia con cada refresco HTMX).
+(function () {
+  "use strict";
+  let desde = Date.now();
+  function pintar() {
+    const el = document.querySelector("[data-actualizado]");
+    if (!el) return;
+    const s = Math.round((Date.now() - desde) / 1000);
+    el.textContent = s < 3 ? "Actualizado recién" : "Actualizado hace " + s + " s";
+    el.closest(".actualizado-hace").classList.toggle("atrasado", s > 45);
+  }
+  document.addEventListener("htmx:afterSettle", function (ev) {
+    if (ev.target.id === "en-vivo") { desde = Date.now(); pintar(); }
+  });
+  window.setInterval(pintar, 1000);
+})();
+
+// SCRUM-111 · Pestañas de Configuración. La elegida queda en la URL (#whatsapp); si hubo errores al
+// guardar, se abre la primera pestaña que los tiene.
+(function () {
+  "use strict";
+  function mostrar(form, clave, enfocar) {
+    const botones = form.querySelectorAll("[data-pestana]");
+    if (!form.querySelector('[data-panel="' + clave + '"]')) clave = botones[0].dataset.pestana;
+    botones.forEach(function (b) {
+      const activa = b.dataset.pestana === clave;
+      b.classList.toggle("activa", activa);
+      b.setAttribute("aria-selected", activa ? "true" : "false");
+      b.tabIndex = activa ? 0 : -1;
+      if (activa && enfocar) b.focus();
+    });
+    form.querySelectorAll("[data-panel]").forEach(function (p) { p.hidden = p.dataset.panel !== clave; });
+  }
+  document.addEventListener("DOMContentLoaded", function () {
+    const form = document.querySelector("[data-pestanas-config]");
+    if (!form) return;
+    mostrar(form, form.dataset.pestanaInicial || location.hash.slice(1) || "horario");
+    form.addEventListener("click", function (ev) {
+      const b = ev.target.closest("[data-pestana]");
+      if (!b) return;
+      mostrar(form, b.dataset.pestana);
+      history.replaceState(null, "", "#" + b.dataset.pestana);
+    });
+    // Flechas izquierda/derecha entre pestañas (patrón de accesibilidad de tablist).
+    form.querySelector("[role=tablist]").addEventListener("keydown", function (ev) {
+      if (ev.key !== "ArrowRight" && ev.key !== "ArrowLeft") return;
+      const botones = Array.from(form.querySelectorAll("[data-pestana]"));
+      const i = botones.findIndex(function (b) { return b.classList.contains("activa"); });
+      const siguiente = botones[(i + (ev.key === "ArrowRight" ? 1 : botones.length - 1)) % botones.length];
+      mostrar(form, siguiente.dataset.pestana, true);
+      history.replaceState(null, "", "#" + siguiente.dataset.pestana);
+    });
+    // Un campo inválido escondido en otra pestaña: se abre esa pestaña para que el navegador lo muestre.
+    form.addEventListener("invalid", function (ev) {
+      const panel = ev.target.closest("[data-panel]");
+      if (panel && panel.hidden) mostrar(form, panel.dataset.panel);
+    }, true);
+  });
+})();
+
+// SCRUM-112 · Vista previa de los mensajes automáticos de WhatsApp (como en compone respuesta_automatica.py).
+(function () {
+  "use strict";
+  const LIMITE = 4096;
+  const EJEMPLO = { "{nombre}": "Ana", "{asesor}": "Carlos", "{proxima_apertura}": "mañana lunes desde las 09:00" };
+  function valor(id) { const el = document.getElementById(id); return el ? el.value.trim() : ""; }
+  function reemplazar(texto) {
+    Object.keys(EJEMPLO).forEach(function (k) { texto = texto.split(k).join(EJEMPLO[k]); });
+    return texto;
+  }
+  function pintar(clave, texto) {
+    const burbuja = document.querySelector('[data-vista-previa="' + clave + '"]');
+    const contador = document.querySelector('[data-contador="' + clave + '"]');
+    if (!burbuja) return;
+    burbuja.textContent = texto || "(vacío)";                    // texto, nunca HTML
+    burbuja.classList.toggle("vacia", !texto);
+    if (contador) {
+      contador.textContent = texto.length + " / " + LIMITE + " caracteres";
+      contador.classList.toggle("excedido", texto.length > LIMITE);
+    }
+  }
+  function actualizar() {
+    const privacidad = valor("id_texto_privacidad");
+    const unir = function (t) { return [reemplazar(t), privacidad].filter(Boolean).join("\n\n"); };
+    pintar("bienvenida", unir(valor("id_texto_bienvenida")));
+    pintar("fuera", unir(valor("id_texto_fuera_horario")));
+    const aviso = reemplazar(valor("id_aviso_texto")).replace(/[ \t]+/g, " ").replace(/ +([,.!?])/g, "$1");
+    pintar("aviso", aviso);
+  }
+  document.addEventListener("input", function (ev) {
+    if (ev.target.closest("[data-pestanas-config]")) actualizar();
+  });
+  document.addEventListener("DOMContentLoaded", function () {
+    if (document.querySelector("[data-vista-previa]")) actualizar();
+  });
+})();

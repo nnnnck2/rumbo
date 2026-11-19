@@ -6,6 +6,8 @@
       <h1 class="titulo-pagina">Métricas</h1>
       <p class="ayuda-pagina">Cómo va la atención de los leads que llegaron en las fechas elegidas.</p>
     </div>
+    <a class="btn btn-light border" href="{% url 'leads:exportar_metricas' %}?desde={{ desde|date:'Y-m-d' }}&amp;hasta={{ hasta|date:'Y-m-d' }}">
+      <i class="bi bi-download" aria-hidden="true"></i> Exportar a Excel</a>
   </div>
 
   <form method="get" class="tarjeta-filtros row g-2 align-items-end mx-0 mb-3">
@@ -75,6 +77,69 @@
     </table>
   </div>
   <p class="small text-body-secondary mb-0 mt-2">Cada lead cuenta para la campaña del anuncio del que llegó por primera vez. "Conversión" = ventas sobre leads.</p>
+  </section>
+
+  {# SCRUM-99 · Embudo por campaña y anuncio, con costos si hay inversión registrada. #}
+  <section class="tarjeta-rumbo mb-3">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+      <h2 class="titulo-tarjeta mb-0">Embudo por campaña y anuncio</h2>
+      {% if rumbo.es_admin %}<a class="small" href="{% url 'leads:campanas' %}">Registrar inversión</a>{% endif %}
+    </div>
+    {% if embudo %}
+    {# SCRUM-108 · Gráfico: una fila por campaña, cuatro barras a la misma escala. #}
+    <div class="grafico-embudo mb-3" role="img" aria-label="Embudo por campaña: leads, contactados, citas y ventas">
+      <div class="leyenda-embudo small" aria-hidden="true">
+        <span><i class="muestra tramo-leads"></i>Leads</span><span><i class="muestra tramo-contacto"></i>Contactados</span>
+        <span><i class="muestra tramo-cita"></i>Citas</span><span><i class="muestra tramo-venta"></i>Ventas</span>
+      </div>
+      {% for c in embudo %}
+      <div class="fila-grafico">
+        <span class="nombre-grafico">{{ c.pais }}</span>
+        <div class="barras-grafico">
+          <span class="barra tramo-leads" style="width: {{ c.ancho.leads }}%"><b>{{ c.leads }}</b></span>
+          <span class="barra tramo-contacto" style="width: {{ c.ancho.contactados }}%"><b>{{ c.contactados }}</b></span>
+          <span class="barra tramo-cita" style="width: {{ c.ancho.citas }}%"><b>{{ c.citas }}</b></span>
+          <span class="barra tramo-venta" style="width: {{ c.ancho.ventas }}%"><b>{{ c.ventas }}</b></span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="table-responsive">
+      <table class="table align-middle mb-0 tabla-apilable tabla-embudo">
+        <thead><tr><th>Campaña / anuncio</th><th class="text-end">Leads</th><th class="text-end">Contactados</th>
+          <th class="text-end">Citas</th><th class="text-end">Ventas</th><th class="text-end">Costo por lead</th><th class="text-end">Costo por venta</th></tr></thead>
+        <tbody>
+        {% for c in embudo %}
+          <tr class="fila-campana">
+            <th scope="row"><span class="origen-anuncio"><i class="bi bi-megaphone" aria-hidden="true"></i>{{ c.pais }}</span></th>
+            <td class="text-end" data-etiqueta="Leads">{{ c.leads }}</td>
+            <td class="text-end" data-etiqueta="Contactados">{{ c.contactados }} <span class="pct">{{ c.pct_contacto|default_if_none:"—" }}%</span></td>
+            <td class="text-end" data-etiqueta="Citas">{{ c.citas }} <span class="pct">{{ c.pct_cita|default_if_none:"—" }}%</span></td>
+            <td class="text-end" data-etiqueta="Ventas">{{ c.ventas }} <span class="pct">{{ c.pct_venta|default_if_none:"—" }}%</span></td>
+            <td></td><td></td>
+          </tr>
+          {% for a in c.anuncios %}
+          <tr>
+            <td class="ps-4"><span class="d-block">{{ a.nombre|truncatechars:48 }}
+              {% if a.destacado == "mejor" %}<span class="chip-destacado mejor"><i class="bi bi-star-fill" aria-hidden="true"></i> Mejor costo por venta</span>{% elif a.destacado == "peor" %}<span class="chip-destacado peor"><i class="bi bi-exclamation-circle" aria-hidden="true"></i> Peor costo por venta</span>{% endif %}</span>
+              {% include "leads/_barra_embudo.html" %}</td>
+            <td class="text-end" data-etiqueta="Leads">{{ a.leads }}</td>
+            <td class="text-end" data-etiqueta="Contactados">{{ a.contactados }}</td>
+            <td class="text-end" data-etiqueta="Citas">{{ a.citas }}</td>
+            <td class="text-end" data-etiqueta="Ventas">{{ a.ventas }}</td>
+            <td class="text-end" data-etiqueta="Costo por lead">{% if a.costo_lead is not None %}{{ a.costo_lead|floatformat:2 }} {{ a.inversion_moneda }}{% else %}—{% endif %}</td>
+            <td class="text-end" data-etiqueta="Costo por venta">{% if a.costo_venta is not None %}{{ a.costo_venta|floatformat:2 }} {{ a.inversion_moneda }}{% elif a.inversion is not None %}<span class="text-body-secondary">sin ventas</span>{% else %}—{% endif %}</td>
+          </tr>
+          {% endfor %}
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="small text-body-secondary mb-0 mt-2">Leads del período contados en el anuncio del que llegaron primero. "Citas" incluye a los que compraron.
+      Los costos dividen la inversión total del anuncio entre todos sus leads y ventas (no solo los del período).</p>
+    {% else %}
+    <p class="small text-body-secondary mb-0">En este período no llegaron leads desde anuncios.</p>
+    {% endif %}
   </section>
 
   <section class="tarjeta-rumbo"><h2 class="titulo-tarjeta">Por asesor</h2>

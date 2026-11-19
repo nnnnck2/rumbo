@@ -379,6 +379,21 @@ body:has(.barra-superior) { background: var(--rb-fondo); }
   html.menu-plegado .menu-lateral .enlace-menu { justify-content: center; }
 }
 .menu-lateral .offcanvas-header { border-bottom: 1px solid rgba(255, 255, 255, .1); }
+/* Celular / tableta: el menú abierto (offcanvas) se desplaza por dentro. Sin esto, con el rol admin
+   la sección Administración y Soporte quedaban cortadas debajo de la pantalla. */
+@media (max-width: 991.98px) {
+  .menu-lateral > nav {
+    flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom)) !important;
+  }
+  .menu-lateral .offcanvas-header { flex: none; }
+}
+/* Pantallas bajas (celular acostado, ventanas chicas): menú más compacto. */
+@media (max-height: 640px) {
+  .menu-lateral .titulo-seccion { margin: .7rem .75rem .25rem; }
+  .menu-lateral .enlace-menu { padding: .45rem .75rem; }
+}
 .titulo-seccion {
   margin: 1.1rem .75rem .35rem; font-size: .7rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
   color: rgba(255, 255, 255, .5);
@@ -719,3 +734,224 @@ a.dato-rapido:hover { border-color: #c5cce0; box-shadow: 0 2px 8px rgba(20, 37, 
   /* Teléfonos chicos: solo el logo, para que entren el estado, la campana y el usuario. */
   .marca-barra > span { display: none; }
 }
+
+/* ─────────────── SCRUM-88 a 100 · Mejoras de operación ─────────────── */
+/* WhatsApp y hora del cliente en la ficha */
+.boton-whatsapp { display: inline-flex; align-items: center; gap: .4rem; font-weight: 600; }
+.aviso-hora {
+  display: inline-flex; align-items: center; gap: .35rem; padding: .3rem .7rem; border-radius: 999px;
+  background: #fff1cc; color: #7a5300; font-size: .8rem; font-weight: 600; align-self: center;
+}
+.hora-cliente { display: inline-flex; align-items: center; gap: .3rem; font-weight: 600; }
+.hora-cliente.inoportuna { color: #7a5300; }
+.enlace-whatsapp {
+  position: relative; z-index: 2; margin-left: .35rem; color: #1f9d6b; font-size: .95rem; line-height: 1;
+}
+.enlace-whatsapp:hover { color: #136b48; }
+@media (max-width: 767.98px) {
+  .acciones-contacto { width: 100%; }
+  .acciones-contacto .boton-whatsapp, .acciones-contacto .boton-llamar { flex: 1 1 0; justify-content: center; }
+  .acciones-contacto .aviso-hora { flex-basis: 100%; justify-content: center; }
+}
+
+/* Entradas por varios anuncios */
+.entradas-anuncios summary { cursor: pointer; font-size: .8rem; color: #5d6785; }
+.entradas-anuncios ol { margin: .35rem 0 0; padding-left: 1.2rem; font-size: .8rem; }
+
+/* Guion de llamada */
+.guion-llamada summary { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; cursor: pointer; list-style: none; }
+.guion-llamada summary::-webkit-details-marker { display: none; }
+.guion-llamada summary::after { content: "\F282"; font-family: "bootstrap-icons"; color: #8a93ad; transition: transform .2s; }
+.guion-llamada[open] summary::after { transform: rotate(180deg); }
+.pasos-guion { margin: .75rem 0 0; padding-left: 1.3rem; display: grid; gap: .35rem; }
+.pasos-guion li::marker { color: var(--rb-acento); font-weight: 700; }
+
+/* Meta del día */
+.meta-dia .fila-meta + .fila-meta { margin-top: .75rem; }
+.meta-dia .fila-meta.cumplida .fw-semibold { color: #136b48; }
+.relleno-meta { background: var(--rb-primario); }
+
+/* Panel en vivo */
+.grilla-en-vivo { display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: 1rem; }
+.tarjeta-asesor-vivo { position: relative; border-left: 4px solid #9aa3bb; transition: box-shadow .15s; }
+.tarjeta-asesor-vivo:hover { box-shadow: 0 2px 10px rgba(20, 37, 79, .1); }
+.tarjeta-asesor-vivo.estado-disponible { border-left-color: #1f9d6b; }
+.tarjeta-asesor-vivo.estado-ocupado { border-left-color: #3b82f6; }
+.tarjeta-asesor-vivo.estado-pausa { border-left-color: #f0a500; }
+.cifras-asesor { display: grid; grid-template-columns: repeat(4, 1fr); gap: .25rem; margin: 0 0 .5rem; text-align: center; }
+.cifras-asesor dt { font-size: .68rem; font-weight: 500; color: #6b7491; }
+.cifras-asesor dd { margin: 0; font-size: 1.25rem; font-weight: 700; }
+.cifras-asesor .destacada dd { color: #b4232f; }
+
+/* Embudo por anuncio */
+.tabla-embudo .fila-campana th, .tabla-embudo .fila-campana td { background: #f7f8fc; font-weight: 600; }
+.tabla-embudo .pct { display: block; font-size: .72rem; font-weight: 500; color: #6b7491; }
+.barra-embudo { position: relative; display: block; height: 6px; margin-top: .3rem; max-width: 14rem; border-radius: 999px; background: #eef0f6; overflow: hidden; }
+.barra-embudo .tramo { position: absolute; inset: 0 auto 0 0; border-radius: 999px; }
+.tramo-contacto { background: #c5d3ee; }
+.tramo-cita { background: #6f8fd1; }
+.tramo-venta { background: var(--rb-acento); }
+
+/* ─────────────── SCRUM-101 a 113 · UI de las mejoras ─────────────── */
+/* SCRUM-101 · Barra fija de contacto (debajo de la barra superior de 60px) */
+.barra-contacto-fija {
+  position: fixed; top: 60px; left: 0; right: 0; z-index: 1020;
+  display: flex; align-items: center; gap: .6rem; padding: .45rem 1rem;
+  background: rgba(255, 255, 255, .97); border-bottom: 1px solid #e3e7f0; box-shadow: 0 4px 14px rgba(20, 37, 79, .08);
+  transform: translateY(-110%); transition: transform .18s ease;
+}
+.barra-contacto-fija.visible { transform: translateY(0); }
+.barra-contacto-fija .situacion { font-size: .72rem; padding: .1rem .5rem; }
+@media (min-width: 992px) { .barra-contacto-fija { left: 240px; } html.menu-plegado .barra-contacto-fija { left: 68px; } }
+@media (prefers-reduced-motion: reduce) { .barra-contacto-fija { transition: none; } }
+
+/* SCRUM-102 · Semáforo de la hora del cliente */
+.punto-hora { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #9aa3bb; }
+.hora-cliente.tono-verde .punto-hora { background: #1f9d6b; box-shadow: 0 0 0 3px rgba(31, 157, 107, .18); }
+.hora-cliente.tono-ambar .punto-hora { background: #f0a500; box-shadow: 0 0 0 3px rgba(240, 165, 0, .2); }
+.hora-cliente.tono-rojo .punto-hora { background: #d62839; box-shadow: 0 0 0 3px rgba(214, 40, 57, .18); }
+.hora-cliente.tono-rojo { color: #b4232f; }
+.hora-cliente.tono-ambar { color: #7a5300; }
+.aviso-hora.tono-rojo { background: #fde8ea; color: #b4232f; }
+.aviso-hora.tono-ambar { background: #fff1cc; color: #7a5300; }
+
+/* SCRUM-103 · Guion como lista de chequeo */
+.pasos-guion { list-style: none; padding-left: 0; }
+.paso-guion { display: flex; align-items: flex-start; gap: .55rem; cursor: pointer; padding: .2rem 0; }
+.paso-guion .form-check-input { flex: none; margin-top: .2rem; }
+.pasos-guion li.hecho span { color: #8a93ad; text-decoration: line-through; text-decoration-color: #c5cce0; }
+.recordatorio-guion { margin-bottom: 1rem; padding: .6rem .8rem; border-radius: 10px; background: #fff1cc; color: #7a5300; }
+.recordatorio-guion ul { padding-left: 1.2rem; margin-top: .25rem; }
+
+/* SCRUM-105 · Mensajes automáticos */
+.burbuja.burbuja-automatica { background: #eef0f6; color: #4a5576; border: 1px dashed #c5cce0; }
+.burbuja.burbuja-automatica .hora-burbuja { color: #6b7491; }
+
+/* SCRUM-106 · Meta del día en el menú y celebración */
+.meta-menu { display: block; margin: .25rem .25rem .5rem; padding: .55rem .75rem; border-radius: 10px;
+  background: rgba(255, 255, 255, .06); color: rgba(255, 255, 255, .85); text-decoration: none; font-size: .8rem; }
+.meta-menu:hover { background: rgba(255, 255, 255, .1); color: #fff; }
+.meta-menu .pct-meta { font-weight: 700; color: #fff; }
+.barra-meta-menu { display: block; height: 5px; margin-top: .35rem; border-radius: 999px; background: rgba(255, 255, 255, .15); overflow: hidden; }
+.barra-meta-menu > span { display: block; height: 100%; border-radius: 999px; background: var(--rb-acento); transition: width .4s; }
+.meta-menu.cumplida .barra-meta-menu > span { background: #2ec48a; }
+.meta-menu.cumplida .pct-meta { color: #7fe3b9; }
+@media (min-width: 992px) { html.menu-plegado .meta-menu { padding: .5rem; } html.menu-plegado .meta-menu .d-flex { display: none !important; } }
+.meta-dia { position: relative; overflow: hidden; }
+.mensaje-celebracion { margin: 0 0 .75rem; padding: .5rem .75rem; border-radius: 10px; background: #e3f5ec; color: #136b48; font-weight: 600; font-size: .9rem; }
+.celebracion { position: absolute; inset: 0; pointer-events: none; }
+.celebracion i { position: absolute; top: -12px; width: 8px; height: 12px; border-radius: 2px; opacity: 0; }
+.celebrando .celebracion i { animation: confeti 2.4s ease-out forwards; }
+.celebracion i:nth-child(3n) { background: var(--rb-acento); }
+.celebracion i:nth-child(3n+1) { background: #1f9d6b; }
+.celebracion i:nth-child(3n+2) { background: #f0a500; }
+.celebracion i:nth-child(1) { left: 6%; animation-delay: 0s; }
+.celebracion i:nth-child(2) { left: 14%; animation-delay: .15s; }
+.celebracion i:nth-child(3) { left: 22%; animation-delay: .05s; }
+.celebracion i:nth-child(4) { left: 31%; animation-delay: .25s; }
+.celebracion i:nth-child(5) { left: 40%; animation-delay: .1s; }
+.celebracion i:nth-child(6) { left: 49%; animation-delay: .3s; }
+.celebracion i:nth-child(7) { left: 57%; animation-delay: .05s; }
+.celebracion i:nth-child(8) { left: 66%; animation-delay: .2s; }
+.celebracion i:nth-child(9) { left: 74%; animation-delay: .12s; }
+.celebracion i:nth-child(10) { left: 82%; animation-delay: .28s; }
+.celebracion i:nth-child(11) { left: 89%; animation-delay: .08s; }
+.celebracion i:nth-child(12) { left: 95%; animation-delay: .22s; }
+@keyframes confeti {
+  0% { opacity: 1; transform: translateY(0) rotate(0); }
+  100% { opacity: 0; transform: translateY(220px) rotate(540deg); }
+}
+@media (prefers-reduced-motion: reduce) { .celebrando .celebracion i { animation: none; } }
+
+/* SCRUM-107 · En vivo */
+.actualizado-hace { display: flex; align-items: center; gap: .4rem; }
+.punto-vivo { width: 8px; height: 8px; border-radius: 50%; background: #1f9d6b; animation: latido 2s infinite; }
+.actualizado-hace.atrasado .punto-vivo { background: #f0a500; animation: none; }
+@keyframes latido { 0%, 100% { box-shadow: 0 0 0 0 rgba(31, 157, 107, .45); } 50% { box-shadow: 0 0 0 5px rgba(31, 157, 107, 0); } }
+@media (prefers-reduced-motion: reduce) { .punto-vivo { animation: none; } }
+.tarjeta-asesor-vivo.inactivo { border-color: #f3b4bb; border-left-color: #d62839; background: #fffafa; }
+.alerta-inactivo { color: #b4232f; font-weight: 600; }
+
+/* SCRUM-108 · Gráfico del embudo */
+.grafico-embudo { display: grid; gap: .65rem; }
+.leyenda-embudo { display: flex; flex-wrap: wrap; gap: .9rem; color: #5d6785; }
+.leyenda-embudo .muestra { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: .3rem; vertical-align: -1px; }
+.fila-grafico { display: grid; grid-template-columns: minmax(6rem, 10rem) 1fr; gap: .75rem; align-items: center; }
+.nombre-grafico { font-size: .85rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.barras-grafico { display: grid; gap: 3px; }
+.barras-grafico .barra { display: flex; align-items: center; min-width: 1.6rem; height: 14px; border-radius: 4px; padding-left: .3rem; font-size: .65rem; }
+.barras-grafico .barra b { font-weight: 700; color: #14254f; }
+.tramo-leads { background: #e3e8f4; }
+.barras-grafico .tramo-venta b { color: #fff; }
+.chip-destacado { display: inline-flex; align-items: center; gap: .25rem; margin-top: .2rem; padding: .05rem .5rem; border-radius: 999px; font-size: .7rem; font-weight: 600; }
+.chip-destacado.mejor { background: #e3f5ec; color: #136b48; }
+.chip-destacado.peor { background: #fde8ea; color: #b4232f; }
+@media (max-width: 575.98px) { .fila-grafico { grid-template-columns: 1fr; gap: .25rem; } }
+
+/* SCRUM-109 · Menú de exportar */
+.menu-exportar { min-width: 17rem; }
+.menu-exportar .dropdown-item { white-space: normal; padding: .55rem 1rem; }
+
+/* SCRUM-110 · Reabierto */
+.chip-reabierto { display: inline-flex; align-items: center; gap: .3rem; padding: .1rem .55rem; border-radius: 999px;
+  background: #f1e9fd; color: #5b2a9e; font-size: .78rem; font-weight: 600; }
+.chip-reabierto.chip-mini { padding: 0 .45rem; font-size: .7rem; font-weight: 500; }
+
+/* SCRUM-111 · Pestañas de Configuración */
+.formulario-configuracion { max-width: 64rem; }
+.pestanas-config { display: flex; gap: .35rem; margin-bottom: 1rem; overflow-x: auto; scrollbar-width: none; padding: 2px; }
+.pestanas-config::-webkit-scrollbar { display: none; }
+.pestana-config {
+  position: relative; display: inline-flex; align-items: center; gap: .4rem; flex: none;
+  padding: .5rem .9rem; border: 1px solid #e3e7f0; border-radius: 999px; background: #fff; color: #4a5576; font-size: .88rem; font-weight: 500;
+}
+.pestana-config:hover { border-color: #c5cce0; color: var(--rb-primario); }
+.pestana-config.activa { background: var(--rb-primario); border-color: var(--rb-primario); color: #fff; }
+.pestana-config:focus-visible { outline: 3px solid var(--rb-foco); outline-offset: 2px; }
+.punto-error { width: 8px; height: 8px; border-radius: 50%; background: #d62839; box-shadow: 0 0 0 2px #fff; }
+.dias-semana { display: flex; flex-wrap: wrap; gap: .4rem; }
+.dia-semana { display: inline-flex; align-items: center; gap: .35rem; padding: .35rem .7rem; border: 1px solid #e3e7f0; border-radius: 10px; cursor: pointer; }
+.dia-semana:has(input:checked) { border-color: var(--rb-primario); background: #eef2fb; }
+.barra-guardar-config {
+  position: sticky; bottom: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: .75rem;
+  margin-top: 1rem; padding: .75rem 0; background: linear-gradient(to top, var(--rb-fondo) 70%, transparent);
+}
+@media (max-width: 575.98px) { .barra-guardar-config .btn { width: 100%; } }
+
+/* SCRUM-112 · Vista previa estilo WhatsApp */
+.vista-previa-wa { display: flex; flex-direction: column; padding: 1rem; border-radius: 14px; background: #e9e1d6; min-height: 100%; }
+.titulo-vista-previa { font-size: .72rem; font-weight: 600; color: #5d5446; text-transform: uppercase; letter-spacing: .04em; margin-bottom: .35rem; }
+.burbuja-wa {
+  align-self: flex-start; max-width: 100%; padding: .5rem .7rem; border-radius: 0 10px 10px 10px; background: #fff;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, .08); font-size: .88rem; white-space: pre-line; overflow-wrap: anywhere;
+}
+.burbuja-wa.vacia { color: #8a93ad; font-style: italic; }
+.contador-wa { font-size: .7rem; color: #6b6254; margin-top: .25rem; }
+.contador-wa.excedido { color: #b4232f; font-weight: 700; }
+
+/* SCRUM-113 · Estado de Meta */
+.estado-meta.desconectado { border-left: 4px solid #f0a500; }
+.estado-meta.conectado { border-left: 4px solid #1f9d6b; }
+.cifras-meta { display: grid; grid-template-columns: repeat(4, minmax(4.2rem, auto)); gap: .5rem; margin: 0; text-align: center; }
+.cifras-meta dt { font-size: .68rem; font-weight: 500; color: #6b7491; }
+.cifras-meta dd { margin: 0; font-size: 1.2rem; font-weight: 700; }
+.cifras-meta .con-error dd { color: #b4232f; }
+@media (max-width: 575.98px) { .cifras-meta { width: 100%; grid-template-columns: repeat(4, 1fr); } }
+
+/* En vivo · tarjeta de asesor (corrección: nombre cortado, tiempos largos, etiquetas partidas) */
+.grilla-en-vivo { grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr)); }
+.tarjeta-asesor-vivo { display: flex; flex-direction: column; gap: .75rem; padding: 1rem; }
+.cabecera-asesor-vivo { display: flex; align-items: center; gap: .6rem; }
+.nombre-asesor-vivo { margin: 0; font-size: .98rem; font-weight: 700; line-height: 1.2;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.estado-asesor-vivo { display: inline-flex; align-items: center; gap: .35rem; font-size: .78rem; color: #4a5576; white-space: nowrap; }
+.estado-asesor-vivo .punto-estado { width: 8px; height: 8px; }
+/* Cifras: número grande arriba, etiqueta corta debajo, en una línea */
+.cifras-asesor { gap: 0; margin: 0; padding: .55rem 0; border-top: 1px solid #eef0f6; border-bottom: 1px solid #eef0f6; }
+.cifras-asesor > div { display: flex; flex-direction: column-reverse; align-items: center; gap: .1rem; min-width: 0; }
+.cifras-asesor > div + div { border-left: 1px solid #eef0f6; }
+.cifras-asesor dd { font-size: 1.35rem; line-height: 1.1; }
+.cifras-asesor dt { font-size: .64rem; line-height: 1.15; text-align: center; padding: 0 .15rem; }
+.pie-asesor-vivo { display: flex; align-items: center; justify-content: space-between; gap: .5rem; font-size: .8rem; color: #5d6785; }
+.pie-asesor-vivo .alerta-inactivo { font-size: .8rem; }
+.ventas-hoy { flex: none; padding: .05rem .5rem; border-radius: 999px; background: #e3f5ec; color: #136b48; font-weight: 700; }

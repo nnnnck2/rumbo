@@ -3,6 +3,7 @@
 Validan lo que conviene avisar antes de ir a la base (campos obligatorios según el resultado,
 fechas en el pasado…). La base vuelve a validar todo: estas reglas son comodidad, no seguridad.
 """
+import re
 from decimal import Decimal
 
 from django import forms
@@ -230,6 +231,24 @@ class ConfiguracionForm(Bootstrap, forms.Form):
     minutos_entre_reintentos = forms.IntegerField(min_value=1, max_value=1440, label="Minutos entre reintentos")
     minutos_alerta_supervisor = forms.IntegerField(min_value=1, max_value=480, label="Alertar al supervisor tras",
                                                    help_text="Minutos de atraso de una llamada pendiente.")
+    max_intentos_por_lead = forms.IntegerField(min_value=1, max_value=30, label="Tope de intentos por cliente",
+                                               help_text="Intentos sin contacto sumando todos los asesores. Al llegar, "
+                                                         "el cliente se descarta solo (se reabre si vuelve a escribir).")
+    # SCRUM-88 · WhatsApp cuando el cliente no contesta
+    aviso_activo = forms.BooleanField(required=False, label="Enviar WhatsApp cuando el cliente no contesta")
+    aviso_texto = forms.CharField(max_length=1024, label="Texto del aviso",
+                                  widget=forms.Textarea(attrs={"rows": 3}),
+                                  help_text="{nombre} = primer nombre del cliente · {asesor} = quien llamó. "
+                                            "Se envía si el cliente escribió en las últimas 24 h.")
+    aviso_plantilla = forms.CharField(max_length=512, required=False, label="Plantilla de Meta (más de 24 h)",
+                                      help_text="Nombre exacto de una plantilla aprobada en Meta. Vacío: pasadas las "
+                                                "24 h no se envía nada (Meta no permite texto libre).")
+    aviso_idioma = forms.CharField(max_length=5, initial="es", label="Idioma de la plantilla")
+    aviso_horas = forms.IntegerField(min_value=1, max_value=168, label="Como máximo un aviso cada (horas)")
+    # SCRUM-97 · Meta del día de cada asesor (0 = no se mide)
+    meta_llamadas = forms.IntegerField(min_value=0, max_value=1000, label="Llamadas")
+    meta_citas = forms.IntegerField(min_value=0, max_value=1000, label="Citas")
+    meta_ventas = forms.IntegerField(min_value=0, max_value=1000, label="Ventas")
     # Textos automáticos de WhatsApp
     texto_bienvenida = forms.CharField(max_length=1024, label="Respuesta al primer mensaje",
                                        widget=forms.Textarea(attrs={"rows": 2}))
@@ -240,6 +259,32 @@ class ConfiguracionForm(Bootstrap, forms.Form):
                                        help_text="Pendiente de validar con el área (SCRUM-23).")
 
     ZONA = "America/Guayaquil"
+    # SCRUM-96 · Un guion de llamada por tipo de visa (más el general).
+    TIPOS_GUION = ["General", *TIPOS_VISA]
+    # SCRUM-111 · Campos de cada pestaña (para abrir la que tiene errores).
+    PESTANAS = {
+        "horario": ["hora_inicio", "hora_fin", "dias"],
+        "reparto": ["max_intentos_por_asesor", "minutos_primera_llamada", "minutos_entre_reintentos",
+                    "minutos_alerta_supervisor", "max_intentos_por_lead"],
+        "whatsapp": ["texto_bienvenida", "texto_fuera_horario", "texto_privacidad", "aviso_activo", "aviso_texto",
+                     "aviso_plantilla", "aviso_idioma", "aviso_horas"],
+        "metas": ["meta_llamadas", "meta_citas", "meta_ventas"],
+        "guiones": [f"guion_{i}" for i in range(len(TIPOS_GUION))],
+    }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["aviso_activo"].widget.attrs["class"] = "form-check-input"
+        for i, tipo in enumerate(self.TIPOS_GUION):
+            self.fields[f"guion_{i}"] = forms.CharField(
+                max_length=4000, required=False, label=tipo,
+                widget=forms.Textarea(attrs={"rows": 4, "class": "form-control",
+                                             "placeholder": "Un paso por línea" if i else "Se usa si el cliente no tiene "
+                                                            "tipo de visa o su tipo no tiene guion propio."}))
+
+    @property
+    def campos_guion(self):
+        return [self[f"guion_{i}"] for i in range(len(self.TIPOS_GUION))]
 
     @classmethod
     def desde_configuracion(cls, config):
@@ -250,10 +295,34 @@ class ConfiguracionForm(Bootstrap, forms.Form):
             "dias": horario.get("dias", [1, 2, 3, 4, 5]),
         }
         for clave in ("max_intentos_por_asesor", "minutos_primera_llamada", "minutos_entre_reintentos",
-                      "minutos_alerta_supervisor", "texto_bienvenida", "texto_fuera_horario", "texto_privacidad"):
+                      "minutos_alerta_supervisor", "texto_bienvenida", "texto_fuera_horario", "texto_privacidad",
+                      "max_intentos_por_lead"):
             if clave in config:
                 inicial[clave] = config[clave]
+        inicial.setdefault("max_intentos_por_lead", 9)
+        aviso = config.get("aviso_no_contesta") or {}
+        inicial.update({"aviso_activo": aviso.get("activo", True), "aviso_texto": aviso.get("texto", ""),
+                        "aviso_plantilla": aviso.get("plantilla", ""), "aviso_idioma": aviso.get("idioma", "es"),
+                        "aviso_horas": aviso.get("horas_entre", 24)})
+        metas = config.get("metas_diarias") or {}
+        inicial.update({"meta_llamadas": metas.get("llamadas", 20), "meta_citas": metas.get("citas", 3),
+                        "meta_ventas": metas.get("ventas", 1)})
+        guiones = {k.lower(): v for k, v in (config.get("guiones_llamada") or {}).items()}
+        for i, tipo in enumerate(cls.TIPOS_GUION):
+            inicial[f"guion_{i}"] = guiones.get(tipo.lower(), "")
         return inicial
+
+    def clean_aviso_plantilla(self):
+        valor = (self.cleaned_data.get("aviso_plantilla") or "").strip()
+        if valor and not re.fullmatch(r"[a-z0-9_]+", valor):
+            raise forms.ValidationError("El nombre de la plantilla en Meta solo tiene minúsculas, números y _.")
+        return valor
+
+    def clean_aviso_idioma(self):
+        valor = (self.cleaned_data.get("aviso_idioma") or "es").strip()
+        if not re.fullmatch(r"[a-z]{2}(_[A-Z]{2})?", valor):
+            raise forms.ValidationError("Código de idioma como es o es_EC.")
+        return valor
 
     def clean(self):
         datos = super().clean()
@@ -276,4 +345,11 @@ class ConfiguracionForm(Bootstrap, forms.Form):
         }
         if d.get("texto_privacidad", "").strip():
             cambios["texto_privacidad"] = d["texto_privacidad"].strip()
+        cambios["max_intentos_por_lead"] = d["max_intentos_por_lead"]
+        cambios["aviso_no_contesta"] = {"activo": bool(d.get("aviso_activo")), "texto": d["aviso_texto"].strip(),
+                                        "plantilla": d.get("aviso_plantilla", ""), "idioma": d["aviso_idioma"],
+                                        "horas_entre": d["aviso_horas"]}
+        cambios["metas_diarias"] = {"llamadas": d["meta_llamadas"], "citas": d["meta_citas"], "ventas": d["meta_ventas"]}
+        cambios["guiones_llamada"] = {tipo: d[f"guion_{i}"].strip() for i, tipo in enumerate(self.TIPOS_GUION)
+                                      if (d.get(f"guion_{i}") or "").strip()}
         return cambios

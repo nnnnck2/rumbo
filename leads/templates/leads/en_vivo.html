@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block titulo %}En vivo{% endblock %}
+{% block contenido %}
+  <div class="encabezado-pagina">
+    <div>
+      <h1 class="titulo-pagina">Equipo en vivo</h1>
+      <p class="ayuda-pagina">Quién está atendiendo, cuánto tiene cada asesor y qué está esperando. Se actualiza sola cada 15 segundos.</p>
+    </div>
+  </div>
+  <div id="en-vivo" hx-get="{% url 'leads:en_vivo' %}" hx-trigger="every 15s" hx-swap="innerHTML">
+    {% include "leads/_en_vivo.html" %}
+  </div>
+{% endblock %}

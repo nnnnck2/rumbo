@@ -40,3 +40,26 @@ def enviar_respuesta_automatica(self, lead_id, phone_number_id=None):
             raise self.retry(countdown=30 * 2 ** self.request.retries) from e
         logger.error("Respuesta automática al lead %s NO enviada: %s", lead_id, e)
         return f"fallido: {e}"
+
+
+@shared_task(name="whatsapp.avisar_no_contesta", bind=True, max_retries=5)
+def avisar_no_contesta(self, lead_id, usuario_id=None):
+    """SCRUM-88 · WhatsApp al cliente que no contestó la llamada. Reintenta si Meta o la red fallan."""
+    from . import aviso_no_contesta
+
+    try:
+        return aviso_no_contesta.enviar(lead_id, usuario_id)
+    except respuesta_automatica.EnvioFallido as e:
+        if e.reintentar and self.request.retries < self.max_retries:
+            logger.warning("Aviso de no contesta al lead %s: %s · reintento %s", lead_id, e, self.request.retries + 1)
+            raise self.retry(countdown=30 * 2 ** self.request.retries) from e
+        logger.error("Aviso de no contesta al lead %s NO enviado: %s", lead_id, e)
+        return f"fallido: {e}"
+
+
+@shared_task(name="whatsapp.enviar_conversiones")
+def enviar_conversiones():
+    """SCRUM-92 · Envía a la Conversions API de Meta las citas y ventas pendientes (cada minuto)."""
+    from . import conversiones
+
+    return conversiones.enviar_pendientes()
