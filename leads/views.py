@@ -41,6 +41,7 @@ def _contexto_ficha(request, lead, intento_form=None, etapa_form=None, reasignar
     puede_editar = request.rumbo.es_supervisor or (lead.asesor_id and lead.asesor_id == request.rumbo.asesor_id)
     return {
         "lead": lead,
+        **_modo_siguiente(request),
         "datos_form": (datos_form or DatosLeadForm(initial={"version": lead.version, "tipo_visa": lead.tipo_visa,
                                                             "pais_interes": lead.pais_interes}))
                       if puede_editar else None,
@@ -125,12 +126,74 @@ def registrar_intento(request, pk):
         return _responder_ficha(request, lead, intento_form=None if e.tipo == "conflicto" else form)
 
     resultado = form.resultados[d["resultado"]].nombre
+    nombre = nombre_cliente(lead)
     lead = _lead(pk)
+    if request.POST.get("siguiente"):          # SCRUM-76: pasa solo al siguiente cliente pendiente
+        messages.success(request, f"Guardado: {nombre} · {resultado}.")
+        return _ir_a(request, reverse("leads:siguiente"))
     if lead is None:
         return _lead_ya_no_visible(request, f"Intento registrado ({resultado}). Se agotaron los intentos: "
                                             "el lead pasó al siguiente asesor.")
     messages.success(request, f"Intento registrado: {resultado}.")
     return _responder_ficha(request, lead)
+
+
+# ─────────────────────────────── SCRUM-76 · Llamar al siguiente ───────────────────────────────
+
+CLAVE_SALTADOS = "rumbo_saltados"
+
+
+def nombre_cliente(lead):
+    return (lead.nombre_perfil or lead.telefono) if lead else "el cliente"
+
+
+def _ir_a(request, url):
+    """Redirección que también funciona con HTMX (recarga la página completa)."""
+    if request.htmx:
+        respuesta = render(request, "leads/_mensajes.html")
+        respuesta["HX-Redirect"] = url
+        return respuesta
+    return redirect(url)
+
+
+def _pendientes(request):
+    """Leads a los que ya toca llamar, del más atrasado al más reciente. El asesor ve los suyos (RLS)."""
+    qs = Lead.objects.filter(estado_asignacion=EstadoAsignacion.ASIGNADO, proxima_accion_en__lte=timezone.now())
+    if request.rumbo.asesor_id:
+        qs = qs.filter(asesor_id=request.rumbo.asesor_id)
+    return qs.order_by("proxima_accion_en", "id")
+
+
+def _en_modo_siguiente(request):
+    if request.GET.get("siguiente") or request.POST.get("siguiente"):
+        return True
+    # Las acciones HTMX de la ficha (notas, datos…) no llevan el parámetro: se mira la URL de la página.
+    return "siguiente=1" in request.headers.get("HX-Current-URL", "")
+
+
+def _modo_siguiente(request):
+    if not _en_modo_siguiente(request):
+        return {"modo_siguiente": False}
+    saltados = request.session.get(CLAVE_SALTADOS, [])
+    return {"modo_siguiente": True, "quedan": _pendientes(request).exclude(pk__in=saltados).count()}
+
+
+@require_http_methods(["GET"])
+@con_rol(*TODOS)
+def siguiente(request):
+    """Abre la ficha del cliente más urgente. ?desde_inicio=1 empieza de cero; ?saltar=<id> lo deja para el final."""
+    saltados = [] if request.GET.get("desde_inicio") else request.session.get(CLAVE_SALTADOS, [])
+    if request.GET.get("saltar", "").isdigit():
+        saltados.append(int(request.GET["saltar"]))
+    request.session[CLAVE_SALTADOS] = saltados
+    lead = _pendientes(request).exclude(pk__in=saltados).first()
+    if lead is None:
+        request.session.pop(CLAVE_SALTADOS, None)
+        omitidos = _pendientes(request).filter(pk__in=saltados).count() if saltados else 0
+        messages.success(request, "No quedan llamadas pendientes." if not omitidos else
+                         f"Terminó la ronda. Quedan {omitidos} cliente{'s' if omitidos != 1 else ''} que saltó.")
+        return redirect("inicio")
+    return redirect(f"{reverse('leads:ficha', args=[lead.pk])}?siguiente=1")
 
 
 # ─────────────────────────────── RF-24 · Agendar llamada ───────────────────────────────

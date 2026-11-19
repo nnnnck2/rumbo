@@ -1,49 +1,115 @@
-{# RF-22 · Registrar el resultado de una llamada (SCRUM-30). Requiere: lead, intento_form, puede_registrar. #}
-<section class="tarjeta-rumbo">
-  <div>
-    <h2 class="titulo-tarjeta mb-1">¿Cómo le fue con la llamada?</h2>
-    {% if puede_registrar %}<p class="small text-body-secondary mb-3">Después de llamar, elija lo que pasó y toque <strong>Registrar</strong>. Si no lo registra, Rumbo entiende que no llamó.</p>{% endif %}
-    {% if puede_registrar %}
-    <form method="post" action="{% url 'leads:registrar_intento' lead.pk %}"
-          hx-post="{% url 'leads:registrar_intento' lead.pk %}" hx-target="#ficha" hx-swap="innerHTML"
-          data-agenda="{{ intento_form.codigos_agenda }}" data-venta="{{ intento_form.codigos_venta }}">
-      {% csrf_token %}{{ intento_form.version }}
-      {% for e in intento_form.non_field_errors %}<div class="alert alert-danger py-1">{{ e }}</div>{% endfor %}
-      <div class="resultados mb-2">
-        {% for opcion in intento_form.resultado %}
-          <label class="btn btn-outline-primary text-start resultado-opcion">{{ opcion.tag }} {{ opcion.choice_label }}</label>
-        {% endfor %}
+{% comment %}RF-22 · Registrar el resultado de una llamada (SCRUM-30), en un solo toque (SCRUM-77).
+Cada resultado es un botón que guarda al instante. "Llamar después" y "Venta cerrada" primero piden sus datos.
+Requiere: lead, intento_form, puede_registrar, modo_siguiente.{% endcomment %}
+<section class="tarjeta-rumbo" id="tarjeta-resultado">
+  <h2 class="titulo-tarjeta mb-1">¿Cómo le fue con la llamada?</h2>
+  {% if puede_registrar %}
+  <p class="small text-body-secondary mb-3">Toque lo que pasó y queda guardado. Si quiere, escriba antes una nota.</p>
+  <form method="post" action="{% url 'leads:registrar_intento' lead.pk %}" id="form-intento" data-lead="{{ lead.pk }}"
+        hx-post="{% url 'leads:registrar_intento' lead.pk %}" hx-target="#ficha" hx-swap="innerHTML">
+    {% csrf_token %}{{ intento_form.version }}
+    {% if modo_siguiente %}<input type="hidden" name="siguiente" value="1">{% endif %}
+    {% for e in intento_form.non_field_errors %}<div class="alert alert-danger py-1">{{ e }}</div>{% endfor %}
+    {% for e in intento_form.resultado.errors %}<div class="alert alert-danger py-1">{{ e }}</div>{% endfor %}
+
+    <label class="visually-hidden" for="{{ intento_form.nota.id_for_label }}">Nota</label>
+    <div class="mb-3">{{ intento_form.nota }}</div>
+
+    {# Resultado con datos extra: lo pone el script (o el servidor al volver con errores). #}
+    <input type="hidden" name="resultado" id="resultado-elegido" value="{{ intento_form.elegido }}"{% if not intento_form.elegido %} disabled{% endif %}>
+
+    <div class="botones-resultado">
+      {% for o in intento_form.opciones %}
+        {% if o.tipo == "directo" %}
+        <button type="submit" name="resultado" value="{{ o.codigo }}" class="boton-resultado tono-{{ o.tono }}"
+                data-codigo="{{ o.codigo }}" data-tipo="directo"{% if o.confirmar %} data-confirmar="{{ o.confirmar }}"{% endif %}>
+          <i class="bi bi-{{ o.icono }}" aria-hidden="true"></i><span>{{ o.nombre }}</span></button>
+        {% else %}
+        <button type="button" class="boton-resultado tono-{{ o.tono }}{% if intento_form.elegido == o.codigo %} elegido{% endif %}"
+                data-codigo="{{ o.codigo }}" data-tipo="{{ o.tipo }}" aria-expanded="{% if intento_form.elegido == o.codigo %}true{% else %}false{% endif %}"
+                aria-controls="extra-{{ o.tipo }}">
+          <i class="bi bi-{{ o.icono }}" aria-hidden="true"></i><span>{{ o.nombre }}</span></button>
+        {% endif %}
+      {% endfor %}
+    </div>
+
+    <div class="panel-extra" id="extra-agenda" hidden>
+      <div class="fw-semibold mb-2">¿Cuándo lo vuelve a llamar?</div>
+      <div class="d-flex flex-wrap gap-2 mb-2">
+        <button type="button" class="btn btn-outline-primary" data-atajo="60">En 1 hora</button>
+        <button type="button" class="btn btn-outline-primary" data-atajo="manana-09:00">Mañana 9:00</button>
+        <button type="button" class="btn btn-outline-primary" data-atajo="manana-15:00">Mañana 15:00</button>
       </div>
-      {% for e in intento_form.resultado.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
-      <div class="extra-agenda">{% include "leads/_campo.html" with campo=intento_form.agendar_para %}</div>
-      <div class="extra-venta row g-2">
+      <div class="d-flex flex-wrap align-items-end gap-2">
+        <div class="flex-grow-1">{% include "leads/_campo.html" with campo=intento_form.agendar_para %}</div>
+        <button class="btn btn-primary mb-3" type="submit">Guardar</button>
+      </div>
+    </div>
+
+    <div class="panel-extra" id="extra-venta" hidden>
+      <div class="fw-semibold mb-2">Datos de la venta</div>
+      <div class="row g-2">
         <div class="col-sm-6">{% include "leads/_campo.html" with campo=intento_form.tipo_visa %}</div>
         <div class="col-sm-6">{% include "leads/_campo.html" with campo=intento_form.pais %}</div>
         <div class="col-8">{% include "leads/_campo.html" with campo=intento_form.valor %}</div>
         <div class="col-4">{% include "leads/_campo.html" with campo=intento_form.moneda %}</div>
       </div>
-      {% include "leads/_campo.html" with campo=intento_form.nota %}
-      <div class="text-end"><button class="btn btn-primary px-5" type="submit"><i class="bi bi-check2" aria-hidden="true"></i> Registrar</button></div>
-    </form>
-    <script>
-      // Muestra la fecha (llamar después) o los datos de la venta (venta cerrada) según el resultado elegido.
-      (function () {
-        const form = document.currentScript.previousElementSibling;
-        const agenda = form.dataset.agenda.split(','), venta = form.dataset.venta.split(',');
-        function actualizar() {
-          const elegido = (form.querySelector('input[name=resultado]:checked') || {}).value;
-          form.querySelector('.extra-agenda').hidden = !agenda.includes(elegido);
-          form.querySelector('.extra-venta').hidden = !venta.includes(elegido);
-          form.querySelectorAll('.resultado-opcion').forEach(l => l.classList.toggle('active', l.querySelector('input').checked));
+      <button class="btn btn-acento px-4" type="submit"><i class="bi bi-trophy" aria-hidden="true"></i> Guardar venta</button>
+    </div>
+  </form>
+  <script>
+    // SCRUM-77: un toque guarda; "Llamar después" y "Venta" abren su panel; los descartes piden confirmación.
+    (function () {
+      const form = document.getElementById('form-intento');
+      const elegido = document.getElementById('resultado-elegido');
+      const paneles = { agenda: form.querySelector('#extra-agenda'), venta: form.querySelector('#extra-venta') };
+      const campoFecha = form.querySelector('input[name=agendar_para]');
+
+      function abrir(boton) {
+        const tipo = boton ? boton.dataset.tipo : null;
+        Object.entries(paneles).forEach(([t, p]) => { p.hidden = t !== tipo; });
+        form.querySelectorAll('.boton-resultado[data-tipo=agenda], .boton-resultado[data-tipo=venta]').forEach(b => {
+          const activo = b === boton;
+          b.classList.toggle('elegido', activo);
+          b.setAttribute('aria-expanded', String(activo));
+        });
+        elegido.disabled = !boton;
+        elegido.value = boton ? boton.dataset.codigo : '';
+        if (boton) (tipo === 'agenda' ? paneles.agenda.querySelector('[data-atajo]') : paneles.venta.querySelector('input')).focus();
+      }
+
+      form.addEventListener('click', function (ev) {
+        const boton = ev.target.closest('.boton-resultado');
+        if (boton) {
+          if (boton.dataset.tipo === 'directo') {
+            if (boton.dataset.confirmar && !window.confirm(boton.dataset.confirmar)) { ev.preventDefault(); return; }
+            elegido.disabled = true;           // que no viaje otro resultado junto con el del botón
+          } else {
+            abrir(boton.classList.contains('elegido') ? null : boton);
+          }
+          return;
         }
-        form.addEventListener('change', actualizar);
-        actualizar();
-      })();
-    </script>
-    {% else %}
-      <p class="text-body-secondary small mb-0">
-        {% if lead.estado_asignacion == "cerrado" %}El lead está cerrado.{% else %}El lead está en cola, sin asesor asignado.{% endif %}
-      </p>
-    {% endif %}
-  </div>
+        const atajo = ev.target.closest('[data-atajo]');
+        if (atajo) {
+          const d = new Date();
+          if (atajo.dataset.atajo.startsWith('manana-')) {
+            const [h, m] = atajo.dataset.atajo.slice(7).split(':');
+            d.setDate(d.getDate() + 1); d.setHours(+h, +m, 0, 0);
+          } else {
+            d.setMinutes(d.getMinutes() + Number(atajo.dataset.atajo), 0, 0);
+          }
+          const dos = n => String(n).padStart(2, '0');
+          campoFecha.value = `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())}T${dos(d.getHours())}:${dos(d.getMinutes())}`;
+          form.requestSubmit();
+        }
+      });
+      // Al volver con errores (p. ej. falta el valor de la venta), el panel queda abierto.
+      if (elegido.value) abrir(form.querySelector(`.boton-resultado[data-codigo="${elegido.value}"]`));
+    })();
+  </script>
+  {% else %}
+    <p class="text-body-secondary small mb-0" data-sin-registro="{{ lead.pk }}">
+      {% if lead.estado_asignacion == "cerrado" %}El cliente está cerrado.{% else %}El cliente está en cola, sin asesor asignado.{% endif %}
+    </p>
+  {% endif %}
 </section>

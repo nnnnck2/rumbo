@@ -6,6 +6,7 @@ app_name = "leads"
 
 urlpatterns = [
     path("", views.lista, name="lista"),
+    path("siguiente/", views.siguiente, name="siguiente"),
     path("reasignar/", views.reasignar_lote, name="reasignar_lote"),
     path("configuracion/", views.configuracion, name="configuracion"),
     path("alertas/", views.alertas, name="alertas"),

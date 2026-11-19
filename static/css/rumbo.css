@@ -464,3 +464,39 @@ a.dato-rapido:hover { border-color: #c5cce0; box-shadow: 0 2px 8px rgba(20, 37, 
 }
 .pasos-ayuda p { margin: .15rem 0 0; color: #5d6785; font-size: .9rem; }
 .tarjeta-rumbo .table { --bs-table-bg: transparent; }
+
+/* ══════════ SCRUM-76/77/78 · Ronda de llamadas, resultado en un toque y recordatorio ══════════ */
+.boton-siguiente { font-weight: 700; padding-top: .8rem; padding-bottom: .8rem; }
+.boton-siguiente .small { opacity: .85; }
+.barra-ronda {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .6rem .9rem; padding: .8rem 1rem;
+  border-radius: 14px; background: var(--rb-primario); color: #fff;
+}
+.barra-ronda > i { font-size: 1.4rem; }
+.botones-resultado { display: grid; gap: .6rem; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); }
+.boton-resultado {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .3rem;
+  min-height: 5.2rem; padding: .7rem .5rem; border: 2px solid; border-radius: 12px;
+  background: #fff; font-weight: 600; font-size: .9rem; line-height: 1.2; text-align: center;
+  transition: background-color .12s, color .12s;
+}
+.boton-resultado i { font-size: 1.35rem; }
+.tono-contacto { border-color: #1f9d6b; color: #136b48; }
+.tono-contacto:hover, .tono-contacto.elegido { background: #1f9d6b; color: #fff; }
+.tono-agenda { border-color: #2f6fd1; color: #1f4f9c; }
+.tono-agenda:hover, .tono-agenda.elegido { background: #2f6fd1; color: #fff; }
+.tono-sin-contacto { border-color: #9aa3bb; color: #3b4562; }
+.tono-sin-contacto:hover, .tono-sin-contacto.elegido { background: #5d6785; border-color: #5d6785; color: #fff; }
+.tono-venta { border-color: var(--rb-acento); color: var(--rb-acento-oscuro); }
+.tono-venta:hover, .tono-venta.elegido { background: var(--rb-acento); color: #fff; }
+.tono-descarte { border-color: #e7a3aa; color: #b4232f; }
+.tono-descarte:hover, .tono-descarte.elegido { background: #b4232f; border-color: #b4232f; color: #fff; }
+.boton-resultado:focus-visible { outline: 3px solid var(--rb-foco); outline-offset: 2px; }
+.panel-extra { margin-top: 1rem; padding: 1rem; border-radius: 12px; background: #f4f6fb; border: 1px solid #e3e7f0; }
+.aviso-llamada {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .75rem; margin-bottom: 1rem; padding: .75rem 1rem;
+  border-radius: 12px; border: 1px solid #f3c27a; background: #fff6e0; color: #6b4600;
+}
+.aviso-llamada[hidden] { display: none; }
+.aviso-llamada > i { font-size: 1.2rem; }
+@media (max-width: 575.98px) { .botones-resultado { grid-template-columns: 1fr 1fr; } }

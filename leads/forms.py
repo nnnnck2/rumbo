@@ -53,6 +53,37 @@ class IntentoForm(Bootstrap, forms.Form):
         self.resultados = {r.codigo: r for r in ResultadoLlamada.objects.filter(activo=True).order_by("nombre")}
         self.fields["resultado"].choices = [(c, r.nombre) for c, r in self.resultados.items()]
 
+    # SCRUM-77 · Botones de un toque: orden, color e icono de cada resultado.
+    ESTILO = {
+        "interesado": (1, "contacto", "hand-thumbs-up"),
+        "llamar_despues": (2, "agenda", "clock-history"),
+        "no_contesta": (3, "sin-contacto", "telephone-x"),
+        "venta_cerrada": (4, "venta", "trophy"),
+        "no_interesado": (5, "descarte", "hand-thumbs-down"),
+        "numero_invalido": (6, "descarte", "slash-circle"),
+    }
+
+    @property
+    def opciones(self):
+        filas = []
+        for codigo, r in self.resultados.items():
+            orden, tono, icono = self.ESTILO.get(codigo, (9, "sin-contacto", "telephone"))
+            tipo = "agenda" if r.requiere_agenda else "venta" if r.requiere_venta else "directo"
+            confirmar = (f"«{r.nombre}» descarta al cliente. ¿Confirmar?"
+                         if tipo == "directo" and r.etapa_destino_id == "descartado" else "")
+            filas.append({"codigo": codigo, "nombre": r.nombre, "tono": tono, "icono": icono,
+                          "tipo": tipo, "confirmar": confirmar, "orden": orden})
+        return sorted(filas, key=lambda f: f["orden"])
+
+    @property
+    def elegido(self):
+        """Resultado con datos extra (agenda o venta) ya elegido al volver con errores."""
+        if not self.is_bound:
+            return ""
+        codigo = self.data.get("resultado", "")
+        r = self.resultados.get(codigo)
+        return codigo if r and (r.requiere_agenda or r.requiere_venta) else ""
+
     @property
     def codigos_agenda(self):
         return ",".join(c for c, r in self.resultados.items() if r.requiere_agenda)

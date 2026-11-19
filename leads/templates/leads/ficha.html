@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block titulo %}{{ lead.nombre_perfil|default:lead.telefono }}{% endblock %}
 {% block contenido %}
-  <a href="{{ volver_url }}" class="enlace-volver"><i class="bi bi-arrow-left" aria-hidden="true"></i> {{ volver_texto }}</a>
+  {% if not modo_siguiente %}<a href="{{ volver_url }}" class="enlace-volver"><i class="bi bi-arrow-left" aria-hidden="true"></i> {{ volver_texto }}</a>{% endif %}
   <div id="ficha" class="mt-2">{% include "leads/_ficha.html" %}</div>
 {% endblock %}
