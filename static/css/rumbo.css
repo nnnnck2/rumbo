@@ -549,6 +549,30 @@ a.dato-rapido:hover { border-color: #c5cce0; box-shadow: 0 2px 8px rgba(20, 37, 
 .borde-azul { border-left-color: #2f6fd1; } .borde-cola { border-left-color: #f0a500; } .borde-gris, .borde-pausa { border-left-color: #c5cce0; }
 .vacio-tablero { margin: 0; padding: .75rem .25rem; color: #8a93ad; font-size: .85rem; text-align: center; }
 
+/* Tablero en el celular: chips para saltar a un asesor, columnas que se deslizan de lado
+   y tarjetas compactas (nombre y situación en la misma línea). */
+@media (max-width: 767.98px) {
+  .saltos-tablero { display: flex; gap: .4rem; overflow-x: auto; margin: 0 -1rem .75rem; padding: 0 1rem .25rem; scrollbar-width: none; }
+  .saltos-tablero::-webkit-scrollbar { display: none; }
+  .salto-tablero {
+    display: inline-flex; align-items: center; gap: .35rem; flex: 0 0 auto; padding: .35rem .7rem; border-radius: 999px;
+    border: 1px solid #e3e7f0; background: #fff; color: var(--rb-primario); font-size: .82rem; font-weight: 600; white-space: nowrap;
+  }
+  .salto-tablero.activo { border-color: var(--rb-primario); box-shadow: inset 0 0 0 1px var(--rb-primario); }
+  .salto-tablero.con-urgentes .cuenta { background: #d62839; color: #fff; }
+  .tablero {
+    position: relative; display: flex; gap: .75rem; overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain;
+    margin: 0 -1rem; padding: 0 1rem .5rem; scroll-padding-inline: 1rem;
+  }
+  .columna-tablero { flex: 0 0 86%; scroll-snap-align: start; padding: .6rem; }
+  .tarjeta-tablero { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .5rem; margin-bottom: .4rem; padding: .5rem .6rem; }
+  .tarjeta-tablero > .fw-semibold { flex: 1 1 8rem; min-width: 0; }
+  .tarjeta-tablero .situacion { margin-top: 0; font-size: .74rem; }
+  .tarjeta-tablero .barra-plazo { flex-basis: 100%; margin-top: .15rem; }
+  .tarjeta-tablero.borde-gris { padding-block: .4rem; }
+  .leyenda-tablero .ms-auto { margin-left: 0 !important; width: 100%; }
+}
+
 /* ══════════ 016 · Anuncio de origen del lead ══════════ */
 .origen-anuncio {
   display: inline-flex; align-items: center; gap: .35rem; padding: .2rem .6rem; border-radius: 999px;
@@ -585,8 +609,113 @@ a.dato-rapido:hover { border-color: #c5cce0; box-shadow: 0 2px 8px rgba(20, 37, 
 .aviso-flotante.saliendo { opacity: 0; transform: translateX(-12px); }
 .aviso-flotante .btn-close { flex: none; font-size: .7rem; }
 @keyframes entrar-aviso { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes entrar-aviso-arriba { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .aviso-flotante { animation: none; } }
 .min-w-0 { min-width: 0; }
 
 /* 017 · Campañas */
 .tarjeta-campana.sin-pais { border-color: #f3c27a; box-shadow: inset 4px 0 0 #f0a500; }
+
+/* ══════════ Responsive (celular) ══════════ */
+@media (max-width: 767.98px) {
+  /* Tablas apilables: cada fila es una tarjeta; la primera celda es el título. */
+  .tabla-apilable thead { display: none; }
+  .tabla-apilable, .tabla-apilable tbody, .tabla-apilable tr, .tabla-apilable td { display: block; width: 100%; }
+  .tabla-apilable tr { padding: .75rem 0; border-bottom: 1px solid #e3e7f0; }
+  .tabla-apilable tr:last-child { border-bottom: 0; }
+  .tabla-apilable td { display: flex; justify-content: space-between; align-items: center; gap: .75rem;
+                       padding: .2rem 0 !important; border: 0 !important; text-align: right !important; background: transparent !important; }
+  .tabla-apilable td::before { content: attr(data-label); flex: none; color: #6b7491; font-size: .78rem; font-weight: 600; text-align: left; }
+  .tabla-apilable td:first-child { display: block; padding-bottom: .35rem !important; text-align: left !important; font-weight: 600; font-size: 1rem; }
+  .tabla-apilable td:first-child::before { content: none; }
+  .tabla-apilable td:not([data-label]):not(:first-child) { justify-content: flex-end; }
+  .tabla-apilable td.celda-completa { display: block; text-align: center !important; }
+  .tabla-apilable td.celda-completa::before { content: none; }
+  .tabla-apilable tr.table-danger, .tabla-apilable tr.table-warning { border-radius: 10px; padding: .75rem; margin-bottom: .5rem; border: 0; }
+  .tabla-apilable tr.table-danger { background: #fde8ea; } .tabla-apilable tr.table-warning { background: #fff6e0; }
+  .tabla-apilable .btn-group { flex-wrap: wrap; justify-content: flex-end; }
+  .table-responsive:has(> .tabla-apilable) { overflow-x: visible; }
+  /* La ayuda tiene textos largos: etiqueta arriba y texto debajo. */
+  .tarjeta-rumbo .table-sm.tabla-apilable td { display: block; text-align: left !important; }
+  .tarjeta-rumbo .table-sm.tabla-apilable td::before { display: block; margin-bottom: .1rem; }
+
+  /* Encabezados y acciones: el botón principal ocupa todo el ancho. */
+  .encabezado-pagina > .btn, .encabezado-pagina > form .btn { width: 100%; }
+  .encabezado-pagina > form { width: 100%; }
+  .titulo-pagina { font-size: 1.4rem; }
+  .tarjeta-rumbo { padding: 1rem; }
+  .barra-lote { flex-direction: column; align-items: stretch; }
+  .selector-lote { min-width: 0; }
+}
+@media (max-width: 991.98px) {
+  /* Ficha: barra fija con "Llamar" y "Resultado" (deja espacio para que no tape el final). */
+  .barra-movil-ficha {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 1030; display: flex; gap: .5rem;
+    padding: .6rem .75rem calc(.6rem + env(safe-area-inset-bottom)); background: #fff;
+    border-top: 1px solid #e3e7f0; box-shadow: 0 -6px 18px rgba(20, 37, 79, .08);
+  }
+  .barra-movil-ficha .btn { padding: .7rem; font-weight: 600; }
+  .contenido-principal:has(.barra-movil-ficha) { padding-bottom: 5.5rem; }
+  .avisos-flotantes { bottom: 5rem; }
+  #tarjeta-resultado { scroll-margin-top: 70px; }
+}
+@media (max-width: 575.98px) {
+  /* iPhone: con letra menor a 16 px hace zoom al tocar un campo. */
+  .form-control, .form-select, .form-control-sm, .form-select-sm { font-size: 16px; }
+  /* Avisos en el celular: uno solo, compacto, arriba bajo la barra (no tapa los botones de abajo). */
+  .avisos-flotantes { left: .5rem; right: .5rem; top: 66px; bottom: auto !important; width: auto; }
+  .aviso-flotante { align-items: center; gap: .55rem; padding: .5rem .6rem; border-radius: 12px; box-shadow: 0 6px 18px rgba(20, 37, 79, .16);
+                    animation-name: entrar-aviso-arriba; }
+  .aviso-flotante .icono-notificacion { width: 30px; height: 30px; font-size: .95rem; }
+  .aviso-flotante strong { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: .88rem; }
+  .aviso-flotante strong + span { display: none !important; }
+  .aviso-flotante.saliendo { transform: translateY(-10px); }
+  .aviso-mas { flex: none; padding: .1rem .45rem; border-radius: 999px; background: #eef0f6; color: #4a5576; font-size: .75rem; font-weight: 700; text-decoration: none; }
+  .panel-campana { position: fixed !important; left: .5rem !important; right: .5rem !important; top: 64px !important;
+                   transform: none !important; width: auto; }
+  .resumen-lead { gap: .6rem; }
+  .estado-grande { gap: .4rem; }
+  .opcion-estado { padding: .7rem .3rem; font-size: .85rem; }
+}
+
+/* ══════════ Responsive · segunda pasada (revisado en navegador de escritorio angosto, con barras de scroll reales) ══════════ */
+/* Lo que está dentro de una franja con scroll lateral no debe escaparse de ella (p. ej. textos visually-hidden). */
+.saltos-tablero, .salto-tablero, .pestanas-lista, .pestana, .table-responsive { position: relative; }
+
+@media (max-width: 767.98px) {
+  /* Lista de leads: cada cliente es una tarjeta (nombre arriba, situación debajo), sin deslizar de lado. */
+  .tabla-leads, .tabla-leads tbody { display: block; width: 100%; }
+  .tabla-leads thead { display: none; }
+  .tabla-leads tr.fila-lead { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .5rem; padding: .7rem .9rem; border-bottom: 1px solid #eef0f6; }
+  .tabla-leads tbody tr:last-child { border-bottom: 0; }
+  .tabla-leads tr.fila-lead > td { display: block; padding: 0 !important; border: 0; background: none; }
+  .tabla-leads tr.fila-lead > td.col-check { width: auto; order: -1; }
+  .tabla-leads tr.fila-lead > td:not(.col-check):first-of-type,
+  .tabla-leads tr.fila-lead > td.col-check + td { flex: 1 1 0; min-width: 0; }
+  .tabla-leads tr.fila-lead > td.text-nowrap { flex-basis: 100%; padding-left: calc(36px + .5rem) !important; white-space: normal !important; }
+  .tabla-leads tr.fila-lead:has(.col-check) > td.text-nowrap { padding-left: calc(36px + 1.5rem + 1rem) !important; }
+  .tabla-leads .nombre-lead { overflow-wrap: anywhere; }
+  .tabla-leads tr:not(.fila-lead) td { display: block; }
+  .tarjeta-tabla .table-responsive { overflow-x: visible; }
+
+  /* Inicio: en las filas, la situación baja a su propia línea si no cabe. */
+  .fila-enlace { flex-wrap: wrap; row-gap: .35rem; }
+  .fila-enlace > .flex-grow-1 { flex: 1 1 calc(100% - 36px - 2.5rem); min-width: 0; }
+  .fila-enlace > .situacion { margin-left: calc(36px + .75rem); }
+  .fila-enlace > .bi-chevron-right { display: none; }
+}
+
+@media (max-width: 767.98px) {
+  /* Pestañas en dos líneas en vez de esconder "Cerrados" y "Todos" fuera de la pantalla. */
+  .pestanas-lista { flex-wrap: wrap; overflow-x: visible; }
+}
+@media (max-width: 575.98px) {
+  .pestana { padding: .4rem .75rem; font-size: .85rem; }
+  .barra-superior { gap: .4rem; padding: 0 .6rem; }
+  .barra-superior .btn-icono { width: 36px; height: 36px; }
+  .boton-usuario { padding: .25rem; }
+}
+@media (max-width: 379.98px) {
+  /* Teléfonos chicos: solo el logo, para que entren el estado, la campana y el usuario. */
+  .marca-barra > span { display: none; }
+}

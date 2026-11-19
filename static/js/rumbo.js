@@ -103,6 +103,8 @@
   "use strict";
   const CLAVE_SONIDO = "rumbo-sonido-avisos";
   const DURACION_MS = 9000;
+  const DURACION_CELULAR_MS = 5000;
+  const CELULAR = window.matchMedia("(max-width: 575.98px)");
   let audio = null;
 
   function sonidoActivo() {
@@ -141,14 +143,33 @@
     const avisos = contenedor.querySelectorAll(".aviso-flotante:not([data-listo])");
     if (!avisos.length) return;
     sonar();
+    const celular = CELULAR.matches;
     avisos.forEach(function (el) {
       el.dataset.listo = "1";
       avisoDelNavegador(el);
-      if (!el.dataset.fijo) setTimeout(function () { if (el.isConnected) cerrar(el); }, DURACION_MS);
+      // En el celular ninguno queda fijo: se van solos más rápido (siguen en la campana).
+      if (celular || !el.dataset.fijo) setTimeout(function () { if (el.isConnected) cerrar(el); }, celular ? DURACION_CELULAR_MS : DURACION_MS);
     });
-    // Como mucho 4 en pantalla: se van los más viejos.
-    const todos = contenedor.querySelectorAll(".aviso-flotante");
-    for (let i = 0; i < todos.length - 4; i++) cerrar(todos[i]);
+    // Computadora: como mucho 3 en pantalla. Celular: solo el más nuevo, con "y N más" que lleva a la campana.
+    const todos = Array.from(contenedor.querySelectorAll(".aviso-flotante:not(.saliendo)"));
+    const maximo = celular ? 1 : 3;
+    const sobran = todos.slice(0, Math.max(0, todos.length - maximo));
+    sobran.forEach(function (el) { el.remove(); });
+    if (celular && sobran.length) {
+      const ultimo = todos[todos.length - 1];
+      let total = parseInt(ultimo.dataset.mas || "0", 10);
+      sobran.forEach(function (el) { total += 1 + parseInt(el.dataset.mas || "0", 10); });
+      ultimo.dataset.mas = String(total);
+      let mas = ultimo.querySelector(".aviso-mas");
+      if (!mas) {
+        mas = document.createElement("a");
+        mas.className = "aviso-mas";
+        mas.href = contenedor.dataset.urlTodas || "/notificaciones/";
+        ultimo.insertBefore(mas, ultimo.querySelector("[data-cerrar-aviso]"));
+      }
+      mas.textContent = "+" + ultimo.dataset.mas;
+      mas.setAttribute("aria-label", "Ver " + ultimo.dataset.mas + " avisos más");
+    }
   }
 
   document.addEventListener("click", function (ev) {
@@ -187,4 +208,58 @@
     });
   }
   document.addEventListener("DOMContentLoaded", pintarEstado);
+})();
+
+// Responsive · tablas apilables: cada celda recibe el título de su columna (data-label) para que,
+// en el celular, cada fila se vea como una tarjeta "Etiqueta: valor" en vez de deslizar hacia el costado.
+(function () {
+  "use strict";
+  function etiquetar() {
+    document.querySelectorAll("table.tabla-apilable:not([data-etiquetada])").forEach(function (t) {
+      const titulos = Array.from(t.querySelectorAll("thead th")).map(function (th) { return th.textContent.trim(); });
+      t.querySelectorAll("tbody tr").forEach(function (tr) {
+        Array.from(tr.children).forEach(function (td, i) {
+          if (td.colSpan > 1) { td.classList.add("celda-completa"); return; }
+          if (titulos[i]) td.setAttribute("data-label", titulos[i]);
+        });
+      });
+      t.setAttribute("data-etiquetada", "1");
+    });
+  }
+  document.addEventListener("DOMContentLoaded", etiquetar);
+  document.addEventListener("htmx:afterSettle", etiquetar);
+})();
+
+// Tablero en el celular: los chips llevan a la columna del asesor, el chip de la columna visible
+// queda marcado y el refresco automático (cada 30 s) no devuelve el tablero a la primera columna.
+(function () {
+  "use strict";
+  let posicion = 0;
+  function tablero() { return document.querySelector("#tablero .tablero"); }
+  function marcar() {
+    const t = tablero(); if (!t) return;
+    let visible = null;
+    t.querySelectorAll(".columna-tablero").forEach(function (c) {
+      if (visible === null && c.offsetLeft + c.offsetWidth / 2 > t.scrollLeft) visible = c.id;
+    });
+    document.querySelectorAll("[data-ir-columna]").forEach(function (b) {
+      const activo = b.dataset.irColumna === visible;
+      b.classList.toggle("activo", activo);
+      if (activo) b.setAttribute("aria-current", "true"); else b.removeAttribute("aria-current");
+    });
+  }
+  function preparar() {
+    const t = tablero(); if (!t) return;
+    t.scrollLeft = posicion;
+    t.addEventListener("scroll", function () { posicion = t.scrollLeft; window.requestAnimationFrame(marcar); }, { passive: true });
+    marcar();
+  }
+  document.addEventListener("click", function (e) {
+    const b = e.target.closest("[data-ir-columna]"); const t = tablero();
+    const c = b && document.getElementById(b.dataset.irColumna);
+    if (!c || !t) return;
+    t.scrollTo({ left: c.offsetLeft - 16, behavior: "smooth" });
+  });
+  document.addEventListener("DOMContentLoaded", preparar);
+  document.addEventListener("htmx:afterSettle", function (e) { if (e.target.id === "tablero") preparar(); });
 })();

@@ -133,6 +133,12 @@
 </div>
 
 {% if puede_registrar %}
+{# Celular: lo principal siempre a mano, abajo de la pantalla. #}
+<div class="barra-movil-ficha d-lg-none">
+  <a class="btn btn-success flex-grow-1" href="tel:{{ lead.telefono }}" data-llamar="{{ lead.pk }}" data-nombre="{{ lead.nombre_perfil|default:lead.telefono }}" data-url="{% url 'leads:ficha' lead.pk %}{% if modo_siguiente %}?siguiente=1{% endif %}">
+    <i class="bi bi-telephone-fill" aria-hidden="true"></i> Llamar</a>
+  <a class="btn btn-primary flex-grow-1" href="#tarjeta-resultado"><i class="bi bi-check2-square" aria-hidden="true"></i> Resultado</a>
+</div>
 {# SCRUM-78 · Al volver de la llamada: "¿Cómo le fue?". Cada botón toca el botón real del formulario de resultado. #}
 <div class="modal fade" id="modal-como-le-fue" tabindex="-1" aria-labelledby="titulo-como-le-fue" aria-hidden="true" data-lead="{{ lead.pk }}">
   <div class="modal-dialog modal-dialog-centered">

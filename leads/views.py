@@ -475,6 +475,8 @@ def tablero(request):
     for l in leads:
         por_asesor.setdefault(l.asesor_id, []).append(l)
     columnas = [{"asesor": a, "leads": por_asesor.pop(a["id"], [])} for a in asesores_con_carga()]
+    for c in columnas:
+        c["urgentes"] = sum(1 for l in c["leads"] if l.situacion["tono"] == "rojo")
     en_cola = por_asesor.pop(None, [])
     conteo = {t: sum(1 for l in leads if l.situacion["tono"] == t) for t in ("rojo", "amarillo", "verde", "azul")}
     contexto = {"columnas": columnas, "en_cola": en_cola, "conteo": conteo, "rumbo": request.rumbo,

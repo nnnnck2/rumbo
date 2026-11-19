@@ -7,16 +7,27 @@
   <span class="small text-body-secondary ms-auto">Actualizado {% now "H:i:s" %}</span>
 </div>
 
+{# Celular: saltar directo a un asesor; las columnas se deslizan de lado. #}
+<nav class="saltos-tablero d-md-none" aria-label="Ir a un asesor">
+  {% if en_cola %}<button type="button" class="salto-tablero" data-ir-columna="columna-cola">En cola <span class="cuenta">{{ en_cola|length }}</span></button>{% endif %}
+  {% for c in columnas %}
+  <button type="button" class="salto-tablero{% if c.urgentes %} con-urgentes{% endif %}" data-ir-columna="columna-{{ c.asesor.id }}">
+    <span class="punto-estado punto-{{ c.asesor.estado }}" aria-hidden="true"></span>{{ c.asesor.nombre }}
+    <span class="cuenta">{{ c.leads|length }}</span>{% if c.urgentes %}<span class="visually-hidden">, {{ c.urgentes }} urgente{{ c.urgentes|pluralize }}</span>{% endif %}
+  </button>
+  {% endfor %}
+</nav>
+
 <div class="tablero">
   {% if en_cola %}
-  <section class="columna-tablero columna-cola">
+  <section class="columna-tablero columna-cola" id="columna-cola">
     <header><span class="punto-estado" aria-hidden="true"></span><strong>En cola</strong><span class="cuenta">{{ en_cola|length }}</span></header>
     <p class="small text-body-secondary px-1 mb-2">Sin asesor en turno: se reparten al entrar alguien.</p>
     {% for l in en_cola %}{% include "leads/_tarjeta_tablero.html" %}{% endfor %}
   </section>
   {% endif %}
   {% for c in columnas %}
-  <section class="columna-tablero{% if c.asesor.estado != 'disponible' and c.asesor.estado != 'ocupado' %} fuera{% endif %}">
+  <section class="columna-tablero{% if c.asesor.estado != 'disponible' and c.asesor.estado != 'ocupado' %} fuera{% endif %}" id="columna-{{ c.asesor.id }}">
     <header>
       <span class="punto-estado punto-{{ c.asesor.estado }}" aria-hidden="true"></span>
       <strong class="text-truncate">{{ c.asesor.nombre }}</strong>
