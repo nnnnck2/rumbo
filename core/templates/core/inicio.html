@@ -1,7 +1,143 @@
 {% extends "base.html" %}
-{% block titulo %}Sin acceso{% endblock %}
+{% block titulo %}Inicio{% endblock %}
 {% block contenido %}
-  <h1 class="h4">Su usuario no tiene un rol asignado</h1>
-  <p class="text-body-secondary">Ingresó como <strong>{{ user.get_username }}</strong>, pero no está activo en Rumbo.
-    Pida a un administrador que le asigne un rol (asesor, supervisor o administrador).</p>
+  <div class="encabezado-pagina">
+    <div>
+      <h1 class="titulo-pagina">Hola, {{ user.get_full_name|default:user.get_username }}</h1>
+      <p class="ayuda-pagina">{% now "l j \d\e F" %} · {% if mi_asesor %}Esto es lo que tiene para hoy.{% else %}Así va la operación de hoy.{% endif %}</p>
+    </div>
+  </div>
+  {% include "leads/_mensajes.html" %}
+
+  {% if mi_asesor %}
+  {# ───────────── Asesor ───────────── #}
+  <section class="tarjeta-rumbo mb-3">
+    <h2 class="titulo-tarjeta">1. Marque su estado</h2>
+    {% include "cuentas/_estado_asesor.html" with grande=True %}
+    <p class="small text-body-secondary mb-0 mt-2">Solo si está <strong>Disponible</strong> le llegan clientes nuevos. Los que ya tiene siguen siendo suyos.</p>
+  </section>
+
+  <div class="row g-3">
+    <div class="col-lg-7">
+      <section class="tarjeta-rumbo h-100">
+        <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+          <h2 class="titulo-tarjeta mb-0">2. Llame a estos clientes</h2>
+          {% if por_llamar_total %}<span class="contador-grande">{{ por_llamar_total }}</span>{% endif %}
+        </div>
+        {% if por_llamar_lista %}
+          <ul class="lista-simple">
+            {% for l in por_llamar_lista %}
+              <li>
+                <a class="fila-enlace" href="{% url 'leads:ficha' l.pk %}">
+                  <span class="avatar-lead" aria-hidden="true">{{ l.nombre_perfil|default:"?"|slice:":1"|upper }}</span>
+                  <span class="flex-grow-1 lh-sm">
+                    <span class="d-block fw-semibold">{{ l.nombre_perfil|default:"Sin nombre" }}</span>
+                    <span class="small text-body-secondary">{{ l.telefono }} · {% if l.intentos_asesor_actual %}intento {{ l.intentos_asesor_actual|add:1 }}{% else %}primera llamada{% endif %}</span>
+                  </span>
+                  <span class="llamada-vencida">desde {{ l.proxima_accion_en|date:"H:i" }}</span>
+                  <i class="bi bi-chevron-right text-body-secondary" aria-hidden="true"></i>
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+          {% if por_llamar_total > por_llamar_lista|length %}
+            <a class="btn btn-sm btn-outline-primary mt-2" href="{% url 'leads:lista' %}?pendientes=1">Ver los {{ por_llamar_total }}</a>
+          {% endif %}
+          <p class="small text-body-secondary mt-3 mb-0"><i class="bi bi-info-circle" aria-hidden="true"></i>
+            Abra el cliente, toque <strong>Llamar</strong> y al colgar <strong>registre cómo le fue</strong>.</p>
+        {% else %}
+          <div class="estado-vacio">
+            <i class="bi bi-check2-circle" aria-hidden="true"></i>
+            <p class="mb-0">No tiene llamadas pendientes ahora.</p>
+            <p class="small text-body-secondary mb-0">{% if mi_asesor.estado == 'disponible' %}Cuando llegue un cliente nuevo aparecerá aquí.{% else %}Póngase <strong>Disponible</strong> para recibir clientes nuevos.{% endif %}</p>
+          </div>
+        {% endif %}
+      </section>
+    </div>
+    <div class="col-lg-5 d-flex flex-column gap-3">
+      <div class="row g-3">
+        <div class="col-4"><div class="dato-rapido"><span class="valor">{{ llamadas_hoy }}</span><span class="etiqueta">llamadas hoy</span></div></div>
+        <div class="col-4"><a class="dato-rapido" href="{% url 'leads:lista' %}?estado=asignado"><span class="valor">{{ abiertos }}</span><span class="etiqueta">clientes abiertos</span></a></div>
+        <div class="col-4"><div class="dato-rapido"><span class="valor">{{ ventas_mes }}</span><span class="etiqueta">ventas del mes</span></div></div>
+      </div>
+      <section class="tarjeta-rumbo flex-grow-1">
+        <h2 class="titulo-tarjeta">Próximas llamadas agendadas</h2>
+        {% if proximas %}
+          <ul class="lista-simple">
+            {% for l in proximas %}
+              <li><a class="fila-enlace" href="{% url 'leads:ficha' l.pk %}">
+                <span class="flex-grow-1 lh-sm"><span class="d-block fw-semibold">{{ l.nombre_perfil|default:"Sin nombre" }}</span>
+                  <span class="small text-body-secondary">{{ l.telefono }}</span></span>
+                <span class="llamada-pendiente small text-nowrap">{{ l.proxima_accion_en|date:"d/m H:i" }}</span>
+              </a></li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="small text-body-secondary mb-0">No tiene llamadas agendadas.</p>
+        {% endif %}
+      </section>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if rumbo.es_supervisor %}
+  {# ───────────── Supervisor / administrador ───────────── #}
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3"><a class="dato-rapido{% if alertas_total %} dato-alerta{% endif %}" href="{% url 'leads:alertas' %}">
+      <span class="valor">{{ alertas_total }}</span><span class="etiqueta">llamadas atrasadas</span></a></div>
+    <div class="col-6 col-lg-3"><a class="dato-rapido" href="{% url 'cuentas:asesores' %}">
+      <span class="valor">{{ disponibles }}<small> / {{ equipo|length }}</small></span><span class="etiqueta">asesores disponibles</span></a></div>
+    <div class="col-6 col-lg-3"><a class="dato-rapido" href="{% url 'leads:lista' %}">
+      <span class="valor">{{ leads_hoy }}</span><span class="etiqueta">leads nuevos hoy{% if en_cola %} · {{ en_cola }} en cola{% endif %}</span></a></div>
+    <div class="col-6 col-lg-3"><a class="dato-rapido" href="{% url 'leads:metricas' %}">
+      <span class="valor">{{ llamadas_hoy }}</span><span class="etiqueta">llamadas hoy · {{ ventas_hoy }} venta{{ ventas_hoy|pluralize }}</span></a></div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-7">
+      <section class="tarjeta-rumbo h-100">
+        <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+          <h2 class="titulo-tarjeta mb-0">Llamadas atrasadas</h2>
+          <a class="small" href="{% url 'leads:alertas' %}">Ver todas</a>
+        </div>
+        {% if alertas %}
+          <ul class="lista-simple">
+            {% for a in alertas %}
+              <li><a class="fila-enlace" href="{% url 'leads:ficha' a.lead_id %}">
+                <span class="minutos-atraso{% if a.minutos >= umbral|add:umbral %} grave{% endif %}">{{ a.minutos }} min</span>
+                <span class="flex-grow-1 lh-sm"><span class="d-block fw-semibold">{{ a.nombre_perfil|default:a.telefono }}</span>
+                  <span class="small text-body-secondary">{{ a.asesor|default:"Sin asesor" }} · {{ a.motivo_texto }}</span></span>
+                <i class="bi bi-chevron-right text-body-secondary" aria-hidden="true"></i>
+              </a></li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="estado-vacio"><i class="bi bi-check2-circle" aria-hidden="true"></i>
+            <p class="mb-0">Todo al día: no hay llamadas atrasadas más de {{ umbral }} min.</p></div>
+        {% endif %}
+      </section>
+    </div>
+    <div class="col-lg-5">
+      <section class="tarjeta-rumbo h-100">
+        <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+          <h2 class="titulo-tarjeta mb-0">Equipo ahora</h2>
+          <a class="small" href="{% url 'cuentas:asesores' %}">Gestionar</a>
+        </div>
+        {% if equipo %}
+          <ul class="lista-simple">
+            {% for a in equipo %}
+              <li class="fila-equipo">
+                <span class="punto-estado punto-{{ a.estado }}" aria-hidden="true"></span>
+                <span class="flex-grow-1">{{ a.nombre }}</span>
+                <span class="small text-body-secondary">{% if a.estado == 'disponible' %}Disponible{% elif a.estado == 'pausa' %}En pausa{% elif a.estado == 'ocupado' %}Ocupado{% else %}Fuera de turno{% endif %} · {{ a.abiertos }} abierto{{ a.abiertos|pluralize }}</span>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="small text-body-secondary mb-0">No hay asesores activos.{% if rumbo.es_admin %} <a href="{% url 'cuentas:usuario_nuevo' %}">Crear uno</a>.{% endif %}</p>
+        {% endif %}
+      </section>
+    </div>
+  </div>
+  {% endif %}
 {% endblock %}

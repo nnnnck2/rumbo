@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block titulo %}Ayuda{% endblock %}
+{% block contenido %}
+  <div class="encabezado-pagina">
+    <div>
+      <h1 class="titulo-pagina">Ayuda</h1>
+      <p class="ayuda-pagina">Cómo usar Rumbo en pocos pasos. Si algo no funciona, avise al administrador.</p>
+    </div>
+  </div>
+
+  <section class="tarjeta-rumbo mb-3">
+    <h2 class="titulo-tarjeta">El día a día del asesor</h2>
+    <ol class="pasos-ayuda">
+      <li><i class="bi bi-toggle-on" aria-hidden="true"></i><div><strong>Marque su estado</strong>
+        <p>Arriba a la derecha: <em>Disponible</em> para recibir clientes nuevos, <em>En pausa</em> para el almuerzo o una reunión, <em>Fuera de turno</em> al terminar.</p></div></li>
+      <li><i class="bi bi-telephone-outbound" aria-hidden="true"></i><div><strong>Abra "Por llamar ahora"</strong>
+        <p>En el menú. Ahí están los clientes que le toca llamar, del más atrasado al más reciente. Tiene <strong>15 minutos</strong> para la primera llamada de un cliente nuevo.</p></div></li>
+      <li><i class="bi bi-telephone" aria-hidden="true"></i><div><strong>Abra al cliente y toque "Llamar"</strong>
+        <p>Antes de llamar, lea lo que escribió por WhatsApp y las notas del equipo.</p></div></li>
+      <li><i class="bi bi-check2-square" aria-hidden="true"></i><div><strong>Al colgar, registre cómo le fue</strong>
+        <p>Es lo más importante: si no lo registra, Rumbo cree que no llamó, le quita el cliente y su trabajo no cuenta para las comisiones.</p></div></li>
+    </ol>
+  </section>
+
+  <section class="tarjeta-rumbo mb-3">
+    <h2 class="titulo-tarjeta">¿Qué resultado elijo?</h2>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead><tr><th>Resultado</th><th>Cuándo</th><th>Qué hace Rumbo</th></tr></thead>
+        <tbody>
+          <tr><td class="fw-semibold">No contesta / buzón</td><td>No respondió.</td><td>Le recuerda volver a llamar en 30 minutos. Al 3.er intento pasa a otro asesor.</td></tr>
+          <tr><td class="fw-semibold">Llamar después</td><td>El cliente pidió que lo llame otro momento.</td><td>Pide fecha y hora y se lo vuelve a mostrar entonces.</td></tr>
+          <tr><td class="fw-semibold">Contactado · interesado</td><td>Habló y quiere avanzar.</td><td>Lo pasa a "En asesoría".</td></tr>
+          <tr><td class="fw-semibold">Contactado · no interesado</td><td>Habló y no quiere seguir.</td><td>Lo descarta.</td></tr>
+          <tr><td class="fw-semibold">Número inválido</td><td>El número no existe o no es del cliente.</td><td>Lo descarta.</td></tr>
+          <tr><td class="fw-semibold">Venta cerrada</td><td>El cliente contrató.</td><td>Pide tipo de visa y valor, y cierra el lead (cuenta para CALLFLOW).</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {% if rumbo.es_supervisor %}
+  <section class="tarjeta-rumbo mb-3">
+    <h2 class="titulo-tarjeta">Supervisor</h2>
+    <ul class="mb-0">
+      <li><strong>Inicio</strong> muestra las llamadas atrasadas y quién está disponible.</li>
+      <li>La <i class="bi bi-bell" aria-hidden="true"></i> <strong>campana</strong> cuenta las llamadas atrasadas; se actualiza sola.</li>
+      <li><strong>Reasignar</strong>: un cliente desde su ficha, o varios desde "Todos los leads" marcándolos.</li>
+      <li><strong>Asesores</strong>: cambie el estado de quien se fue sin marcarlo.</li>
+      <li><strong>Métricas</strong>: elija las fechas y vea tiempos de llamada, contacto y ventas.</li>
+    </ul>
+  </section>
+  {% endif %}
+
+  {% if rumbo.es_admin %}
+  <section class="tarjeta-rumbo mb-3">
+    <h2 class="titulo-tarjeta">Administrador</h2>
+    <ul class="mb-0">
+      <li><strong>Usuarios</strong>: crear cuentas, cambiar contraseñas y desactivar a quien deja la empresa.</li>
+      <li><strong>Configuración</strong>: horario, intentos, tiempos y textos automáticos de WhatsApp. Rige de inmediato.</li>
+    </ul>
+  </section>
+  {% endif %}
+{% endblock %}

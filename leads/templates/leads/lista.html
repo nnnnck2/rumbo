@@ -1,62 +1,57 @@
 {% extends "base.html" %}
 {% block titulo %}Leads{% endblock %}
 {% block contenido %}
-  <div class="d-flex flex-wrap align-items-end justify-content-between gap-2 mb-3">
+  <div class="encabezado-pagina">
     <div>
-      <h1 class="titulo-pagina mb-0">Leads</h1>
-      <p class="text-body-secondary small mb-0">
-        {{ pagina.paginator.count }} lead{{ pagina.paginator.count|pluralize }}{% if filtros.etapa or filtros.estado or filtros.asesor or filtros.pendientes or filtros.q %} con los filtros aplicados{% endif %}
-      </p>
+      <h1 class="titulo-pagina">{% if rumbo.es_supervisor %}Leads{% else %}Mis leads{% endif %}</h1>
+      <p class="ayuda-pagina">{% if activa == "pendientes" %}Clientes a los que ya toca llamar, del más atrasado al más reciente. Abra uno, llame y registre el resultado.{% else %}Toque un cliente para ver su ficha y registrar llamadas.{% endif %}</p>
     </div>
-    {% if not filtros.pendientes %}
-      <a class="btn btn-sm btn-acento" href="?pendientes=1">Ver los que toca llamar ahora</a>
-    {% endif %}
   </div>
   {% include "leads/_mensajes.html" %}
 
-  {# Filtros (RF-25: filtro por etapa) #}
+  {# Pestañas: lo que más se usa, a un clic. #}
+  <nav class="pestanas-lista mb-3" aria-label="Ver">
+    {% for p in pestanas %}
+      <a class="pestana{% if activa == p.clave %} activa{% endif %}{% if p.clave == 'pendientes' and p.n %} urgente{% endif %}"
+         href="?{{ p.url }}{% if p.url and extra %}&{% endif %}{{ extra }}"{% if activa == p.clave %} aria-current="page"{% endif %}>
+        {% if p.clave == 'pendientes' %}<i class="bi bi-telephone-outbound" aria-hidden="true"></i>{% endif %}
+        {{ p.nombre }} <span class="cuenta">{{ p.n }}</span></a>
+    {% endfor %}
+  </nav>
+
+  {# Búsqueda siempre a la vista; el resto de filtros, plegados. #}
   <form method="get" class="tarjeta-filtros mb-3">
-    <div class="row g-2 align-items-end">
-      <div class="col-12 col-lg-3">
-        <label class="form-label small mb-1" for="f-q">Buscar</label>
-        <div class="campo-buscar">
-          <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" focusable="false"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242 1.656a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11"/></svg>
-          <input id="f-q" name="q" value="{{ filtros.q|default:'' }}" class="form-control form-control-sm" placeholder="Nombre o teléfono">
+    {% if activa == "pendientes" %}<input type="hidden" name="pendientes" value="1">{% elif activa %}<input type="hidden" name="estado" value="{{ activa }}">{% endif %}
+    <div class="d-flex flex-wrap gap-2">
+      <div class="campo-buscar flex-grow-1">
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <label class="visually-hidden" for="f-q">Buscar</label>
+        <input id="f-q" name="q" type="search" value="{{ filtros.q|default:'' }}" class="form-control" placeholder="Buscar por nombre o teléfono">
+      </div>
+      <button class="btn btn-primary px-4">Buscar</button>
+      <button class="btn btn-light border" type="button" data-bs-toggle="collapse" data-bs-target="#mas-filtros"
+              aria-expanded="{{ mas_filtros|yesno:'true,false' }}" aria-controls="mas-filtros"><i class="bi bi-sliders" aria-hidden="true"></i> <span class="d-none d-sm-inline">Más filtros</span></button>
+      {% if filtros.q or mas_filtros %}<a class="btn btn-link" href="?{% if activa == 'pendientes' %}pendientes=1{% elif activa %}estado={{ activa }}{% endif %}">Quitar filtros</a>{% endif %}
+    </div>
+    <div class="collapse{% if mas_filtros %} show{% endif %}" id="mas-filtros">
+      <div class="row g-2 pt-3">
+        <div class="col-sm-6 col-lg-3">
+          <label class="form-label small mb-1" for="f-etapa">Etapa</label>
+          <select id="f-etapa" name="etapa" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">Todas</option>
+            {% for e in etapas %}<option value="{{ e.codigo }}" {% if filtros.etapa == e.codigo %}selected{% endif %}>{{ e.nombre }}</option>{% endfor %}
+          </select>
         </div>
-      </div>
-      <div class="col-6 col-lg-2">
-        <label class="form-label small mb-1" for="f-etapa">Etapa</label>
-        <select id="f-etapa" name="etapa" class="form-select form-select-sm">
-          <option value="">Todas</option>
-          {% for e in etapas %}<option value="{{ e.codigo }}" {% if filtros.etapa == e.codigo %}selected{% endif %}>{{ e.nombre }}</option>{% endfor %}
-        </select>
-      </div>
-      <div class="col-6 col-lg-2">
-        <label class="form-label small mb-1" for="f-estado">Estado</label>
-        <select id="f-estado" name="estado" class="form-select form-select-sm">
-          <option value="">Todos</option>
-          {% for valor, nombre in estados %}<option value="{{ valor }}" {% if filtros.estado == valor %}selected{% endif %}>{{ nombre }}</option>{% endfor %}
-        </select>
-      </div>
-      {% if rumbo.es_supervisor %}
-      <div class="col-12 col-sm-6 col-lg-2">
-        <label class="form-label small mb-1" for="f-asesor">Asesor</label>
-        <select id="f-asesor" name="asesor" class="form-select form-select-sm">
-          <option value="">Todos</option>
-          <option value="ninguno" {% if filtros.asesor == "ninguno" %}selected{% endif %}>Sin asesor (en cola)</option>
-          {% for a in asesores %}<option value="{{ a.pk }}" {% if filtros.asesor == a.pk|stringformat:"s" %}selected{% endif %}>{{ a.usuario.nombre }}</option>{% endfor %}
-        </select>
-      </div>
-      {% endif %}
-      <div class="col-12 col-sm-6 col-lg">
-        <div class="form-check form-switch mb-1">
-          <input class="form-check-input" type="checkbox" role="switch" name="pendientes" value="1" id="f-pendientes" {% if filtros.pendientes %}checked{% endif %}>
-          <label class="form-check-label small" for="f-pendientes">Por llamar ahora</label>
+        {% if rumbo.es_supervisor %}
+        <div class="col-sm-6 col-lg-3">
+          <label class="form-label small mb-1" for="f-asesor">Asesor</label>
+          <select id="f-asesor" name="asesor" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">Todos</option>
+            <option value="ninguno" {% if filtros.asesor == "ninguno" %}selected{% endif %}>Sin asesor (en cola)</option>
+            {% for a in asesores %}<option value="{{ a.pk }}" {% if filtros.asesor == a.pk|stringformat:"s" %}selected{% endif %}>{{ a.usuario.nombre }}</option>{% endfor %}
+          </select>
         </div>
-      </div>
-      <div class="col-12 col-lg-auto d-flex gap-2">
-        <button class="btn btn-sm btn-primary px-4 flex-grow-1">Filtrar</button>
-        <a class="btn btn-sm btn-light border" href="{% url 'leads:lista' %}">Limpiar</a>
+        {% endif %}
       </div>
     </div>
   </form>
@@ -67,33 +62,34 @@
       <table class="table table-hover align-middle mb-0 tabla-leads">
         <thead><tr>
           {% if lote_form %}<th class="col-check"><input type="checkbox" class="form-check-input" id="marcar-todos" aria-label="Seleccionar todos"></th>{% endif %}
-          <th>Lead</th><th>Etapa</th><th>Estado</th><th>Asesor</th><th class="text-center">Intentos</th><th>Próxima llamada</th><th>Primer contacto</th>
+          <th>Cliente</th><th class="d-none d-md-table-cell">Etapa</th><th class="d-none d-lg-table-cell">Estado</th>{% if rumbo.es_supervisor %}<th class="d-none d-md-table-cell">Asesor</th>{% endif %}<th class="text-center d-none d-lg-table-cell">Intentos</th><th>Próxima llamada</th><th class="d-none d-xl-table-cell">Llegó</th>
         </tr></thead>
         <tbody>
         {% for l in pagina %}
-          <tr>
+          <tr class="fila-lead">
             {% if lote_form %}<td class="col-check">{% if l.estado_asignacion != "cerrado" %}<input type="checkbox" class="form-check-input marca-lead" name="leads" value="{{ l.pk }}" aria-label="Seleccionar {{ l.telefono }}">{% endif %}</td>{% endif %}
             <td>
               <div class="d-flex align-items-center gap-2">
                 <span class="avatar-lead" aria-hidden="true">{{ l.nombre_perfil|default:"?"|slice:":1"|upper }}</span>
                 <div class="lh-sm">
-                  <a class="nombre-lead" href="{% url 'leads:ficha' l.pk %}">{{ l.nombre_perfil|default:"Sin nombre" }}</a>
+                  <a class="nombre-lead stretched-link" href="{% url 'leads:ficha' l.pk %}">{{ l.nombre_perfil|default:"Sin nombre" }}</a>
                   <div class="small text-body-secondary">{{ l.telefono }}</div>
                 </div>
               </div>
             </td>
-            <td><span class="etiqueta-etapa">{{ l.etapa.nombre }}</span></td>
-            <td><span class="estado-lead estado-lead-{{ l.estado_asignacion }}">{{ l.get_estado_asignacion_display }}</span></td>
-            <td class="small">{% if l.asesor %}{{ l.asesor.usuario.nombre }}{% else %}<span class="text-body-secondary">Sin asesor</span>{% endif %}</td>
-            <td class="text-center small" title="Intentos con el asesor actual / intentos totales">{{ l.intentos_asesor_actual }} / {{ l.intentos_totales }}</td>
+            <td class="d-none d-md-table-cell"><span class="etiqueta-etapa">{{ l.etapa.nombre }}</span></td>
+            <td class="d-none d-lg-table-cell"><span class="estado-lead estado-lead-{{ l.estado_asignacion }}">{{ l.get_estado_asignacion_display }}</span></td>
+            {% if rumbo.es_supervisor %}<td class="small d-none d-md-table-cell">{% if l.asesor %}{{ l.asesor.usuario.nombre }}{% else %}<span class="text-body-secondary">Sin asesor</span>{% endif %}</td>{% endif %}
+            <td class="text-center small d-none d-lg-table-cell" title="Intentos con el asesor actual / intentos totales">{{ l.intentos_asesor_actual }} / {{ l.intentos_totales }}</td>
             <td class="small text-nowrap">{% if l.estado_asignacion == "asignado" and l.proxima_accion_en %}
               {% if l.proxima_accion_en <= ahora %}<span class="llamada-vencida" title="La llamada ya debió hacerse">Vencida · {{ l.proxima_accion_en|date:"d/m H:i" }}</span>
               {% else %}<span class="llamada-pendiente">{{ l.proxima_accion_en|date:"d/m H:i" }}</span>{% endif %}{% else %}<span class="text-body-secondary">—</span>{% endif %}</td>
-            <td class="small text-nowrap">{{ l.primer_contacto_en|date:"d/m/Y" }} <span class="text-body-secondary">{{ l.primer_contacto_en|date:"H:i" }}</span></td>
+            <td class="small text-nowrap d-none d-xl-table-cell">{{ l.primer_contacto_en|date:"d/m/Y" }} <span class="text-body-secondary">{{ l.primer_contacto_en|date:"H:i" }}</span></td>
           </tr>
         {% empty %}
           <tr><td colspan="8" class="text-center text-body-secondary py-5">
-            No hay leads con estos filtros.{% if filtros %} <a href="{% url 'leads:lista' %}">Ver todos</a>{% endif %}
+            {% if activa == "pendientes" and not filtros.q and not mas_filtros %}<i class="bi bi-check2-circle fs-3 d-block mb-1 text-success" aria-hidden="true"></i>No hay llamadas pendientes ahora.
+            {% else %}No hay clientes aquí.{% if filtros %} <a href="{% url 'leads:lista' %}">Ver todos</a>{% endif %}{% endif %}
           </td></tr>
         {% endfor %}
         </tbody>

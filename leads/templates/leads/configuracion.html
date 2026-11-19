@@ -1,15 +1,19 @@
 {% extends "base.html" %}
 {% block titulo %}Configuración{% endblock %}
 {% block contenido %}
-  <h1 class="h4">Configuración</h1>
-  <p class="text-body-secondary small">Solo administradores. Los cambios rigen desde la siguiente operación, sin reiniciar el sistema.</p>
+  <div class="encabezado-pagina">
+    <div>
+      <h1 class="titulo-pagina">Configuración</h1>
+      <p class="ayuda-pagina">Horario, reparto y mensajes automáticos. Los cambios rigen de inmediato, sin reiniciar nada.</p>
+    </div>
+  </div>
   {% include "leads/_mensajes.html" %}
   {% for e in form.non_field_errors %}<div class="alert alert-danger py-2">{{ e }}</div>{% endfor %}
 
-  <form method="post" class="row g-4" style="max-width: 56rem">
+  <form method="post" class="row g-3" style="max-width: 60rem">
     {% csrf_token %}
-    <section class="col-md-6">
-      <h2 class="h6">Horario de atención</h2>
+    <section class="col-md-6"><div class="tarjeta-rumbo h-100">
+      <h2 class="titulo-tarjeta">Horario de atención</h2>
       <p class="small text-body-secondary">Fuera de este horario los leads quedan en cola y se reparten al abrir.</p>
       <div class="row g-2">
         <div class="col-6">{% include "leads/_campo.html" with campo=form.hora_inicio %}</div>
@@ -22,23 +26,23 @@
         </div>
         {% for e in form.dias.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
       </div>
-    </section>
+    </div></section>
 
-    <section class="col-md-6">
-      <h2 class="h6">Reparto y reintentos</h2>
+    <section class="col-md-6"><div class="tarjeta-rumbo h-100">
+      <h2 class="titulo-tarjeta">Reparto y reintentos</h2>
       {% include "leads/_campo.html" with campo=form.max_intentos_por_asesor %}
       {% include "leads/_campo.html" with campo=form.minutos_primera_llamada %}
       {% include "leads/_campo.html" with campo=form.minutos_entre_reintentos %}
       {% include "leads/_campo.html" with campo=form.minutos_alerta_supervisor %}
-    </section>
+    </div></section>
 
-    <section class="col-12">
-      <h2 class="h6">Textos automáticos de WhatsApp</h2>
+    <section class="col-12"><div class="tarjeta-rumbo">
+      <h2 class="titulo-tarjeta">Textos automáticos de WhatsApp</h2>
       {% include "leads/_campo.html" with campo=form.texto_bienvenida %}
       {% include "leads/_campo.html" with campo=form.texto_fuera_horario %}
       {% include "leads/_campo.html" with campo=form.texto_privacidad %}
-    </section>
+    </div></section>
 
-    <div class="col-12"><button class="btn btn-primary">Guardar</button></div>
+    <div class="col-12"><button class="btn btn-primary px-5">Guardar cambios</button></div>
   </form>
 {% endblock %}

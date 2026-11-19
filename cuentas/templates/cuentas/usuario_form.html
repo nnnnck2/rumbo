@@ -1,10 +1,16 @@
 {% extends "base.html" %}
 {% block titulo %}{% if nuevo %}Nuevo usuario{% else %}Editar {{ editado.username }}{% endif %}{% endblock %}
 {% block contenido %}
-  <h1 class="h4">{% if nuevo %}Nuevo usuario{% else %}Editar {{ editado.username }}{% endif %}</h1>
+  <a href="{% url 'cuentas:usuarios' %}" class="enlace-volver"><i class="bi bi-arrow-left" aria-hidden="true"></i> Volver a usuarios</a>
+  <div class="encabezado-pagina">
+    <div>
+      <h1 class="titulo-pagina">{% if nuevo %}Nuevo usuario{% else %}Editar {{ editado.username }}{% endif %}</h1>
+      <p class="ayuda-pagina">{% if nuevo %}La persona ingresará con este usuario y contraseña.{% else %}Cambie solo lo necesario y guarde.{% endif %}</p>
+    </div>
+  </div>
   {% include "leads/_mensajes.html" %}
   {% for e in form.non_field_errors %}<div class="alert alert-danger py-2">{{ e }}</div>{% endfor %}
-  <form method="post" class="row g-3" style="max-width: 40rem">
+  <form method="post" class="tarjeta-rumbo row g-3 mx-0" style="max-width: 44rem">
     {% csrf_token %}
     <div class="col-md-6">{% include "leads/_campo.html" with campo=form.username %}</div>
     <div class="col-md-6">{% include "leads/_campo.html" with campo=form.nombre %}</div>

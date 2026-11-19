@@ -1,11 +1,16 @@
 {% extends "base.html" %}
 {% block titulo %}Alertas{% endblock %}
 {% block contenido %}
-  <h1 class="h4">Leads sin llamar</h1>
-  {% include "leads/_alertas_tabla.html" %}
-  <button type="button" class="btn btn-sm btn-outline-secondary" id="activar-notificaciones" hidden>
-    Activar notificaciones del navegador
-  </button>
+  <div class="encabezado-pagina">
+    <div>
+      <h1 class="titulo-pagina">Llamadas atrasadas</h1>
+      <p class="ayuda-pagina">Clientes que esperan una llamada más de lo debido. Abra uno para ver quién lo tiene o reasignarlo. Se actualiza sola cada 30 segundos.</p>
+    </div>
+    <button type="button" class="btn btn-sm btn-outline-primary" id="activar-notificaciones" hidden>
+      <i class="bi bi-bell" aria-hidden="true"></i> Avisarme aunque esté en otra pestaña
+    </button>
+  </div>
+  <div class="tarjeta-rumbo">{% include "leads/_alertas_tabla.html" %}</div>
   <script>
     (function () {
       const boton = document.getElementById('activar-notificaciones');

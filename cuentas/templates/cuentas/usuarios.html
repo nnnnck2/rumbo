@@ -1,15 +1,16 @@
 {% extends "base.html" %}
 {% block titulo %}Usuarios{% endblock %}
 {% block contenido %}
-  <div class="d-flex align-items-center mb-2">
-    <h1 class="h4 mb-0">Usuarios</h1>
-    <a class="btn btn-primary btn-sm ms-auto" href="{% url 'cuentas:usuario_nuevo' %}">Nuevo usuario</a>
+  <div class="encabezado-pagina">
+    <div>
+      <h1 class="titulo-pagina">Usuarios</h1>
+      <p class="ayuda-pagina"><strong>Asesor</strong>: ve solo sus leads · <strong>Supervisor</strong>: ve todo el equipo y reasigna · <strong>Administrador</strong>: además gestiona usuarios y configuración.</p>
+    </div>
+    <a class="btn btn-primary" href="{% url 'cuentas:usuario_nuevo' %}"><i class="bi bi-person-plus" aria-hidden="true"></i> Nuevo usuario</a>
   </div>
-  <p class="text-body-secondary small">Asesor: solo ve sus leads · Supervisor: ve todos los leads y asesores y reasigna ·
-    Administrador: además gestiona usuarios y configuración.</p>
   {% include "leads/_mensajes.html" %}
-  <div class="table-responsive">
-    <table class="table table-sm align-middle">
+  <div class="tarjeta-rumbo"><div class="table-responsive">
+    <table class="table align-middle mb-0">
       <thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Número / CALLFLOW</th><th>Último ingreso</th><th></th></tr></thead>
       <tbody>
       {% for f in filas %}
@@ -24,5 +25,5 @@
       {% endfor %}
       </tbody>
     </table>
-  </div>
+  </div></div>
 {% endblock %}

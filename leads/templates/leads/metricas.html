@@ -1,10 +1,14 @@
 {% extends "base.html" %}
 {% block titulo %}Métricas{% endblock %}
 {% block contenido %}
-  <h1 class="h4">Métricas del piloto</h1>
-  <p class="small text-body-secondary">Leads que llegaron en el período. Sirve para evaluar el piloto (SCRUM-44) y la operación diaria.</p>
+  <div class="encabezado-pagina">
+    <div>
+      <h1 class="titulo-pagina">Métricas</h1>
+      <p class="ayuda-pagina">Cómo va la atención de los leads que llegaron en las fechas elegidas.</p>
+    </div>
+  </div>
 
-  <form method="get" class="row g-2 align-items-end mb-4">
+  <form method="get" class="tarjeta-filtros row g-2 align-items-end mx-0 mb-3">
     <div class="col-6 col-md-3">
       <label class="form-label small mb-1" for="m-desde">Desde</label>
       <input type="date" id="m-desde" name="desde" value="{{ desde|date:'Y-m-d' }}" class="form-control form-control-sm">
@@ -18,42 +22,42 @@
 
   {% with t=total %}
   <div class="row g-3 mb-4">
-    <div class="col-6 col-lg-3"><div class="card h-100"><div class="card-body">
+    <div class="col-6 col-lg-3"><div class="tarjeta-rumbo h-100"><div>
       <div class="small text-body-secondary">Leads recibidos</div>
       <div class="fs-3 fw-semibold">{{ t.leads }}</div>
       <div class="small text-body-secondary">{{ t.tasa_llamados|default_if_none:"—" }}% ya llamados · {{ t.en_cola }} en cola</div>
     </div></div></div>
-    <div class="col-6 col-lg-3"><div class="card h-100"><div class="card-body">
+    <div class="col-6 col-lg-3"><div class="tarjeta-rumbo h-100"><div>
       <div class="small text-body-secondary">Asignado → primera llamada</div>
       <div class="fs-3 fw-semibold">{% if t.min_asignado_a_llamada_mediana is not None %}{{ t.min_asignado_a_llamada_mediana|floatformat:0 }} min{% else %}—{% endif %}</div>
       <div class="small text-body-secondary">mediana · 9 de cada 10 en ≤ {% if t.min_asignado_a_llamada_p90 is not None %}{{ t.min_asignado_a_llamada_p90|floatformat:0 }} min{% else %}—{% endif %}</div>
     </div></div></div>
-    <div class="col-6 col-lg-3"><div class="card h-100"><div class="card-body">
+    <div class="col-6 col-lg-3"><div class="tarjeta-rumbo h-100"><div>
       <div class="small text-body-secondary">Tasa de contacto</div>
       <div class="fs-3 fw-semibold">{% if t.tasa_contacto is not None %}{{ t.tasa_contacto }}%{% else %}—{% endif %}</div>
       <div class="small text-body-secondary">{{ t.contactados }} de {{ t.llamados }} leads llamados</div>
     </div></div></div>
-    <div class="col-6 col-lg-3"><div class="card h-100"><div class="card-body">
+    <div class="col-6 col-lg-3"><div class="tarjeta-rumbo h-100"><div>
       <div class="small text-body-secondary">Ventas</div>
       <div class="fs-3 fw-semibold">{{ t.ventas }}</div>
       <div class="small text-body-secondary">leads con venta registrada</div>
     </div></div></div>
   </div>
 
-  <h2 class="h6">Posibles errores</h2>
-  <ul class="small mb-4">
+  <section class="tarjeta-rumbo mb-3"><h2 class="titulo-tarjeta">Posibles errores</h2>
+  <ul class="small mb-0">
     <li>Leads sin respuesta automática de WhatsApp: <strong>{{ t.sin_respuesta_automatica }}</strong></li>
     <li>Desde que llegó hasta la primera llamada (incluye la espera fuera de horario), mediana:
       <strong>{% if t.min_llegada_a_llamada_mediana is not None %}{{ t.min_llegada_a_llamada_mediana|floatformat:0 }} min{% else %}—{% endif %}</strong></li>
     {% for motivo, n in reasignaciones %}<li>Reasignaciones · {{ motivo }}: <strong>{{ n }}</strong></li>{% endfor %}
     {% if webhook %}<li>Eventos del webhook con error: <strong>{{ webhook.con_error }}</strong> de {{ webhook.total }}
       ({{ webhook.pendientes }} sin resolver)</li>{% endif %}
-  </ul>
+  </ul></section>
   {% endwith %}
 
-  <h2 class="h6">Por asesor</h2>
+  <section class="tarjeta-rumbo"><h2 class="titulo-tarjeta">Por asesor</h2>
   <div class="table-responsive">
-    <table class="table table-sm align-middle">
+    <table class="table align-middle">
       <thead><tr><th>Asesor</th><th class="text-end">Leads</th><th class="text-end">Llamados</th>
         <th class="text-end">Asignado → llamada (mediana)</th><th class="text-end">Contacto</th><th class="text-end">Ventas</th></tr></thead>
       <tbody>
@@ -71,5 +75,5 @@
     </table>
   </div>
   <p class="small text-body-secondary">"Contacto" = se habló con el cliente (interesado, no interesado, llamar después o venta) sobre los leads llamados.
-    Los leads se cuentan con su asesor actual.</p>
+    Los leads se cuentan con su asesor actual.</p></section>
 {% endblock %}

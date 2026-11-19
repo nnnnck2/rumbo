@@ -1,9 +1,7 @@
-{# Insignia de alertas en la barra (supervisor/admin). HTMX la pide cada 30 s y reemplaza este elemento. #}
-<a id="alertas-contador" class="nav-link position-relative" href="{% url 'leads:alertas' %}"
-   hx-get="{% url 'leads:alertas_contador' %}" hx-trigger="every 30s" hx-swap="outerHTML"
-   data-total="{{ total }}" title="Leads sin llamar">
-  Alertas{% if total %} <span class="badge text-bg-danger">{{ total }}</span>{% endif %}
-</a>
+{# Insignia de la campana (supervisor/admin): llamadas atrasadas. HTMX la pide cada 30 s y reemplaza este elemento. #}
+<span id="alertas-contador" class="contador-campana{% if not total %} d-none{% endif %}"
+      hx-get="{% url 'leads:alertas_contador' %}" hx-trigger="every 30s" hx-swap="outerHTML"
+      data-total="{{ total }}">{{ total }}<span class="visually-hidden"> llamadas atrasadas</span></span>
 <script>
   // Notificación del navegador cuando aumenta la cantidad de leads atrasados (si el usuario la permitió).
   (function () {

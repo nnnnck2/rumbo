@@ -1,16 +1,37 @@
-{# RF-11 · Selector de estado del asesor (un clic). Se reemplaza a sí mismo por HTMX. #}
-<form id="estado-asesor" method="post" action="{% url 'cuentas:mi_estado' %}"
-      hx-post="{% url 'cuentas:mi_estado' %}" hx-target="this" hx-swap="outerHTML"
-      class="btn-group btn-group-sm" role="group" aria-label="Mi estado">
+{% comment %}RF-11 · Estado del asesor con un clic. En la barra (por defecto) se reemplaza a sí mismo por HTMX;
+con grande=True (página de inicio) es un formulario normal que vuelve a la misma página.{% endcomment %}
+{% with e=mi_asesor.estado %}
+{% if grande %}
+<form method="post" action="{% url 'cuentas:mi_estado' %}" class="estado-grande" aria-label="Mi estado">
   {% csrf_token %}
   <input type="hidden" name="volver" value="{{ request.get_full_path }}">
-  {% with e=mi_asesor.estado %}
-    <button name="estado" value="disponible" class="btn {% if e == 'disponible' %}btn-success{% else %}btn-outline-success{% endif %}"
-            {% if e == 'disponible' %}aria-pressed="true"{% endif %}>Disponible</button>
-    <button name="estado" value="pausa" class="btn {% if e == 'pausa' %}btn-warning{% else %}btn-outline-warning{% endif %}"
-            {% if e == 'pausa' %}aria-pressed="true"{% endif %}>Pausa</button>
-    <button name="estado" value="fuera_turno" class="btn {% if e == 'fuera_turno' %}btn-secondary{% else %}btn-outline-secondary{% endif %}"
-            {% if e == 'fuera_turno' %}aria-pressed="true"{% endif %}>Fuera de turno</button>
-  {% endwith %}
+  <button name="estado" value="disponible" class="opcion-estado opcion-disponible{% if e == 'disponible' %} elegida{% endif %}"{% if e == 'disponible' %} aria-pressed="true"{% endif %}>
+    <i class="bi bi-telephone" aria-hidden="true"></i><strong>Disponible</strong><span>Recibo leads nuevos</span></button>
+  <button name="estado" value="pausa" class="opcion-estado opcion-pausa{% if e == 'pausa' %} elegida{% endif %}"{% if e == 'pausa' %} aria-pressed="true"{% endif %}>
+    <i class="bi bi-cup-hot" aria-hidden="true"></i><strong>En pausa</strong><span>Almuerzo, reunión…</span></button>
+  <button name="estado" value="fuera_turno" class="opcion-estado opcion-fuera_turno{% if e == 'fuera_turno' %} elegida{% endif %}"{% if e == 'fuera_turno' %} aria-pressed="true"{% endif %}>
+    <i class="bi bi-moon" aria-hidden="true"></i><strong>Fuera de turno</strong><span>Terminé mi jornada</span></button>
 </form>
+{% else %}
+<form id="estado-asesor" method="post" action="{% url 'cuentas:mi_estado' %}"
+      hx-post="{% url 'cuentas:mi_estado' %}" hx-target="this" hx-swap="outerHTML"
+      class="dropdown" aria-label="Mi estado">
+  {% csrf_token %}
+  <input type="hidden" name="volver" value="{{ request.get_full_path }}">
+  <button type="button" class="btn boton-estado estado-actual-{{ e }}" data-bs-toggle="dropdown" aria-expanded="false" title="Cambiar mi estado">
+    <span class="punto-estado" aria-hidden="true"></span>
+    <span>{% if e == 'disponible' %}Disponible{% elif e == 'pausa' %}En pausa{% elif e == 'ocupado' %}Ocupado{% else %}Fuera de turno{% endif %}</span>
+    <i class="bi bi-chevron-down small" aria-hidden="true"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end shadow-sm menu-estado">
+    <li><button name="estado" value="disponible" class="dropdown-item{% if e == 'disponible' %} active{% endif %}">
+      <span class="punto-estado punto-disponible" aria-hidden="true"></span><span><strong>Disponible</strong><small>Recibo leads nuevos</small></span></button></li>
+    <li><button name="estado" value="pausa" class="dropdown-item{% if e == 'pausa' %} active{% endif %}">
+      <span class="punto-estado punto-pausa" aria-hidden="true"></span><span><strong>En pausa</strong><small>No recibo leads nuevos</small></span></button></li>
+    <li><button name="estado" value="fuera_turno" class="dropdown-item{% if e == 'fuera_turno' %} active{% endif %}">
+      <span class="punto-estado punto-fuera_turno" aria-hidden="true"></span><span><strong>Fuera de turno</strong><small>Terminé mi jornada</small></span></button></li>
+  </ul>
+</form>
+{% endif %}
+{% endwith %}
 {% if request.htmx %}{% for m in messages %}<div class="alert alert-danger py-1 small position-fixed top-0 end-0 m-2">{{ m }}</div>{% endfor %}{% endif %}

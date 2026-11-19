@@ -9,11 +9,12 @@ leads. Aquí además se ocultan los botones que su rol no puede usar.
 """
 import datetime as dt
 import json
+from urllib.parse import quote, urlsplit
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -86,7 +87,20 @@ def ficha(request, pk):
     lead = _lead(pk)
     if lead is None:                      # no existe o RLS no se lo muestra a este usuario
         raise PermissionDenied
-    return render(request, "leads/ficha.html", _contexto_ficha(request, lead))
+    return render(request, "leads/ficha.html", {**_contexto_ficha(request, lead), **_volver_de_ficha(request)})
+
+
+def _volver_de_ficha(request):
+    """El botón "Volver" regresa a la pantalla de donde vino (inicio, alertas o la lista con sus filtros)."""
+    previo = urlsplit(request.META.get("HTTP_REFERER", ""))
+    if previo.netloc == request.get_host():
+        if previo.path == reverse("inicio"):
+            return {"volver_url": reverse("inicio"), "volver_texto": "Volver al inicio"}
+        if previo.path == reverse("leads:alertas"):
+            return {"volver_url": previo.path, "volver_texto": "Volver a llamadas atrasadas"}
+        if previo.path == reverse("leads:lista"):
+            return {"volver_url": previo.path + (f"?{previo.query}" if previo.query else ""), "volver_texto": "Volver a la lista"}
+    return {"volver_url": reverse("leads:lista"), "volver_texto": "Volver a la lista"}
 
 
 # ─────────────────────────────── RF-22 · Registrar intento ───────────────────────────────
@@ -250,30 +264,56 @@ def reasignar_lote(request):
 @require_http_methods(["GET"])
 @con_rol(*TODOS)
 def lista(request):
-    qs = Lead.objects.select_related("etapa", "asesor__usuario").order_by("-primer_contacto_en")
     f = request.GET
+    qs = Lead.objects.select_related("etapa", "asesor__usuario").order_by("-primer_contacto_en")
+    # Filtros que se combinan con cualquier pestaña: búsqueda, etapa y asesor.
     if f.get("etapa"):
         qs = qs.filter(etapa_id=f["etapa"])
-    if f.get("estado"):
-        qs = qs.filter(estado_asignacion=f["estado"])
     if f.get("asesor") and request.rumbo.es_supervisor:
         qs = qs.filter(asesor_id=f["asesor"]) if f["asesor"] != "ninguno" else qs.filter(asesor__isnull=True)
-    if f.get("pendientes"):                   # RF-24: llamadas que ya toca hacer (vencidas incluidas)
-        qs = qs.filter(estado_asignacion=EstadoAsignacion.ASIGNADO, proxima_accion_en__lte=timezone.now())
-        qs = qs.order_by("proxima_accion_en")
     if f.get("q"):
         qs = qs.filter(Q(telefono__icontains=f["q"]) | Q(nombre_perfil__icontains=f["q"]))
+
+    # Pestañas (RF-24: "Por llamar ahora" = llamadas que ya toca hacer, vencidas incluidas).
+    ahora = timezone.now()
+    pendientes = qs.filter(estado_asignacion=EstadoAsignacion.ASIGNADO, proxima_accion_en__lte=ahora)
+    conteo = dict(qs.order_by().values_list("estado_asignacion").annotate(n=Count("id")))
+    pestanas = [
+        {"clave": "pendientes", "nombre": "Por llamar ahora", "n": pendientes.count(), "url": "pendientes=1"},
+        {"clave": "asignado", "nombre": "Abiertos", "n": conteo.get(EstadoAsignacion.ASIGNADO, 0), "url": "estado=asignado"},
+    ]
+    if request.rumbo.es_supervisor:
+        pestanas.append({"clave": "en_cola", "nombre": "En cola", "n": conteo.get(EstadoAsignacion.EN_COLA, 0),
+                         "url": "estado=en_cola"})
+    pestanas += [
+        {"clave": "cerrado", "nombre": "Cerrados", "n": conteo.get(EstadoAsignacion.CERRADO, 0), "url": "estado=cerrado"},
+        {"clave": "", "nombre": "Todos", "n": sum(conteo.values()), "url": ""},
+    ]
+    if f.get("pendientes"):
+        activa = "pendientes"
+        qs = pendientes.order_by("proxima_accion_en")
+    elif f.get("estado") in EstadoAsignacion.values:
+        activa = f["estado"]
+        qs = qs.filter(estado_asignacion=activa)
+    else:
+        activa = ""
+
     pagina = Paginator(qs, 50).get_page(f.get("pagina"))
+    # Para mantener la búsqueda y los filtros al cambiar de pestaña o de página.
+    extra = "&".join(f"{k}={quote(v)}" for k, v in f.items() if k in ("q", "etapa", "asesor") and v)
     return render(request, "leads/lista.html", {
         "pagina": pagina,
         "rumbo": request.rumbo,
         "etapas": Etapa.objects.filter(activo=True),
-        "estados": EstadoAsignacion.choices,
         "asesores": asesores_activos() if request.rumbo.es_supervisor else [],
         "filtros": f,
+        "pestanas": pestanas,
+        "activa": activa,
+        "extra": extra,
+        "mas_filtros": bool(f.get("etapa") or f.get("asesor")),
         "lote_form": ReasignarForm() if request.rumbo.es_supervisor else None,
         "volver": request.get_full_path(),
-        "ahora": timezone.now(),
+        "ahora": ahora,
     })
 
 

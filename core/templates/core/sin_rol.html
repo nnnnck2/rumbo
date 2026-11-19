@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block titulo %}Sin acceso{% endblock %}
+{% block contenido %}
+  <h1 class="h4">Su usuario no tiene un rol asignado</h1>
+  <p class="text-body-secondary">Ingresó como <strong>{{ user.get_username }}</strong>, pero no está activo en Rumbo.
+    Pida a un administrador que le asigne un rol (asesor, supervisor o administrador).</p>
+{% endblock %}
