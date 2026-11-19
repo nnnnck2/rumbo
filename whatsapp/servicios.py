@@ -67,6 +67,11 @@ def procesar_payload(cursor, payload: dict) -> list[tuple]:
         )
         resultado = cursor.fetchone()
         resultados.append(resultado)
+        if mensaje.referral:            # llegó desde un anuncio de Facebook / Instagram (016)
+            cursor.execute("SELECT rumbo.registrar_origen_anuncio(%s, %s)",
+                           [mensaje.wa_message_id, Jsonb(mensaje.referral)])
+            logger.info("Mensaje %s llegó desde el anuncio %s", mensaje.wa_message_id,
+                        mensaje.referral.get("source_id") or mensaje.referral.get("source_url"))
         logger.info("Mensaje %s → lead %s (nuevo=%s, mensaje_nuevo=%s, asesor=%s)",
                     mensaje.wa_message_id, *resultado)
         lead_id, lead_nuevo, mensaje_nuevo, _ = resultado

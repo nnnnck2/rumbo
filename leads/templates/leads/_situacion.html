@@ -1,0 +1,2 @@
+{# 015 · Situación del lead con color: verde/amarillo/rojo (minutos que le quedan sin gestionar), azul (llamada programada), gris, cola. Requiere: s = lead.situacion #}
+<span class="situacion situacion-{{ s.tono }}" title="{{ s.detalle }}"><i class="bi bi-{{ s.icono }}" aria-hidden="true"></i>{{ s.texto }}</span>

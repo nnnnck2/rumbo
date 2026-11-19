@@ -21,8 +21,22 @@ from whatsapp.firma import calcular_firma
 from whatsapp.servicios import procesar_pendientes
 
 
-def construir_payload(telefono, texto, nombre, numero_destino, phone_number_id):
+def construir_payload(telefono, texto, nombre, numero_destino, phone_number_id, anuncio=None, titulo=None):
     digitos = telefono.lstrip("+")
+    mensaje = {
+        "from": digitos,
+        "id": f"wamid.SIMULADO.{uuid.uuid4().hex}",
+        "timestamp": str(int(time.time())),
+        "type": "text",
+        "text": {"body": texto},
+    }
+    if anuncio:     # como llega desde un anuncio "Enviar mensaje por WhatsApp" (016)
+        mensaje["referral"] = {
+            "source_id": anuncio, "source_type": "ad",
+            "source_url": f"https://fb.me/{anuncio}",
+            "headline": titulo or f"Anuncio {anuncio}", "body": "Asesoría de visas · escríbenos",
+            "media_type": "image", "ctwa_clid": f"CLID-{uuid.uuid4().hex[:12]}",
+        }
     return {
         "object": "whatsapp_business_account",
         "entry": [{
@@ -34,13 +48,7 @@ def construir_payload(telefono, texto, nombre, numero_destino, phone_number_id):
                     "metadata": {"display_phone_number": numero_destino.lstrip("+"),
                                  "phone_number_id": phone_number_id},
                     "contacts": [{"profile": {"name": nombre}, "wa_id": digitos}],
-                    "messages": [{
-                        "from": digitos,
-                        "id": f"wamid.SIMULADO.{uuid.uuid4().hex}",
-                        "timestamp": str(int(time.time())),
-                        "type": "text",
-                        "text": {"body": texto},
-                    }],
+                    "messages": [mensaje],
                 },
             }],
         }],
@@ -57,6 +65,8 @@ class Command(BaseCommand):
         parser.add_argument("--numero-destino", default="+593961319535",
                             help="Número de la empresa que recibe (rumbo.numero_whatsapp).")
         parser.add_argument("--phone-number-id", default="0000000000")
+        parser.add_argument("--anuncio", help="Id del anuncio de Meta: simula que llegó desde un anuncio.")
+        parser.add_argument("--titulo-anuncio", help="Título del anuncio simulado.")
         parser.add_argument("--firma-invalida", action="store_true",
                             help="Envía una firma incorrecta: debe responder 403.")
 
@@ -65,7 +75,7 @@ class Command(BaseCommand):
             raise CommandError("Configure WHATSAPP_APP_SECRET en .env")
 
         payload = construir_payload(o["telefono"], o["texto"], o["nombre"],
-                                    o["numero_destino"], o["phone_number_id"])
+                                    o["numero_destino"], o["phone_number_id"], o["anuncio"], o["titulo_anuncio"])
         cuerpo = json.dumps(payload).encode()
         firma = "sha256=" + "0" * 64 if o["firma_invalida"] else calcular_firma(cuerpo, settings.WHATSAPP_APP_SECRET)
 

@@ -6,7 +6,8 @@ Formato (resumido):
      "metadata": {"display_phone_number": "593961319535", "phone_number_id": "1234567890"},
      "contacts": [{"profile": {"name": "Ana"}, "wa_id": "593991234567"}],
      "messages": [{"from": "593991234567", "id": "wamid.X", "timestamp": "1700000000",
-                   "type": "text", "text": {"body": "Hola"}}],
+                   "type": "text", "text": {"body": "Hola"},
+                   "referral": {...}}],          ← solo si llegó desde un anuncio (ver _referral)
      "statuses": [...]}}]}]}
 """
 import re
@@ -33,6 +34,7 @@ class MensajeEntrante:
     cuerpo: str | None
     ocurrido_en: datetime
     payload: dict = field(default_factory=dict)
+    referral: dict | None = None      # anuncio de origen (Click-to-WhatsApp), si lo hay
 
 
 def a_e164(numero: str | None) -> str | None:
@@ -60,6 +62,19 @@ def _cuerpo(mensaje: dict) -> str | None:
     else:
         texto = None
     return texto[:MAX_CUERPO] if isinstance(texto, str) else None
+
+
+# Campos del objeto `referral` que Meta adjunta cuando el cliente escribe desde un anuncio
+# "Enviar mensaje por WhatsApp" (Click-to-WhatsApp). Los demás (imagen, video…) se ignoran.
+CAMPOS_REFERRAL = ("source_id", "source_type", "source_url", "headline", "body", "media_type", "ctwa_clid")
+
+
+def _referral(mensaje: dict) -> dict | None:
+    r = mensaje.get("referral")
+    if not isinstance(r, dict):
+        return None
+    limpio = {k: str(r[k])[:4000] for k in CAMPOS_REFERRAL if r.get(k) not in (None, "")}
+    return limpio if (limpio.get("source_id") or limpio.get("source_url")) else None
 
 
 def _fecha(timestamp) -> datetime:
@@ -101,5 +116,6 @@ def extraer_mensajes(payload: dict) -> list[MensajeEntrante]:
                     cuerpo=_cuerpo(m),
                     ocurrido_en=_fecha(m.get("timestamp")),
                     payload={"mensaje": m, "metadata": metadata},
+                    referral=_referral(m),
                 ))
     return mensajes

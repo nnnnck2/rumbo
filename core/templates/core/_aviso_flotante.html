@@ -1,0 +1,8 @@
+<div class="aviso-flotante" role="status" data-aviso="{{ n.pk }}" data-titulo="{{ n.titulo }}" data-mensaje="{{ n.mensaje|default:'' }}" data-url="{% url 'notificacion_abrir' n.pk %}"{% if n.tipo == "plazo_por_vencer" %} data-fijo="1"{% endif %}>
+  <span class="icono-notificacion tono-{{ n.tono }}" aria-hidden="true"><i class="bi bi-{{ n.icono }}"></i></span>
+  <a class="flex-grow-1 min-w-0 text-reset text-decoration-none" href="{% url 'notificacion_abrir' n.pk %}">
+    <strong class="d-block">{{ n.titulo }}</strong>
+    {% if n.mensaje %}<span class="d-block small text-body-secondary">{{ n.mensaje|truncatechars:120 }}</span>{% endif %}
+  </a>
+  <button type="button" class="btn-close" aria-label="Cerrar aviso" data-cerrar-aviso></button>
+</div>

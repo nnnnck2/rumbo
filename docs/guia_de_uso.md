@@ -34,7 +34,7 @@ Sus leads ya asignados siguen siendo suyos aunque esté en pausa.
 2. Abra la ficha del cliente y toque **Llamar**: se abre el marcador del celular con el número.
 3. Antes de llamar, revise los mensajes que el cliente escribió por WhatsApp y las notas de otros asesores.
 
-> ⏱️ Tiene **15 minutos** para la primera llamada de un lead nuevo. Si no registra ningún intento en ese tiempo, el lead pasa a otro asesor.
+> ⏱️ Tiene **30 minutos** (de turno) para gestionar un lead nuevo, es decir, registrar al menos una llamada. Si no, el lead pasa automáticamente al siguiente asesor en turno; cuando ya pasó por todos, vuelve al primero, así ningún cliente se queda sin atender. La etiqueta de color de cada cliente dice cuánto le queda: verde (a tiempo), amarillo (menos de 15 min), rojo (menos de 5 min).
 
 ### 3. Registre SIEMPRE el resultado de cada llamada
 
@@ -60,6 +60,10 @@ Puede agregar una nota corta en cada resultado, por ejemplo "prefiere que lo lla
 - **Agendar llamada:** sirve para dejar programada la próxima llamada sin haber llamado todavía, por ejemplo si el cliente pidió por WhatsApp que lo llamen mañana.
 - **Notas internas:** solo las ve el equipo, nunca el cliente. No se pueden borrar: escriba con cuidado.
 
+### Notificaciones
+
+La campana de arriba avisa con un sonido y un mensaje en la esquina de la pantalla: cliente nuevo o reasignado, cliente que volvió a escribir, quedan 10 minutos para gestionar, hora de una llamada programada y cliente que pasó a otro asesor. En la campana, **"Avisarme aunque esté en otra pestaña"** activa los avisos del navegador.
+
 ### 5. Si el cliente vuelve a escribir
 
 Le llega a usted, que ya conoce su caso, aunque esté en pausa. Si usted ya no está en la empresa, pasa a otro asesor.
@@ -71,6 +75,10 @@ Le llega a usted, que ya conoce su caso, aunque esté en pausa. Si usted ya no e
 ### Asesores
 
 En **Asesores** ve el estado de todo el equipo y cuántos leads abiertos tiene cada uno, y puede cambiarle el estado a cualquier asesor (por ejemplo, poner en pausa a alguien que se fue sin marcar).
+
+### Tablero
+
+En **Tablero** ve una columna por asesor con sus clientes abiertos, cada uno con su color: verde a tiempo, amarillo por vencer, rojo urgente, azul con llamada programada. Se actualiza sola cada 30 segundos. En la ficha de cada cliente, **Recorrido** muestra por qué asesores pasó en esta vuelta y quiénes faltan.
 
 ### Alertas
 
@@ -102,6 +110,7 @@ En **Métricas**, elija el período y vea:
 ## Administrador
 
 - **Usuarios:** crear cuentas (asesor, supervisor o administrador), asignar a cada asesor su número de WhatsApp y su código de CALLFLOW, cambiar contraseñas y desactivar a quien deja la empresa. Un usuario desactivado no puede ingresar, y sus leads pasan a otros asesores cuando el cliente vuelve a escribir o cuando se reasignan.
+- **Campañas:** cada anuncio de Facebook / Instagram del que llegan clientes aparece solo. Asígnele su **país**: los clientes de ese anuncio (los que llegaron y los que lleguen) quedan con ese país de interés. En **Métricas** se ven leads, contacto y ventas por campaña.
 - **Configuración:** horario de atención, intentos por asesor, minutos para la primera llamada, minutos entre reintentos, minutos para alertar al supervisor y textos automáticos de WhatsApp (bienvenida, fuera de horario y aviso de privacidad). Los cambios rigen de inmediato.
 
 ---

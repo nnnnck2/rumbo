@@ -8,13 +8,12 @@ Permisos: los decide la base. Un asesor solo ve (RLS) y solo puede tocar (funcio
 leads. Aquí además se ocultan los botones que su rol no puede usar.
 """
 import datetime as dt
-import json
 from urllib.parse import quote, urlsplit
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
-from django.db.models import Count, Q
+from django.db.models import Count, F, OuterRef, Q, Subquery
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -25,7 +24,7 @@ from cuentas.permisos import SUPERVISION, TODOS, con_rol
 from . import servicios
 from .forms import (PAISES, TIPOS_VISA, AgendarForm, ConfiguracionForm, DatosLeadForm, EtapaForm, IntentoForm,
                     NotaForm, ReasignarForm, ReasignarLoteForm, asesores_activos)
-from .models import Etapa, EstadoAsignacion, Lead
+from .models import Anuncio, Asesor, Asignacion, Etapa, EstadoAsignacion, Lead, LeadOrigen
 
 
 # ─────────────────────────────── Ficha ───────────────────────────────
@@ -39,8 +38,13 @@ def _contexto_ficha(request, lead, intento_form=None, etapa_form=None, reasignar
                     datos_form=None, nota_form=None):
     puede_actuar = lead.estado_asignacion == EstadoAsignacion.ASIGNADO
     puede_editar = request.rumbo.es_supervisor or (lead.asesor_id and lead.asesor_id == request.rumbo.asesor_id)
+    servicios.con_situacion([lead])
+    origenes = list(lead.origenes.select_related("anuncio").order_by("llegado_en"))
     return {
         "lead": lead,
+        **_recorrido(request, lead),
+        "origen": origenes[0] if origenes else None,        # 016: anuncio del que llegó
+        "otras_llegadas": len(origenes) - 1 if origenes else 0,
         **_modo_siguiente(request),
         "datos_form": (datos_form or DatosLeadForm(initial={"version": lead.version, "tipo_visa": lead.tipo_visa,
                                                             "pais_interes": lead.pais_interes}))
@@ -65,6 +69,30 @@ def _contexto_ficha(request, lead, intento_form=None, etapa_form=None, reasignar
                           if request.rumbo.es_supervisor and lead.estado_asignacion != EstadoAsignacion.CERRADO
                           else None,
     }
+
+
+def _recorrido(request, lead):
+    """015 · Por qué asesores pasó el lead en la vuelta actual y quiénes faltan (para dibujarlo)."""
+    filas = list(Asignacion.objects.filter(lead=lead).order_by("creado_en").values_list("asesor_id", "vuelta"))
+    if not filas:
+        return {"recorrido": [], "vuelta": None}
+    vuelta = max(v for _a, v in filas)
+    visitados = []                      # en orden de paso; si volvió a alguien, cuenta su último paso
+    for a, v in filas:
+        if v == vuelta:
+            if a in visitados:
+                visitados.remove(a)
+            visitados.append(a)
+    # RLS: el asesor solo ve su propia fila de asesor; los demás se muestran como "Otro asesor".
+    nombres = {a.pk: a.usuario.nombre for a in Asesor.objects.select_related("usuario")}
+    recorrido = [{"nombre": nombres.get(a, "Otro asesor"), "actual": a == lead.asesor_id and lead.estado_asignacion == "asignado",
+                  "yo": a == request.rumbo.asesor_id} for a in visitados]
+    faltan = []
+    if request.rumbo.es_supervisor:
+        faltan = [a.usuario.nombre for a in Asesor.objects.select_related("usuario")
+                  .filter(usuario__activo=True, estado__in=["disponible", "ocupado"])
+                  .exclude(pk__in=visitados).order_by("ultimo_lead_en", "id")]
+    return {"recorrido": recorrido, "vuelta": vuelta, "faltan": faltan}
 
 
 def _responder_ficha(request, lead, **forms):
@@ -328,7 +356,11 @@ def reasignar_lote(request):
 @con_rol(*TODOS)
 def lista(request):
     f = request.GET
-    qs = Lead.objects.select_related("etapa", "asesor__usuario").order_by("-primer_contacto_en")
+    primer_anuncio = LeadOrigen.objects.filter(lead=OuterRef("pk")).order_by("llegado_en")
+    qs = (Lead.objects.select_related("etapa", "asesor__usuario").order_by("-primer_contacto_en")
+          .annotate(anuncio_titulo=Subquery(primer_anuncio.values("anuncio__titulo")[:1]),     # 016
+                    anuncio_clave=Subquery(primer_anuncio.values("anuncio__clave")[:1]),
+                    anuncio_pais=Subquery(primer_anuncio.values("anuncio__pais")[:1])))
     # Filtros que se combinan con cualquier pestaña: búsqueda, etapa y asesor.
     if f.get("etapa"):
         qs = qs.filter(etapa_id=f["etapa"])
@@ -336,6 +368,8 @@ def lista(request):
         qs = qs.filter(asesor_id=f["asesor"]) if f["asesor"] != "ninguno" else qs.filter(asesor__isnull=True)
     if f.get("q"):
         qs = qs.filter(Q(telefono__icontains=f["q"]) | Q(nombre_perfil__icontains=f["q"]))
+    if f.get("pais"):                       # 017: las campañas se organizan por país
+        qs = qs.filter(pais_interes=f["pais"]) if f["pais"] != "sin_pais" else qs.filter(pais_interes__isnull=True)
 
     # Pestañas (RF-24: "Por llamar ahora" = llamadas que ya toca hacer, vencidas incluidas).
     ahora = timezone.now()
@@ -362,8 +396,9 @@ def lista(request):
         activa = ""
 
     pagina = Paginator(qs, 50).get_page(f.get("pagina"))
+    pagina.object_list = servicios.con_situacion(pagina.object_list)
     # Para mantener la búsqueda y los filtros al cambiar de pestaña o de página.
-    extra = "&".join(f"{k}={quote(v)}" for k, v in f.items() if k in ("q", "etapa", "asesor") and v)
+    extra = "&".join(f"{k}={quote(v)}" for k, v in f.items() if k in ("q", "etapa", "asesor", "pais") and v)
     return render(request, "leads/lista.html", {
         "pagina": pagina,
         "rumbo": request.rumbo,
@@ -373,11 +408,79 @@ def lista(request):
         "pestanas": pestanas,
         "activa": activa,
         "extra": extra,
-        "mas_filtros": bool(f.get("etapa") or f.get("asesor")),
+        "mas_filtros": bool(f.get("etapa") or f.get("asesor") or f.get("pais")),
+        "paises_leads": sorted(p for p in Lead.objects.exclude(pais_interes__isnull=True)
+                               .values_list("pais_interes", flat=True).distinct() if p),
         "lote_form": ReasignarForm() if request.rumbo.es_supervisor else None,
         "volver": request.get_full_path(),
         "ahora": ahora,
     })
+
+
+# ─────────────────────────────── 017 · Campañas por país (admin) ───────────────────────────────
+
+@require_http_methods(["GET", "POST"])
+@con_rol("admin")
+def campanas(request):
+    """Cada anuncio de Meta del que llegaron leads, con su país. Al asignar el país, los leads de esa
+    campaña (los que llegaron y los que lleguen) quedan con ese país de interés."""
+    if request.method == "POST":
+        anuncio_id = request.POST.get("anuncio")
+        try:
+            total = servicios.categorizar_anuncio(int(anuncio_id), request.POST.get("pais", ""),
+                                                  request.POST.get("nombre_campana", ""))
+        except (TypeError, ValueError):
+            messages.error(request, "Anuncio no válido.")
+        except servicios.ErrorNegocio as e:
+            messages.error(request, e.mensaje)
+        else:
+            messages.success(request, f"Campaña guardada. {total} lead{'s' if total != 1 else ''} "
+                                      f"tomaron el país {request.POST.get('pais', '').strip()}.")
+        return redirect(f"{reverse('leads:campanas')}#anuncio-{anuncio_id}")
+
+    primeros = (LeadOrigen.objects.order_by("lead_id", "llegado_en", "id").distinct("lead_id")
+                .values_list("lead_id", "anuncio_id"))
+    origen_de = dict(primeros)
+    leads_por_anuncio, ventas_por_anuncio = {}, {}
+    vendidos = set(Lead.objects.filter(pk__in=origen_de, ventas__anulada_en__isnull=True, ventas__isnull=False)
+                   .values_list("pk", flat=True))
+    for lead_id, anuncio_id in origen_de.items():
+        leads_por_anuncio[anuncio_id] = leads_por_anuncio.get(anuncio_id, 0) + 1
+        if lead_id in vendidos:
+            ventas_por_anuncio[anuncio_id] = ventas_por_anuncio.get(anuncio_id, 0) + 1
+    anuncios = list(Anuncio.objects.order_by(F("pais").asc(nulls_first=True), "-ultimo_visto_en"))
+    for a in anuncios:
+        a.leads = leads_por_anuncio.get(a.pk, 0)
+        a.ventas = ventas_por_anuncio.get(a.pk, 0)
+    paises = sorted({a.pais for a in anuncios if a.pais} | set(PAISES))
+    return render(request, "leads/campanas.html", {
+        "anuncios": anuncios, "paises": paises, "rumbo": request.rumbo,
+        "sin_pais": sum(1 for a in anuncios if not a.pais),
+    })
+
+
+# ─────────────────────────────── 015 · Tablero de gestión (supervisor) ───────────────────────────────
+
+@require_http_methods(["GET"])
+@con_rol(*SUPERVISION)
+def tablero(request):
+    """Cada asesor con sus clientes abiertos, de color según lo urgente. Se refresca solo cada 30 s."""
+    from cuentas.servicios import asesores_con_carga
+
+    leads = servicios.con_situacion(
+        Lead.objects.filter(estado_asignacion__in=[EstadoAsignacion.ASIGNADO, EstadoAsignacion.EN_COLA])
+        .select_related("etapa"))
+    leads.sort(key=lambda l: (servicios.ORDEN_TONO.get(l.situacion["tono"], 9), l.proxima_accion_en or timezone.now()))
+    por_asesor = {}
+    for l in leads:
+        por_asesor.setdefault(l.asesor_id, []).append(l)
+    columnas = [{"asesor": a, "leads": por_asesor.pop(a["id"], [])} for a in asesores_con_carga()]
+    en_cola = por_asesor.pop(None, [])
+    conteo = {t: sum(1 for l in leads if l.situacion["tono"] == t) for t in ("rojo", "amarillo", "verde", "azul")}
+    contexto = {"columnas": columnas, "en_cola": en_cola, "conteo": conteo, "rumbo": request.rumbo,
+                "minutos": servicios.leer_configuracion().get("minutos_primera_llamada", 30)}
+    plantilla = "leads/_tablero.html" if request.htmx else "leads/tablero.html"
+    return render(request, plantilla, contexto)
 
 
 # ─────────────────────────────── RF-33 · Alertas de leads sin llamar ───────────────────────────────
@@ -396,14 +499,7 @@ def alertas(request):
 @con_rol(*SUPERVISION)
 def alertas_contador(request):
     """Insignia de la barra de navegación (HTMX, cada 30 s). Dispara la notificación del navegador."""
-    filas = servicios.leads_sin_llamar()
-    # Texto para la notificación. El nombre viene del perfil de WhatsApp (lo escribe el cliente):
-    # se escapa "<", ">" y "&" para que no pueda cerrar el <script> ni inyectar HTML.
-    detalle = [f"{f['nombre_perfil'] or f['telefono']} · {f['asesor'] or 'sin asesor'} · {f['minutos']} min"
-               for f in filas[:3]]
-    alertas_json = (json.dumps(detalle, ensure_ascii=True)
-                    .replace("<", r"\u003c").replace(">", r"\u003e").replace("&", r"\u0026"))
-    return render(request, "leads/_alertas_contador.html", {"total": len(filas), "alertas_json": alertas_json})
+    return render(request, "leads/_alertas_contador.html", {"total": len(servicios.leads_sin_llamar())})
 
 
 # ─────────────────────────────── SCRUM-44 · Métricas del piloto ───────────────────────────────
@@ -433,6 +529,7 @@ def metricas(request):
     fin = dt.datetime.combine(hasta + dt.timedelta(days=1), dt.time.min, zona)
     datos = servicios.metricas_piloto(inicio, fin)
     datos["reasignaciones"] = [(MOTIVOS_REASIGNACION.get(m, m), n) for m, n in sorted(datos["reasignaciones"].items())]
+    datos["por_campana"] = servicios.metricas_por_campana(inicio, fin)
     return render(request, "leads/metricas.html", {
         **datos, "desde": desde, "hasta": hasta, "rumbo": request.rumbo,
         "webhook": servicios.errores_webhook(inicio, fin) if request.rumbo.es_admin else None,

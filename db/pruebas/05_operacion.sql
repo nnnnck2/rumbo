@@ -90,7 +90,7 @@ SELECT * FROM prueba.msg_en('wamid.rf14a', '+593997200001', now());
 SELECT * FROM prueba.msg_en('wamid.rf14b', '+593997200002', now());
 SELECT set_config('prueba.dueno_a', prueba.usuario_dueno('+593997200001')::text, true);
 RESET ROLE; SET ROLE rumbo_owner;
-UPDATE rumbo.lead SET asignado_en = now() - interval '20 minutes', proxima_accion_en = now() - interval '20 minutes'
+UPDATE rumbo.lead SET asignado_en = now() - interval '40 minutes', proxima_accion_en = now() - interval '40 minutes'
 WHERE telefono IN ('+593997200001', '+593997200002');
 SET ROLE rumbo_app;
 -- El dueño de B sí llamó
@@ -100,7 +100,7 @@ SELECT prueba.como(0);
 SELECT rumbo.reasignar_sin_primera_llamada();
 SELECT prueba.como(1);
 SELECT prueba.afirmar((SELECT prueba.usuario_dueno('+593997200001')::text <> current_setting('prueba.dueno_a')),
-                      'RF-14 · sin primer intento en 15 min → pasa a otro asesor');
+                      'RF-14 · sin gestionar en 30 min (015) → pasa a otro asesor');
 SELECT prueba.afirmar((SELECT motivo = 'sin_primera_llamada' AND asesor_anterior_id IS NOT NULL AND asignado_por_usuario_id = 0
                        FROM rumbo.asignacion WHERE lead_id = prueba.lead('+593997200001') ORDER BY id DESC LIMIT 1),
                       'RF-14 · la reasignación automática queda registrada (motivo, asesor anterior, sistema)');

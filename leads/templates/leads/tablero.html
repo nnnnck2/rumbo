@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block titulo %}Tablero{% endblock %}
+{% block contenido %}
+  <div class="encabezado-pagina">
+    <div>
+      <h1 class="titulo-pagina">Tablero de gestión</h1>
+      <p class="ayuda-pagina">Cada asesor con sus clientes abiertos. El color dice qué tan urgente es: un cliente nuevo tiene
+        <strong>{{ minutos }} minutos</strong> para ser gestionado; si no, pasa solo al siguiente asesor y, cuando pasó por todos, vuelve al primero.
+        Se actualiza sola cada 30 segundos.</p>
+    </div>
+  </div>
+  <div id="tablero" hx-get="{% url 'leads:tablero' %}" hx-trigger="every 30s" hx-swap="innerHTML">
+    {% include "leads/_tablero.html" %}
+  </div>
+{% endblock %}

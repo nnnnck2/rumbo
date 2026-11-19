@@ -33,6 +33,15 @@ def reasignar_sin_primera_llamada():
     return total
 
 
+@shared_task(name="core.generar_avisos")
+def generar_avisos():
+    """017: notificaciones por tiempo (plazo por vencer, hora de llamar, llamadas atrasadas)."""
+    total = ejecutar_funcion_sistema("SELECT rumbo.generar_avisos()")
+    if total:
+        logger.info("Notificaciones generadas: %s", total)
+    return total
+
+
 @shared_task(name="core.liberar_cola")
 def liberar_cola():
     """RF-13: reparte la cola de fuera de horario cuando abre la atención."""

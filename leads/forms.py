@@ -224,8 +224,9 @@ class ConfiguracionForm(Bootstrap, forms.Form):
     # Reparto y reintentos
     max_intentos_por_asesor = forms.IntegerField(min_value=1, max_value=10, label="Intentos por asesor",
                                                  help_text="Sin contacto tras estos intentos, el lead pasa al siguiente asesor.")
-    minutos_primera_llamada = forms.IntegerField(min_value=1, max_value=240, label="Minutos para la primera llamada",
-                                                 help_text="Si el asesor no llama en este tiempo, se reasigna.")
+    minutos_primera_llamada = forms.IntegerField(min_value=1, max_value=240, label="Minutos para gestionar un lead nuevo",
+                                                 help_text="Si el asesor no registra ninguna llamada en este tiempo (de turno), "
+                                                           "el lead pasa al siguiente asesor. Recorre a todos y vuelve al primero.")
     minutos_entre_reintentos = forms.IntegerField(min_value=1, max_value=1440, label="Minutos entre reintentos")
     minutos_alerta_supervisor = forms.IntegerField(min_value=1, max_value=480, label="Alertar al supervisor tras",
                                                    help_text="Minutos de atraso de una llamada pendiente.")

@@ -30,11 +30,19 @@
     {% if user.is_authenticated %}
     <div class="d-flex align-items-center gap-1 gap-sm-2">
       {% if mi_asesor %}{% include "cuentas/_estado_asesor.html" %}{% endif %}
-      {% if rumbo.es_supervisor %}
-        <a class="btn btn-icono position-relative" href="{% url 'leads:alertas' %}" aria-label="Alertas" title="Llamadas atrasadas">
+      {% if rumbo.rol %}
+      {# 017 · Notificaciones: campana con panel y avisos flotantes (consulta cada 10 s). #}
+      <div class="dropdown">
+        <button type="button" class="btn btn-icono position-relative" data-bs-toggle="dropdown" data-bs-auto-close="outside"
+                aria-expanded="false" aria-label="Notificaciones" title="Notificaciones"
+                hx-get="{% url 'notificaciones_panel' %}" hx-trigger="show.bs.dropdown" hx-target="#panel-campana">
           <i class="bi bi-bell" aria-hidden="true"></i>
-          <span hx-get="{% url 'leads:alertas_contador' %}" hx-trigger="load" hx-swap="outerHTML"></span>
-        </a>
+          <span id="contador-notificaciones" hx-get="{% url 'notificaciones_contadores' %}" hx-trigger="load, every 10s" hx-swap="innerHTML">{% with sin_leer=notificaciones_sin_leer %}{% include "core/_contador_campana.html" %}{% endwith %}</span>
+        </button>
+        <div class="dropdown-menu dropdown-menu-end p-0 panel-campana shadow" id="panel-campana">
+          <p class="text-body-secondary small px-3 py-3 mb-0">Cargando…</p>
+        </div>
+      </div>
       {% endif %}
       <div class="dropdown">
         <button class="btn boton-usuario" type="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -48,6 +56,7 @@
         <ul class="dropdown-menu dropdown-menu-end shadow-sm">
           <li><span class="dropdown-item-text small text-body-secondary">Usuario: <strong>{{ user.get_username }}</strong></span></li>
           <li><hr class="dropdown-divider"></li>
+          <li><a class="dropdown-item" href="{% url 'notificaciones' %}"><i class="bi bi-bell me-2" aria-hidden="true"></i>Notificaciones</a></li>
           <li><a class="dropdown-item" href="{% url 'ayuda' %}"><i class="bi bi-question-circle me-2" aria-hidden="true"></i>Ayuda</a></li>
           <li>
             <form method="post" action="{% url 'cuentas:logout' %}">{% csrf_token %}
@@ -82,8 +91,11 @@
 
         {% if rumbo.es_supervisor %}
         <div class="titulo-seccion">Equipo</div>
+        <a class="enlace-menu{% if vista == 'leads:tablero' %} activo{% endif %}" href="{% url 'leads:tablero' %}">
+          <i class="bi bi-kanban" aria-hidden="true"></i><span class="texto-menu">Tablero</span></a>
         <a class="enlace-menu{% if vista == 'leads:alertas' %} activo{% endif %}" href="{% url 'leads:alertas' %}">
-          <i class="bi bi-alarm" aria-hidden="true"></i><span class="texto-menu">Llamadas atrasadas</span></a>
+          <i class="bi bi-alarm" aria-hidden="true"></i><span class="texto-menu">Llamadas atrasadas</span>
+          <span hx-get="{% url 'leads:alertas_contador' %}" hx-trigger="load" hx-swap="outerHTML"></span></a>
         <a class="enlace-menu{% if vista == 'cuentas:asesores' %} activo{% endif %}" href="{% url 'cuentas:asesores' %}">
           <i class="bi bi-headset" aria-hidden="true"></i><span class="texto-menu">Asesores</span></a>
         <a class="enlace-menu{% if vista == 'leads:metricas' %} activo{% endif %}" href="{% url 'leads:metricas' %}">
@@ -94,6 +106,9 @@
         <div class="titulo-seccion">Administración</div>
         <a class="enlace-menu{% if vista == 'cuentas:usuarios' or vista == 'cuentas:usuario_nuevo' or vista == 'cuentas:usuario_editar' %} activo{% endif %}" href="{% url 'cuentas:usuarios' %}">
           <i class="bi bi-person-badge" aria-hidden="true"></i><span class="texto-menu">Usuarios</span></a>
+        <a class="enlace-menu{% if vista == 'leads:campanas' %} activo{% endif %}" href="{% url 'leads:campanas' %}">
+          <i class="bi bi-megaphone" aria-hidden="true"></i><span class="texto-menu">Campañas</span>
+          {% if anuncios_sin_pais %}<span class="contador-menu" title="Anuncios sin país">{{ anuncios_sin_pais }}</span>{% endif %}</a>
         <a class="enlace-menu{% if vista == 'leads:configuracion' %} activo{% endif %}" href="{% url 'leads:configuracion' %}">
           <i class="bi bi-gear" aria-hidden="true"></i><span class="texto-menu">Configuración</span></a>
         {% endif %}
@@ -118,6 +133,7 @@
     </main>
   </div>
   {% endwith %}
+  {% if user.is_authenticated %}<div id="avisos-flotantes" class="avisos-flotantes" aria-live="polite"></div>{% endif %}
   {% endblock %}
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>

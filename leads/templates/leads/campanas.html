@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block titulo %}Campañas{% endblock %}
+{% block contenido %}
+  <div class="encabezado-pagina">
+    <div>
+      <h1 class="titulo-pagina">Campañas</h1>
+      <p class="ayuda-pagina">Anuncios de Facebook e Instagram de los que llegaron clientes. Asigne el <strong>país</strong> de cada campaña:
+        los clientes que llegan de ese anuncio quedan con ese país de interés, incluidos los que ya llegaron. Los anuncios nuevos aparecen solos.</p>
+    </div>
+  </div>
+  {% include "leads/_mensajes.html" %}
+
+  {% if sin_pais %}
+  <div class="aviso-llamada mb-3" role="status">
+    <i class="bi bi-megaphone" aria-hidden="true"></i>
+    <span class="flex-grow-1"><strong>{{ sin_pais }} anuncio{{ sin_pais|pluralize }} sin país.</strong> Están primero en la lista.</span>
+  </div>
+  {% endif %}
+
+  <datalist id="paises-campana">{% for p in paises %}<option value="{{ p }}">{% endfor %}</datalist>
+  {% if anuncios %}
+  <div class="d-flex flex-column gap-3">
+    {% for a in anuncios %}
+    <section class="tarjeta-rumbo tarjeta-campana{% if not a.pais %} sin-pais{% endif %}" id="anuncio-{{ a.pk }}">
+      <div class="row g-3 align-items-start">
+        <div class="col-lg-5">
+          <div class="d-flex align-items-start gap-2">
+            <span class="icono-notificacion tono-morado" aria-hidden="true"><i class="bi bi-megaphone"></i></span>
+            <div class="min-w-0">
+              <div class="fw-semibold">{{ a.titulo|default:"Anuncio sin título" }}</div>
+              {% if a.texto %}<div class="small text-body-secondary">{{ a.texto|truncatechars:140 }}</div>{% endif %}
+              <div class="small text-body-tertiary mt-1">
+                {% if a.tipo_origen == "post" %}Publicación{% else %}Anuncio{% endif %} {{ a.meta_source_id|default:"" }}
+                {% if a.enlace %} · <a href="{{ a.enlace }}" target="_blank" rel="noopener noreferrer">ver</a>{% endif %}
+                · visto por última vez {{ a.ultimo_visto_en|date:"d/m H:i" }}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-lg-2">
+          <div class="dato-rapido p-2"><span class="valor fs-5">{{ a.leads }}</span><span class="etiqueta">cliente{{ a.leads|pluralize }} · {{ a.ventas }} venta{{ a.ventas|pluralize }}</span></div>
+        </div>
+        <div class="col-lg-5">
+          <form method="post" class="row g-2 align-items-end">
+            {% csrf_token %}<input type="hidden" name="anuncio" value="{{ a.pk }}">
+            <div class="col-sm-5">
+              <label class="form-label small mb-1" for="pais-{{ a.pk }}">País</label>
+              <input id="pais-{{ a.pk }}" name="pais" list="paises-campana" class="form-control form-control-sm{% if not a.pais %} border-warning{% endif %}"
+                     value="{{ a.pais|default:'' }}" placeholder="Ej.: Estados Unidos" required maxlength="80">
+            </div>
+            <div class="col-sm-4">
+              <label class="form-label small mb-1" for="nombre-{{ a.pk }}">Nombre (opcional)</label>
+              <input id="nombre-{{ a.pk }}" name="nombre_campana" class="form-control form-control-sm" value="{{ a.nombre_campana|default:'' }}"
+                     placeholder="Ej.: EE.UU. noviembre" maxlength="120">
+            </div>
+            <div class="col-sm-3 d-grid"><button class="btn btn-sm btn-primary">Guardar</button></div>
+          </form>
+          {% if a.pais %}<div class="small text-body-secondary mt-1"><i class="bi bi-check-circle text-success" aria-hidden="true"></i> {{ a.pais }}{% if a.categorizado_en %} · desde {{ a.categorizado_en|date:"d/m/Y" }}{% endif %}</div>{% endif %}
+        </div>
+      </div>
+    </section>
+    {% endfor %}
+  </div>
+  {% else %}
+  <section class="tarjeta-rumbo">
+    <div class="estado-vacio"><i class="bi bi-megaphone text-body-secondary" aria-hidden="true"></i>
+      <p class="mb-0">Todavía no llegó ningún cliente desde un anuncio.</p>
+      <p class="small text-body-secondary mb-0">Cuando alguien escriba desde un anuncio "Enviar mensaje por WhatsApp", aparecerá aquí.</p></div>
+  </section>
+  {% endif %}
+{% endblock %}

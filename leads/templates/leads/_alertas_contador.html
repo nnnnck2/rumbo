@@ -1,17 +1,5 @@
-{# Insignia de la campana (supervisor/admin): llamadas atrasadas. HTMX la pide cada 30 s y reemplaza este elemento. #}
-<span id="alertas-contador" class="contador-campana{% if not total %} d-none{% endif %}"
+{% comment %}Insignia de "Llamadas atrasadas" en el menú (supervisor/admin). HTMX la pide cada 30 s y reemplaza este elemento.
+   Los avisos con sonido y del navegador ahora llegan por la campana de notificaciones (017).{% endcomment %}
+<span id="alertas-contador" class="contador-menu{% if not total %} d-none{% endif %}"
       hx-get="{% url 'leads:alertas_contador' %}" hx-trigger="every 30s" hx-swap="outerHTML"
-      data-total="{{ total }}">{{ total }}<span class="visually-hidden"> llamadas atrasadas</span></span>
-<script>
-  // Notificación del navegador cuando aumenta la cantidad de leads atrasados (si el usuario la permitió).
-  (function () {
-    const total = {{ total }};
-    let previo = null;
-    try { previo = sessionStorage.getItem('rumbo-alertas'); sessionStorage.setItem('rumbo-alertas', total); } catch (e) {}
-    if (previo === null || total <= Number(previo)) return;
-    if (!('Notification' in window) || Notification.permission !== 'granted') return;
-    const detalle = {{ alertas_json|default:"[]"|safe }};
-    new Notification('Rumbo · ' + total + ' lead(s) sin llamar',
-                     { body: detalle.join('\n'), tag: 'rumbo-alertas' });
-  })();
-</script>
+      title="Llamadas atrasadas">{{ total }}</span>

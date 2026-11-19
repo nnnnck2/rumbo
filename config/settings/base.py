@@ -142,6 +142,8 @@ CELERY_BEAT_SCHEDULE = {
     "procesar-webhook": {"task": "whatsapp.procesar_eventos_webhook", "schedule": 30.0},
     # RF-14
     "reasignar-sin-primera-llamada": {"task": "core.reasignar_sin_primera_llamada", "schedule": 60.0},
+    # 017: avisos por tiempo (quedan 10 min, hora de llamar, llamadas atrasadas)
+    "generar-avisos": {"task": "core.generar_avisos", "schedule": 60.0},
     # RF-13: cada 5 minutos (incluye las 9:00, apertura del horario).
     "liberar-cola": {"task": "core.liberar_cola", "schedule": crontab(minute="*/5")},
 }

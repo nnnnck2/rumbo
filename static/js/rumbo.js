@@ -96,3 +96,95 @@
   document.addEventListener("DOMContentLoaded", revisar);
   document.addEventListener("htmx:afterSettle", revisar);
 })();
+
+// 017 · Notificaciones como CALLFLOW: avisos flotantes (esquina inferior), sonido y aviso del
+// navegador cuando Rumbo no está a la vista. Los avisos nuevos llegan por HTMX (core/_contadores.html).
+(function () {
+  "use strict";
+  const CLAVE_SONIDO = "rumbo-sonido-avisos";
+  const DURACION_MS = 9000;
+  let audio = null;
+
+  function sonidoActivo() {
+    try { return localStorage.getItem(CLAVE_SONIDO) !== "0"; } catch (e) { return true; }
+  }
+  // Los navegadores solo dejan sonar después de que la persona tocó la página una vez.
+  document.addEventListener("pointerdown", function () {
+    if (!audio && window.AudioContext) { try { audio = new AudioContext(); } catch (e) {} }
+  }, { once: true });
+  function sonar() {
+    if (!audio || !sonidoActivo()) return;
+    const t = audio.currentTime;
+    [[880, 0], [1320, 0.14]].forEach(function ([frecuencia, inicio]) {
+      const o = audio.createOscillator(), g = audio.createGain();
+      o.frequency.value = frecuencia; o.type = "sine";
+      g.gain.setValueAtTime(0.0001, t + inicio);
+      g.gain.exponentialRampToValueAtTime(0.18, t + inicio + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + inicio + 0.25);
+      o.connect(g).connect(audio.destination);
+      o.start(t + inicio); o.stop(t + inicio + 0.3);
+    });
+  }
+
+  function avisoDelNavegador(el) {
+    if (!("Notification" in window) || Notification.permission !== "granted" || document.visibilityState === "visible") return;
+    const n = new Notification(el.dataset.titulo, { body: el.dataset.mensaje || "", tag: "rumbo-" + el.dataset.aviso });
+    n.onclick = function () { window.focus(); location.href = el.dataset.url; n.close(); };
+  }
+
+  function cerrar(el) {
+    el.classList.add("saliendo");
+    setTimeout(function () { el.remove(); }, 250);
+  }
+
+  function nuevos(contenedor) {
+    const avisos = contenedor.querySelectorAll(".aviso-flotante:not([data-listo])");
+    if (!avisos.length) return;
+    sonar();
+    avisos.forEach(function (el) {
+      el.dataset.listo = "1";
+      avisoDelNavegador(el);
+      if (!el.dataset.fijo) setTimeout(function () { if (el.isConnected) cerrar(el); }, DURACION_MS);
+    });
+    // Como mucho 4 en pantalla: se van los más viejos.
+    const todos = contenedor.querySelectorAll(".aviso-flotante");
+    for (let i = 0; i < todos.length - 4; i++) cerrar(todos[i]);
+  }
+
+  document.addEventListener("click", function (ev) {
+    const x = ev.target.closest("[data-cerrar-aviso]");
+    if (x) cerrar(x.closest(".aviso-flotante"));
+    if (ev.target.closest("[data-activar-avisos]")) {
+      Notification.requestPermission().then(pintarEstado);
+    }
+  });
+  document.addEventListener("htmx:oobAfterSwap", function (ev) {
+    const c = document.getElementById("avisos-flotantes");
+    if (c && (ev.detail.target === c || c.contains(ev.detail.target))) nuevos(c);
+  });
+  document.addEventListener("htmx:afterSettle", function () {
+    const c = document.getElementById("avisos-flotantes");
+    if (c) nuevos(c);
+    pintarEstado();
+  });
+
+  // Estado de los avisos del navegador (panel de la campana y página de notificaciones).
+  function pintarEstado() {
+    document.querySelectorAll("[data-estado-avisos]").forEach(function (caja) {
+      if (!("Notification" in window)) { caja.textContent = "Este navegador no permite avisos del sistema."; return; }
+      if (Notification.permission === "granted") {
+        caja.innerHTML = '<i class="bi bi-check-circle text-success" aria-hidden="true"></i> Avisos del navegador activados.';
+      } else if (Notification.permission === "denied") {
+        caja.textContent = "Los avisos del navegador están bloqueados: actívelos en la configuración del sitio (candado de la barra de direcciones).";
+      } else {
+        caja.innerHTML = '<button type="button" class="btn btn-sm btn-outline-primary" data-activar-avisos>' +
+                         '<i class="bi bi-bell" aria-hidden="true"></i> Avisarme aunque esté en otra pestaña</button>';
+      }
+    });
+    document.querySelectorAll("[data-sonido-avisos]").forEach(function (sw) {
+      sw.checked = sonidoActivo();
+      sw.onchange = function () { try { localStorage.setItem(CLAVE_SONIDO, sw.checked ? "1" : "0"); } catch (e) {} };
+    });
+  }
+  document.addEventListener("DOMContentLoaded", pintarEstado);
+})();

@@ -96,7 +96,8 @@ class AgendarFormTests(SimpleTestCase):
 
 
 class NotificacionTests(SimpleTestCase):
-    def test_nombre_del_cliente_no_puede_cerrar_el_script(self):
+    def test_el_contador_del_menu_no_muestra_datos_del_cliente(self):
+        """017: el aviso con el nombre del cliente ya no se arma en este contador (llega por la campana)."""
         from unittest import mock
 
         from django.test import RequestFactory
@@ -114,7 +115,8 @@ class NotificacionTests(SimpleTestCase):
                         return_value=servicios.Contexto(3, "supervisor", None)):
             html = views.alertas_contador(peticion).content.decode()
         self.assertNotIn("</script><img", html)
-        self.assertIn(r"\u003c/script\u003e", html)
+        self.assertNotIn("<script", html)
+        self.assertIn(">1</span>", html)
 
 
 class DatosYNotasFormTests(SimpleTestCase):

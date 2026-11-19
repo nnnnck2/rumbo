@@ -39,5 +39,23 @@ def rumbo(request):
         except DatabaseError:
             return 0
 
+    def _sin_leer():
+        from leads.models import Notificacion
+        try:
+            return Notificacion.objects.filter(leida_en__isnull=True).count()   # RLS: solo las propias
+        except DatabaseError:
+            return 0
+
+    def _anuncios_sin_pais():
+        from leads.models import Anuncio
+        if not _ctx().es_admin:
+            return 0
+        try:
+            return Anuncio.objects.filter(pais__isnull=True).count()
+        except DatabaseError:
+            return 0
+
     return {"rumbo": SimpleLazyObject(_ctx), "mi_asesor": SimpleLazyObject(_asesor),
-            "por_llamar": SimpleLazyObject(_por_llamar)}
+            "por_llamar": SimpleLazyObject(_por_llamar),
+            "notificaciones_sin_leer": SimpleLazyObject(_sin_leer),
+            "anuncios_sin_pais": SimpleLazyObject(_anuncios_sin_pais)}

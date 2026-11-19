@@ -1,0 +1,5 @@
+<a class="tarjeta-tablero borde-{{ l.situacion.tono }}" href="{% url 'leads:ficha' l.pk %}">
+  <span class="d-block fw-semibold text-truncate">{{ l.nombre_perfil|default:l.telefono }}</span>
+  {% include "leads/_situacion.html" with s=l.situacion %}
+  {% if l.situacion.pct is not None %}<span class="barra-plazo" aria-hidden="true"><span class="relleno-{{ l.situacion.tono }}" style="width: {{ l.situacion.pct }}%"></span></span>{% endif %}
+</a>

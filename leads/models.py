@@ -240,6 +240,7 @@ class Asignacion(ModeloRumbo):
     asesor = models.ForeignKey(Asesor, models.DO_NOTHING, related_name="asignaciones")
     motivo = models.CharField(max_length=30, choices=MotivoAsignacion.choices)
     asignado_por_usuario = models.ForeignKey(Usuario, models.DO_NOTHING, null=True, related_name="+")
+    vuelta = models.SmallIntegerField(default=1)   # 015: sube cuando el lead ya pasó por todos los asesores
     creado_en = models.DateTimeField()
 
     class Meta(ModeloRumbo.Meta):
@@ -292,6 +293,100 @@ class MensajeWhatsapp(ModeloRumbo):
 
 
 # ─────────────────────────────── Ventas y configuración ───────────────────────────────
+
+class Anuncio(ModeloRumbo):
+    """Anuncio de Meta (Click-to-WhatsApp) del que llegaron leads (016). Se crea solo."""
+    id = models.BigAutoField(primary_key=True)
+    clave = models.TextField(unique=True)
+    meta_source_id = models.TextField(null=True)
+    tipo_origen = models.TextField()
+    enlace = models.TextField(null=True)
+    titulo = models.TextField(null=True)
+    texto = models.TextField(null=True)
+    tipo_medio = models.TextField(null=True)
+    pais = models.TextField(null=True)                      # 017: país de la campaña
+    nombre_campana = models.TextField(null=True)
+    categorizado_en = models.DateTimeField(null=True)
+    categorizado_por_usuario = models.ForeignKey(Usuario, models.DO_NOTHING, null=True, related_name="+")
+    primer_visto_en = models.DateTimeField()
+    ultimo_visto_en = models.DateTimeField()
+    creado_en = models.DateTimeField()
+    actualizado_en = models.DateTimeField()
+
+    class Meta(ModeloRumbo.Meta):
+        db_table = "anuncio"
+        ordering = ["-ultimo_visto_en"]
+        verbose_name = "anuncio"
+
+    def __str__(self):
+        return self.titulo or self.meta_source_id or self.clave
+
+
+class LeadOrigen(ModeloRumbo):
+    """Cada llegada de un lead desde un anuncio (016). La primera es el origen del lead."""
+    id = models.BigAutoField(primary_key=True)
+    lead = models.ForeignKey(Lead, models.DO_NOTHING, related_name="origenes")
+    anuncio = models.ForeignKey(Anuncio, models.DO_NOTHING, related_name="llegadas")
+    mensaje = models.OneToOneField("MensajeWhatsapp", models.DO_NOTHING, related_name="+")
+    ctwa_clid = models.TextField(null=True)
+    llegado_en = models.DateTimeField()
+    creado_en = models.DateTimeField()
+
+    class Meta(ModeloRumbo.Meta):
+        db_table = "lead_origen"
+        ordering = ["llegado_en"]
+        verbose_name = "origen del lead"
+        verbose_name_plural = "orígenes de leads"
+
+
+class Notificacion(ModeloRumbo):
+    """Aviso para un usuario (017). Los crea la base en cada evento; la app solo los marca como leídos."""
+    ICONOS = {
+        "lead_nuevo": ("person-plus", "verde"), "lead_reasignado": ("arrow-left-right", "azul"),
+        "lead_quitado": ("box-arrow-right", "gris"), "cliente_escribio": ("whatsapp", "verde"),
+        "plazo_por_vencer": ("stopwatch", "amarillo"), "hora_de_llamar": ("telephone-forward", "azul"),
+        "llamada_atrasada": ("alarm", "rojo"), "sin_gestionar_vuelta": ("arrow-repeat", "rojo"),
+        "anuncio_sin_pais": ("megaphone", "morado"),
+    }
+    TIPOS = {
+        "lead_nuevo": "Cliente nuevo", "lead_reasignado": "Cliente reasignado", "lead_quitado": "Cliente que pasó a otro",
+        "cliente_escribio": "Mensaje de WhatsApp", "plazo_por_vencer": "Plazo por vencer", "hora_de_llamar": "Hora de llamar",
+        "llamada_atrasada": "Llamada atrasada", "sin_gestionar_vuelta": "Sin gestionar", "anuncio_sin_pais": "Campañas",
+    }
+
+    id = models.BigAutoField(primary_key=True)
+    usuario = models.ForeignKey(Usuario, models.DO_NOTHING, related_name="notificaciones")
+    tipo = models.TextField()
+    titulo = models.TextField()
+    mensaje = models.TextField(null=True)
+    lead = models.ForeignKey(Lead, models.DO_NOTHING, null=True, related_name="+")
+    url = models.TextField(null=True)
+    clave = models.TextField(null=True)
+    leida_en = models.DateTimeField(null=True)
+    creado_en = models.DateTimeField()
+
+    class Meta(ModeloRumbo.Meta):
+        db_table = "notificacion"
+        ordering = ["-id"]
+        verbose_name = "notificación"
+        verbose_name_plural = "notificaciones"
+
+    @property
+    def icono(self):
+        return self.ICONOS.get(self.tipo, ("bell", "gris"))[0]
+
+    @property
+    def tono(self):
+        return self.ICONOS.get(self.tipo, ("bell", "gris"))[1]
+
+    @property
+    def tipo_nombre(self):
+        return self.TIPOS.get(self.tipo, "Aviso")
+
+    @property
+    def leida(self):
+        return self.leida_en is not None
+
 
 class Venta(ModeloRumbo):
     id = models.BigAutoField(primary_key=True)

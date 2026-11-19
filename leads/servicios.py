@@ -12,6 +12,7 @@ import json
 from dataclasses import dataclass
 
 from django.db import DatabaseError, connection, transaction
+from django.utils import timezone
 
 
 class ErrorNegocio(Exception):
@@ -159,6 +160,87 @@ def leads_sin_llamar():
 
 
 # ─────────────────────────────── RF-26 · Datos del caso y notas ───────────────────────────────
+
+# ─────────────── 015 · Plazo de gestión y "situación" de cada lead (semáforo) ───────────────
+
+def plazos_gestion():
+    """{lead_id: (vence_en, vuelta)} de los leads que su asesor aún no gestionó. RLS: el asesor ve los suyos."""
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT lead_id, vence_en, vuelta FROM rumbo.plazos_gestion()")
+        return {lead_id: (vence, vuelta) for lead_id, vence, vuelta in cursor.fetchall()}
+
+
+def en_horario():
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT rumbo.en_horario()")
+        return cursor.fetchone()[0]
+
+
+def _duracion(minutos):
+    if minutos < 60:
+        return f"{minutos} min"
+    if minutos < 24 * 60:
+        return f"{minutos // 60} h {minutos % 60:02d} min" if minutos % 60 else f"{minutos // 60} h"
+    dias = minutos // (24 * 60)
+    return f"{dias} día{'s' if dias != 1 else ''}"
+
+
+def situacion(lead, plazos, ahora, abierto=True, minutos_plazo=30):
+    """Qué pasa con el lead ahora, para mostrarlo con color (verde, amarillo, rojo, azul, gris).
+
+    Devuelve {"tono", "icono", "texto", "detalle", "pct"}; pct = parte del plazo que queda (barra).
+    """
+    if lead.estado_asignacion == "cerrado":
+        return {"tono": "cerrado", "icono": "check2-circle", "texto": "Cerrado", "detalle": "", "pct": None}
+    if lead.estado_asignacion == "en_cola":
+        return {"tono": "cola", "icono": "hourglass-split", "texto": "En cola",
+                "detalle": "Esperando a un asesor en turno", "pct": None}
+    plazo = plazos.get(lead.pk)
+    if plazo:                                   # todavía sin gestionar: corre el reloj de 30 min
+        vence, _vuelta = plazo
+        if not abierto:
+            return {"tono": "pausa", "icono": "pause-circle", "texto": "Sin gestionar",
+                    "detalle": "El reloj sigue al abrir el turno", "pct": None}
+        quedan = max(0, int((vence - ahora).total_seconds() // 60))
+        pct = max(0, min(100, round(100 * quedan / max(minutos_plazo, 1))))
+        tono = "rojo" if quedan <= 5 else "amarillo" if quedan <= 15 else "verde"
+        return {"tono": tono, "icono": "stopwatch", "texto": f"Quedan {quedan} min" if quedan else "Pasa ya a otro asesor",
+                "detalle": "Si no se registra una llamada, pasa a otro asesor", "pct": pct, "minutos": quedan}
+    if lead.proxima_accion_en and lead.proxima_accion_en <= ahora:
+        atraso = int((ahora - lead.proxima_accion_en).total_seconds() // 60)
+        return {"tono": "rojo" if atraso >= 30 else "amarillo", "icono": "telephone-forward",
+                "texto": "Toca llamar" if atraso < 1 else f"Atrasada {_duracion(atraso)}",
+                "detalle": "Reintento o llamada agendada", "pct": None}
+    if lead.proxima_accion_en:
+        cuando = timezone.localtime(lead.proxima_accion_en)
+        hoy = cuando.date() == timezone.localtime(ahora).date()
+        return {"tono": "azul", "icono": "calendar-event",
+                "texto": f"Llamar {'hoy' if hoy else cuando.strftime('%d/%m')} {cuando.strftime('%H:%M')}",
+                "detalle": "Llamada programada", "pct": None}
+    return {"tono": "gris", "icono": "dash-circle", "texto": "Sin llamada pendiente", "detalle": "", "pct": None}
+
+
+ORDEN_TONO = {"rojo": 0, "amarillo": 1, "verde": 2, "pausa": 3, "cola": 4, "azul": 5, "gris": 6, "cerrado": 7}
+
+
+def con_situacion(leads):
+    """Pone `lead.situacion` a cada lead (una sola consulta de plazos para todos)."""
+    leads = list(leads)
+    if not leads:
+        return leads
+    plazos, abierto, ahora = plazos_gestion(), en_horario(), timezone.now()
+    minutos = leer_configuracion().get("minutos_primera_llamada", 30)
+    for lead in leads:
+        lead.situacion = situacion(lead, plazos, ahora, abierto, minutos)
+    return leads
+
+
+# ─────────────── 017 · Campañas por país ───────────────
+
+def categorizar_anuncio(anuncio_id, pais, nombre_campana=None):
+    """El admin asigna el país de la campaña. Devuelve cuántos leads tomaron ese país."""
+    return _ejecutar("SELECT rumbo.categorizar_anuncio(%s, %s, %s)", [anuncio_id, pais, nombre_campana or None])
+
 
 def actualizar_datos_lead(lead_id, version, tipo_visa, pais_interes):
     """Guarda tipo de visa y país en lead.datos (jsonb; la base genera las columnas tipo_visa y
@@ -308,6 +390,23 @@ def metricas_piloto(desde, hasta):
         fila["tasa_contacto"] = round(100 * fila["contactados"] / fila["llamados"]) if fila["llamados"] else None
         fila["tasa_llamados"] = round(100 * fila["llamados"] / fila["leads"]) if fila["leads"] else None
     return {"total": total, "por_asesor": por_asesor, "reasignaciones": reasignaciones}
+
+
+def metricas_por_campana(desde, hasta):
+    """017 · Mismos indicadores agrupados por país de la campaña de origen (o "WhatsApp directo")."""
+    params = {"desde": desde, "hasta": hasta, "contacto": list(RESULTADOS_CONTACTO)}
+    with connection.cursor() as cursor:
+        cursor.execute(_SQL_METRICAS.format(
+            grupo="coalesce(an.pais, CASE WHEN an.id IS NULL THEN 'WhatsApp directo' ELSE 'Anuncio sin país' END)",
+            union="""LEFT JOIN LATERAL (SELECT o.anuncio_id FROM rumbo.lead_origen o WHERE o.lead_id = l.id
+                                        ORDER BY o.llegado_en, o.id LIMIT 1) og ON true
+                     LEFT JOIN rumbo.anuncio an ON an.id = og.anuncio_id"""), params)
+        cols = [c.name for c in cursor.description]
+        filas = [dict(zip(cols, f)) for f in cursor.fetchall()]
+    for fila in filas:
+        fila["tasa_contacto"] = round(100 * fila["contactados"] / fila["llamados"]) if fila["llamados"] else None
+        fila["tasa_venta"] = round(100 * fila["ventas"] / fila["leads"]) if fila["leads"] else None
+    return sorted(filas, key=lambda f: -f["leads"])
 
 
 def errores_webhook(desde, hasta):

@@ -1,0 +1,30 @@
+{# 017 · Panel de la campana (se carga al abrirla). #}
+<div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+  <strong class="small">Notificaciones</strong>
+  {% if sin_leer %}
+  <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none" hx-post="{% url 'notificaciones_leidas' %}" hx-target="#panel-campana">
+    <i class="bi bi-check2-all" aria-hidden="true"></i> Marcar todas como leídas</button>
+  {% endif %}
+</div>
+{% if notificaciones %}
+<div class="lista-campana">
+  {% for n in notificaciones %}
+  <a href="{% url 'notificacion_abrir' n.pk %}" class="notificacion{% if not n.leida %} no-leida{% endif %}">
+    <span class="icono-notificacion tono-{{ n.tono }}" aria-hidden="true"><i class="bi bi-{{ n.icono }}"></i></span>
+    <span class="flex-grow-1 min-w-0">
+      <span class="d-flex justify-content-between gap-2">
+        <span class="small fw-semibold">{{ n.titulo }}</span>
+        <span class="small text-body-secondary text-nowrap">{{ n.creado_en|date:"H:i" }}</span>
+      </span>
+      {% if n.mensaje %}<span class="d-block small text-body-secondary">{{ n.mensaje|truncatechars:100 }}</span>{% endif %}
+    </span>
+    {% if not n.leida %}<span class="punto-notificacion" aria-hidden="true"></span>{% endif %}
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<p class="text-body-secondary small px-3 py-4 mb-0 text-center"><i class="bi bi-bell-slash d-block fs-4 mb-1" aria-hidden="true"></i>No tiene notificaciones.</p>
+{% endif %}
+<div class="border-top px-3 py-2 small" data-estado-avisos></div>
+<span id="contador-notificaciones" hx-swap-oob="innerHTML">{% include "core/_contador_campana.html" %}</span>
+<div class="border-top px-3 py-2 text-center"><a class="small text-decoration-none" href="{% url 'notificaciones' %}">Ver todas</a></div>

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block titulo %}Notificaciones{% endblock %}
+{% block contenido %}
+  <div class="encabezado-pagina">
+    <div>
+      <h1 class="titulo-pagina">Notificaciones</h1>
+      <p class="ayuda-pagina">Avisos de Rumbo: clientes nuevos o reasignados, mensajes de WhatsApp, plazos por vencer y llamadas atrasadas.</p>
+    </div>
+    {% if sin_leer %}
+    <form method="post" action="{% url 'notificaciones_leidas' %}">{% csrf_token %}
+      <button class="btn btn-outline-primary"><i class="bi bi-check2-all" aria-hidden="true"></i> Marcar todas como leídas</button>
+    </form>
+    {% endif %}
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-8">
+      <nav class="pestanas-lista mb-3" aria-label="Ver">
+        <a class="pestana{% if not solo_sin_leer %} activa{% endif %}" href="?">Todas</a>
+        <a class="pestana{% if solo_sin_leer %} activa{% endif %}{% if sin_leer %} urgente{% endif %}" href="?ver=sin_leer">Sin leer <span class="cuenta">{{ sin_leer }}</span></a>
+      </nav>
+      <section class="tarjeta-rumbo p-0 overflow-hidden">
+        {% if pagina.object_list %}
+        <div class="lista-campana lista-completa">
+          {% for n in pagina.object_list %}
+          {% ifchanged n.creado_en|date:"Ymd" %}<div class="dia-notificaciones">{% if n.creado_en|date:"Ymd" == hoy|date:"Ymd" %}Hoy{% else %}{{ n.creado_en|date:"l j \d\e F" }}{% endif %}</div>{% endifchanged %}
+          <a href="{% url 'notificacion_abrir' n.pk %}" class="notificacion{% if not n.leida %} no-leida{% endif %}">
+            <span class="icono-notificacion tono-{{ n.tono }}" aria-hidden="true"><i class="bi bi-{{ n.icono }}"></i></span>
+            <span class="flex-grow-1 min-w-0">
+              <span class="d-flex justify-content-between gap-2"><span class="fw-semibold">{{ n.titulo }}</span>
+                <span class="small text-body-secondary text-nowrap">{{ n.creado_en|date:"H:i" }}</span></span>
+              {% if n.mensaje %}<span class="d-block small text-body-secondary">{{ n.mensaje }}</span>{% endif %}
+              <span class="d-block small text-body-tertiary">{{ n.tipo_nombre }} · hace {{ n.creado_en|timesince }}</span>
+            </span>
+            {% if not n.leida %}<span class="punto-notificacion" aria-hidden="true"></span>{% endif %}
+          </a>
+          {% endfor %}
+        </div>
+        {% else %}
+          <div class="estado-vacio py-5"><i class="bi bi-bell-slash text-body-secondary" aria-hidden="true"></i>
+            <p class="mb-0">{% if solo_sin_leer %}Está al día: no tiene notificaciones sin leer.{% else %}Aún no tiene notificaciones.{% endif %}</p></div>
+        {% endif %}
+      </section>
+      {% if pagina.has_other_pages %}
+      <nav class="mt-3" aria-label="Páginas"><ul class="pagination pagination-sm justify-content-center mb-0">
+        {% if pagina.has_previous %}<li class="page-item"><a class="page-link" href="?{% if solo_sin_leer %}ver=sin_leer&{% endif %}pagina={{ pagina.previous_page_number }}">← Más nuevas</a></li>{% endif %}
+        <li class="page-item active"><span class="page-link">{{ pagina.number }} de {{ pagina.paginator.num_pages }}</span></li>
+        {% if pagina.has_next %}<li class="page-item"><a class="page-link" href="?{% if solo_sin_leer %}ver=sin_leer&{% endif %}pagina={{ pagina.next_page_number }}">Más antiguas →</a></li>{% endif %}
+      </ul></nav>
+      {% endif %}
+    </div>
+    <div class="col-lg-4">
+      <section class="tarjeta-rumbo">
+        <h2 class="titulo-tarjeta"><i class="bi bi-window-stack" aria-hidden="true"></i> Avisos en este equipo</h2>
+        <p class="small text-body-secondary">Rumbo le avisa con un sonido y un mensaje en la esquina de la pantalla. Si activa los avisos del navegador, también le llegan cuando está en otra pestaña o programa (con Rumbo abierto).</p>
+        <div data-estado-avisos class="small"></div>
+        <hr>
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" role="switch" id="sonido-avisos" data-sonido-avisos>
+          <label class="form-check-label small" for="sonido-avisos">Sonido al recibir un aviso</label>
+        </div>
+      </section>
+    </div>
+  </div>
+{% endblock %}

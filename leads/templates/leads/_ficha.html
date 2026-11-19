@@ -31,11 +31,41 @@
   </div>
 
   <dl class="resumen-lead">
-    <div><dt>Próxima llamada</dt><dd>{% if lead.proxima_accion_en %}{% if vencida %}<span class="llamada-vencida">Vencida · {{ lead.proxima_accion_en|date:"d/m H:i" }}</span>{% else %}{{ lead.proxima_accion_en|date:"d/m H:i" }}{% endif %}{% else %}—{% endif %}</dd></div>
+    <div><dt>Situación</dt><dd>{% include "leads/_situacion.html" with s=lead.situacion %}</dd></div>
     <div><dt>Intentos</dt><dd>{{ lead.intentos_asesor_actual }} con el asesor · {{ lead.intentos_totales }} en total</dd></div>
     <div><dt>Visa / país</dt><dd>{{ lead.tipo_visa|default:"—" }}{% if lead.pais_interes %} · {{ lead.pais_interes }}{% endif %}</dd></div>
     <div><dt>Primer contacto</dt><dd>{{ lead.primer_contacto_en|date:"d/m/Y H:i" }}</dd></div>
+    <div><dt>Llegó desde</dt><dd>{% if origen %}
+      <span class="origen-anuncio" title="{{ origen.anuncio.texto|default:'' }}"><i class="bi bi-megaphone" aria-hidden="true"></i>{% if origen.anuncio.pais %}{{ origen.anuncio.pais }} · {% endif %}{{ origen.anuncio.nombre_campana|default:origen.anuncio.titulo|default:"Anuncio sin título" }}</span>
+      <span class="d-block small text-body-secondary mt-1">Anuncio {{ origen.anuncio.meta_source_id|default:origen.anuncio.clave|truncatechars:24 }}{% if origen.anuncio.enlace %} · <a href="{{ origen.anuncio.enlace }}" target="_blank" rel="noopener noreferrer">ver anuncio</a>{% endif %}{% if otras_llegadas %} · volvió {{ otras_llegadas }} vez{{ otras_llegadas|pluralize:"es" }} por anuncios{% endif %}</span>
+    {% else %}<span class="text-body-secondary">WhatsApp directo</span>{% endif %}</dd></div>
   </dl>
+
+  {% if recorrido %}
+  {# 015 · Recorrido del cliente: por qué asesores pasó en esta vuelta y cuánto le queda al actual. #}
+  <div class="recorrido">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+      <span class="titulo-bloque mb-0">Recorrido · vuelta {{ vuelta }}</span>
+      {% if lead.situacion.pct is not None %}
+        <span class="small text-body-secondary">{{ lead.situacion.detalle }}</span>
+      {% endif %}
+    </div>
+    <ol class="pasos-recorrido">
+      {% for p in recorrido %}
+        <li class="{% if p.actual %}actual{% else %}pasado{% endif %}">
+          <span class="marca"><i class="bi bi-{% if p.actual %}person-fill{% else %}arrow-right-short{% endif %}" aria-hidden="true"></i></span>
+          {{ p.nombre }}{% if p.yo %} (usted){% endif %}
+        </li>
+      {% endfor %}
+      {% for n in faltan %}<li class="falta"><span class="marca"><i class="bi bi-three-dots" aria-hidden="true"></i></span>{{ n }}</li>{% endfor %}
+      <li class="vuelve"><span class="marca"><i class="bi bi-arrow-repeat" aria-hidden="true"></i></span>vuelve al primero</li>
+    </ol>
+    {% if lead.situacion.pct is not None %}
+      <div class="barra-plazo grande mt-2" role="progressbar" aria-label="Tiempo para gestionar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ lead.situacion.pct }}">
+        <span class="relleno-{{ lead.situacion.tono }}" style="width: {{ lead.situacion.pct }}%"></span></div>
+    {% endif %}
+  </div>
+  {% endif %}
 </section>
 
 <div class="row g-3">

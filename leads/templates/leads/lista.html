@@ -46,6 +46,14 @@
             {% for e in etapas %}<option value="{{ e.codigo }}" {% if filtros.etapa == e.codigo %}selected{% endif %}>{{ e.nombre }}</option>{% endfor %}
           </select>
         </div>
+        <div class="col-sm-6 col-lg-3">
+          <label class="form-label small mb-1" for="f-pais">País (campaña)</label>
+          <select id="f-pais" name="pais" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">Todos</option>
+            <option value="sin_pais" {% if filtros.pais == "sin_pais" %}selected{% endif %}>Sin país</option>
+            {% for p in paises_leads %}<option value="{{ p }}" {% if filtros.pais == p %}selected{% endif %}>{{ p }}</option>{% endfor %}
+          </select>
+        </div>
         {% if rumbo.es_supervisor %}
         <div class="col-sm-6 col-lg-3">
           <label class="form-label small mb-1" for="f-asesor">Asesor</label>
@@ -66,7 +74,7 @@
       <table class="table table-hover align-middle mb-0 tabla-leads">
         <thead><tr>
           {% if lote_form %}<th class="col-check"><input type="checkbox" class="form-check-input" id="marcar-todos" aria-label="Seleccionar todos"></th>{% endif %}
-          <th>Cliente</th><th class="d-none d-md-table-cell">Etapa</th><th class="d-none d-lg-table-cell">Estado</th>{% if rumbo.es_supervisor %}<th class="d-none d-md-table-cell">Asesor</th>{% endif %}<th class="text-center d-none d-lg-table-cell">Intentos</th><th>Próxima llamada</th><th class="d-none d-xl-table-cell">Llegó</th>
+          <th>Cliente</th><th class="d-none d-md-table-cell">Etapa</th><th class="d-none d-lg-table-cell">Estado</th>{% if rumbo.es_supervisor %}<th class="d-none d-md-table-cell">Asesor</th>{% endif %}<th class="text-center d-none d-lg-table-cell">Intentos</th><th>Situación</th><th class="d-none d-xl-table-cell">Llegó</th>
         </tr></thead>
         <tbody>
         {% for l in pagina %}
@@ -77,7 +85,7 @@
                 <span class="avatar-lead" aria-hidden="true">{{ l.nombre_perfil|default:"?"|slice:":1"|upper }}</span>
                 <div class="lh-sm">
                   <a class="nombre-lead stretched-link" href="{% url 'leads:ficha' l.pk %}">{{ l.nombre_perfil|default:"Sin nombre" }}</a>
-                  <div class="small text-body-secondary">{{ l.telefono }}</div>
+                  <div class="small text-body-secondary">{{ l.telefono }}{% if l.anuncio_clave %} · <span class="origen-anuncio origen-mini" title="Llegó desde un anuncio"><i class="bi bi-megaphone" aria-hidden="true"></i>{% if l.anuncio_pais %}{{ l.anuncio_pais }} · {% endif %}{{ l.anuncio_titulo|default:"Anuncio"|truncatechars:24 }}</span>{% endif %}</div>
                 </div>
               </div>
             </td>
@@ -85,9 +93,7 @@
             <td class="d-none d-lg-table-cell"><span class="estado-lead estado-lead-{{ l.estado_asignacion }}">{{ l.get_estado_asignacion_display }}</span></td>
             {% if rumbo.es_supervisor %}<td class="small d-none d-md-table-cell">{% if l.asesor %}{{ l.asesor.usuario.nombre }}{% else %}<span class="text-body-secondary">Sin asesor</span>{% endif %}</td>{% endif %}
             <td class="text-center small d-none d-lg-table-cell" title="Intentos con el asesor actual / intentos totales">{{ l.intentos_asesor_actual }} / {{ l.intentos_totales }}</td>
-            <td class="small text-nowrap">{% if l.estado_asignacion == "asignado" and l.proxima_accion_en %}
-              {% if l.proxima_accion_en <= ahora %}<span class="llamada-vencida" title="La llamada ya debió hacerse">Vencida · {{ l.proxima_accion_en|date:"d/m H:i" }}</span>
-              {% else %}<span class="llamada-pendiente">{{ l.proxima_accion_en|date:"d/m H:i" }}</span>{% endif %}{% else %}<span class="text-body-secondary">—</span>{% endif %}</td>
+            <td class="text-nowrap">{% include "leads/_situacion.html" with s=l.situacion %}</td>
             <td class="small text-nowrap d-none d-xl-table-cell">{{ l.primer_contacto_en|date:"d/m/Y" }} <span class="text-body-secondary">{{ l.primer_contacto_en|date:"H:i" }}</span></td>
           </tr>
         {% empty %}

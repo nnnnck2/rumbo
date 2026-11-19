@@ -1,0 +1,30 @@
+{# 015 · Tablero del supervisor: una columna por asesor, tarjetas de color por urgencia. #}
+<div class="leyenda-tablero mb-3">
+  <span class="situacion situacion-rojo"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>{{ conteo.rojo }} urgente{{ conteo.rojo|pluralize }}</span>
+  <span class="situacion situacion-amarillo"><i class="bi bi-stopwatch" aria-hidden="true"></i>{{ conteo.amarillo }} por vencer</span>
+  <span class="situacion situacion-verde"><i class="bi bi-stopwatch" aria-hidden="true"></i>{{ conteo.verde }} a tiempo</span>
+  <span class="situacion situacion-azul"><i class="bi bi-calendar-event" aria-hidden="true"></i>{{ conteo.azul }} programada{{ conteo.azul|pluralize }}</span>
+  <span class="small text-body-secondary ms-auto">Actualizado {% now "H:i:s" %}</span>
+</div>
+
+<div class="tablero">
+  {% if en_cola %}
+  <section class="columna-tablero columna-cola">
+    <header><span class="punto-estado" aria-hidden="true"></span><strong>En cola</strong><span class="cuenta">{{ en_cola|length }}</span></header>
+    <p class="small text-body-secondary px-1 mb-2">Sin asesor en turno: se reparten al entrar alguien.</p>
+    {% for l in en_cola %}{% include "leads/_tarjeta_tablero.html" %}{% endfor %}
+  </section>
+  {% endif %}
+  {% for c in columnas %}
+  <section class="columna-tablero{% if c.asesor.estado != 'disponible' and c.asesor.estado != 'ocupado' %} fuera{% endif %}">
+    <header>
+      <span class="punto-estado punto-{{ c.asesor.estado }}" aria-hidden="true"></span>
+      <strong class="text-truncate">{{ c.asesor.nombre }}</strong>
+      <span class="cuenta" title="Clientes abiertos">{{ c.leads|length }}</span>
+    </header>
+    <p class="small text-body-secondary px-1 mb-2">{% if c.asesor.estado == 'disponible' %}Disponible{% elif c.asesor.estado == 'pausa' %}En pausa{% elif c.asesor.estado == 'ocupado' %}Ocupado{% else %}Fuera de turno{% endif %} · hace {{ c.asesor.estado_desde|timesince }}</p>
+    {% for l in c.leads %}{% include "leads/_tarjeta_tablero.html" %}
+    {% empty %}<p class="vacio-tablero">Sin clientes abiertos</p>{% endfor %}
+  </section>
+  {% endfor %}
+</div>

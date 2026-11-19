@@ -1,0 +1,2 @@
+{# 017 · Respuesta de la consulta periódica: número de la campana y avisos flotantes nuevos (OOB). #}
+{% include "core/_contador_campana.html" %}{% if avisos_nuevos %}<div hx-swap-oob="beforeend:#avisos-flotantes">{% for n in avisos_nuevos %}{% include "core/_aviso_flotante.html" %}{% endfor %}</div>{% endif %}

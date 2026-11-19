@@ -500,3 +500,93 @@ a.dato-rapido:hover { border-color: #c5cce0; box-shadow: 0 2px 8px rgba(20, 37, 
 .aviso-llamada[hidden] { display: none; }
 .aviso-llamada > i { font-size: 1.2rem; }
 @media (max-width: 575.98px) { .botones-resultado { grid-template-columns: 1fr 1fr; } }
+
+/* ══════════ 015 · Gestión visual: semáforo, recorrido del cliente y tablero ══════════ */
+.situacion {
+  display: inline-flex; align-items: center; gap: .35rem; padding: .22rem .6rem; border-radius: 999px;
+  font-size: .78rem; font-weight: 600; white-space: nowrap; line-height: 1.3;
+}
+.situacion i { font-size: .9rem; }
+.situacion-verde    { background: #e3f5ec; color: #136b48; }
+.situacion-amarillo { background: #fff1cc; color: #7a5300; }
+.situacion-rojo     { background: #fde8ea; color: #b4232f; }
+.situacion-azul     { background: #e6effc; color: #1f4f9c; }
+.situacion-pausa    { background: #eef0f6; color: #4a5576; }
+.situacion-cola     { background: #fff1cc; color: #7a5300; }
+.situacion-gris, .situacion-cerrado { background: #eef0f6; color: #5d6785; }
+.barra-plazo { display: block; height: 6px; margin-top: .45rem; border-radius: 999px; background: #eef0f6; overflow: hidden; }
+.barra-plazo.grande { height: 10px; }
+.barra-plazo > span { display: block; height: 100%; border-radius: 999px; transition: width .4s; }
+.relleno-verde { background: #1f9d6b; } .relleno-amarillo { background: #f0a500; } .relleno-rojo { background: #d62839; }
+
+.recorrido { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #eef0f6; }
+.pasos-recorrido { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; list-style: none; margin: 0; padding: 0; }
+.pasos-recorrido li {
+  display: inline-flex; align-items: center; gap: .35rem; padding: .3rem .7rem .3rem .35rem; border-radius: 999px;
+  font-size: .82rem; font-weight: 500; border: 1px solid #e3e7f0; background: #fff; color: #4a5576;
+}
+.pasos-recorrido .marca { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: #eef0f6; }
+.pasos-recorrido li.pasado { color: #8a93ad; text-decoration: line-through; text-decoration-color: #c5cce0; }
+.pasos-recorrido li.actual { border-color: var(--rb-primario); background: var(--rb-primario); color: #fff; font-weight: 600; }
+.pasos-recorrido li.actual .marca { background: rgba(255,255,255,.2); }
+.pasos-recorrido li.falta { border-style: dashed; }
+.pasos-recorrido li.vuelve { border: 0; background: none; color: #8a93ad; font-size: .78rem; }
+
+.leyenda-tablero { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.tablero { display: grid; gap: .9rem; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); align-items: start; }
+.columna-tablero { padding: .75rem; border-radius: 14px; background: #fff; border: 1px solid #e3e7f0; }
+.columna-tablero.fuera { opacity: .7; background: #f7f8fc; }
+.columna-tablero header { display: flex; align-items: center; gap: .5rem; padding: 0 .25rem .2rem; color: var(--rb-primario); }
+.columna-tablero header .cuenta { margin-left: auto; }
+.columna-cola { border-color: #f3c27a; background: #fffaf0; }
+.tarjeta-tablero {
+  display: block; margin-bottom: .5rem; padding: .6rem .7rem; border-radius: 10px; background: #fff;
+  border: 1px solid #e3e7f0; border-left-width: 5px; color: var(--rb-primario); text-decoration: none; font-size: .88rem;
+}
+.tarjeta-tablero:hover { box-shadow: 0 2px 8px rgba(20, 37, 79, .1); color: var(--rb-primario); }
+.tarjeta-tablero .situacion { margin-top: .3rem; }
+.borde-verde { border-left-color: #1f9d6b; } .borde-amarillo { border-left-color: #f0a500; } .borde-rojo { border-left-color: #d62839; }
+.borde-azul { border-left-color: #2f6fd1; } .borde-cola { border-left-color: #f0a500; } .borde-gris, .borde-pausa { border-left-color: #c5cce0; }
+.vacio-tablero { margin: 0; padding: .75rem .25rem; color: #8a93ad; font-size: .85rem; text-align: center; }
+
+/* ══════════ 016 · Anuncio de origen del lead ══════════ */
+.origen-anuncio {
+  display: inline-flex; align-items: center; gap: .35rem; padding: .2rem .6rem; border-radius: 999px;
+  background: #f1e9fd; color: #5b2a9e; font-size: .8rem; font-weight: 600; max-width: 100%;
+}
+.origen-anuncio.origen-mini { padding: 0 .45rem; font-size: .72rem; font-weight: 500; }
+
+/* ══════════ 017 · Notificaciones: campana, panel, avisos flotantes ══════════ */
+.panel-campana { width: min(24rem, calc(100vw - 2rem)); overflow: hidden; border-radius: 14px; }
+.lista-campana { max-height: 26rem; overflow-y: auto; }
+.lista-campana.lista-completa { max-height: none; }
+.notificacion {
+  position: relative; display: flex; align-items: flex-start; gap: .7rem; padding: .7rem 1rem;
+  border-bottom: 1px solid #eef0f6; color: var(--rb-primario); text-decoration: none;
+}
+.notificacion:hover { background: #f7f8fc; color: var(--rb-primario); }
+.notificacion.no-leida { background: #f5f7ff; }
+.notificacion:last-child { border-bottom: 0; }
+.punto-notificacion { flex: none; width: 9px; height: 9px; margin-top: .4rem; border-radius: 50%; background: var(--rb-acento); }
+.icono-notificacion { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; font-size: 1rem; }
+.icono-notificacion.tono-verde { background: #e3f5ec; color: #136b48; }
+.icono-notificacion.tono-azul { background: #e6effc; color: #1f4f9c; }
+.icono-notificacion.tono-amarillo { background: #fff1cc; color: #7a5300; }
+.icono-notificacion.tono-rojo { background: #fde8ea; color: #b4232f; }
+.icono-notificacion.tono-gris { background: #eef0f6; color: #4a5576; }
+.icono-notificacion.tono-morado { background: #f1e9fd; color: #5b2a9e; }
+.dia-notificaciones { padding: .5rem 1rem; background: #f8f9fc; color: #6b7491; font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid #eef0f6; }
+.avisos-flotantes { position: fixed; left: 1rem; bottom: 1rem; z-index: 1080; display: flex; flex-direction: column; gap: .5rem; width: min(24rem, calc(100vw - 2rem)); pointer-events: none; }
+.aviso-flotante {
+  pointer-events: auto; display: flex; align-items: flex-start; gap: .7rem; padding: .8rem .9rem; border-radius: 14px;
+  background: #fff; border: 1px solid #e3e7f0; box-shadow: 0 10px 30px rgba(20, 37, 79, .18); color: var(--rb-primario);
+  animation: entrar-aviso .25s ease-out; transition: opacity .25s, transform .25s;
+}
+.aviso-flotante.saliendo { opacity: 0; transform: translateX(-12px); }
+.aviso-flotante .btn-close { flex: none; font-size: .7rem; }
+@keyframes entrar-aviso { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .aviso-flotante { animation: none; } }
+.min-w-0 { min-width: 0; }
+
+/* 017 · Campañas */
+.tarjeta-campana.sin-pais { border-color: #f3c27a; box-shadow: inset 4px 0 0 #f0a500; }

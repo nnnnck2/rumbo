@@ -14,12 +14,25 @@
       <li><i class="bi bi-toggle-on" aria-hidden="true"></i><div><strong>Marque su estado</strong>
         <p>Arriba a la derecha: <em>Disponible</em> para recibir clientes nuevos, <em>En pausa</em> para el almuerzo o una reunión, <em>Fuera de turno</em> al terminar.</p></div></li>
       <li><i class="bi bi-telephone-outbound" aria-hidden="true"></i><div><strong>Toque "Llamar al siguiente"</strong>
-        <p>En Inicio. Rumbo le abre el cliente más atrasado y, cuando registra el resultado, le pasa solo al siguiente. Tiene <strong>15 minutos</strong> para la primera llamada de un cliente nuevo.</p></div></li>
+        <p>En Inicio. Rumbo le abre el cliente más atrasado y, cuando registra el resultado, le pasa solo al siguiente. Tiene <strong>30 minutos</strong> para gestionar a un cliente nuevo (registrar una llamada); si no, pasa solo al siguiente asesor. La etiqueta de color le dice cuánto le queda.</p></div></li>
       <li><i class="bi bi-telephone" aria-hidden="true"></i><div><strong>Abra al cliente y toque "Llamar"</strong>
         <p>Antes de llamar, lea lo que escribió por WhatsApp y las notas del equipo.</p></div></li>
       <li><i class="bi bi-check2-square" aria-hidden="true"></i><div><strong>Al colgar, toque cómo le fue</strong>
         <p>Un toque y queda guardado; al volver de la llamada Rumbo se lo pregunta. Es lo más importante: si no lo registra, Rumbo cree que no llamó, le quita el cliente y su trabajo no cuenta para las comisiones.</p></div></li>
     </ol>
+  </section>
+
+  <section class="tarjeta-rumbo mb-3">
+    <h2 class="titulo-tarjeta">Notificaciones</h2>
+    <p class="mb-2">La <i class="bi bi-bell" aria-hidden="true"></i> campana de arriba le avisa, con un sonido y un mensaje en la esquina de la pantalla, cuando:</p>
+    <ul class="mb-2">
+      <li>le llega un cliente nuevo o se lo reasignan;</li>
+      <li>un cliente suyo vuelve a escribir por WhatsApp;</li>
+      <li>le quedan 10 minutos para gestionar a un cliente;</li>
+      <li>llega la hora de una llamada programada;</li>
+      <li>un cliente pasó a otro asesor.</li>
+    </ul>
+    <p class="small text-body-secondary mb-0">En la campana toque <strong>"Avisarme aunque esté en otra pestaña"</strong> para recibirlos también cuando no está mirando Rumbo.</p>
   </section>
 
   <section class="tarjeta-rumbo mb-3">
@@ -44,6 +57,9 @@
     <h2 class="titulo-tarjeta">Supervisor</h2>
     <ul class="mb-0">
       <li><strong>Inicio</strong> muestra las llamadas atrasadas y quién está disponible.</li>
+      <li><strong>Notificaciones</strong> (<i class="bi bi-bell" aria-hidden="true"></i>): le avisan de llamadas atrasadas y de clientes que pasaron por todos los asesores sin ser gestionados.</li>
+      <li><strong>Tablero</strong>: cada asesor con sus clientes, de color según lo urgente (verde a tiempo, amarillo por vencer, rojo urgente, azul programada).</li>
+      <li><strong>Reparto automático</strong>: si un asesor no gestiona un cliente en 30 minutos, pasa al siguiente; cuando pasó por todos los que están en turno, vuelve al primero. En la ficha se ve el recorrido.</li>
       <li>La <i class="bi bi-bell" aria-hidden="true"></i> <strong>campana</strong> cuenta las llamadas atrasadas; se actualiza sola.</li>
       <li><strong>Reasignar</strong>: un cliente desde su ficha, o varios desde "Todos los leads" marcándolos.</li>
       <li><strong>Asesores</strong>: cambie el estado de quien se fue sin marcarlo.</li>
@@ -58,6 +74,7 @@
     <ul class="mb-0">
       <li><strong>Usuarios</strong>: crear cuentas, cambiar contraseñas y desactivar a quien deja la empresa.</li>
       <li><strong>Configuración</strong>: horario, intentos, tiempos y textos automáticos de WhatsApp. Rige de inmediato.</li>
+      <li><strong>Campañas</strong>: a cada anuncio de Facebook / Instagram se le asigna su <strong>país</strong>; los clientes que llegan de ese anuncio quedan con ese país. Los anuncios nuevos llegan como notificación.</li>
     </ul>
   </section>
   {% endif %}
