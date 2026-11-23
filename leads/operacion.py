@@ -197,6 +197,19 @@ def agenda(lunes, asesor_id=None):
 
 # ─────────────────────────────── SCRUM-128 · Mapa de calor ───────────────────────────────
 
+MIN_LLAMADAS_HORA = 5   # con menos, el porcentaje de esa hora no es confiable
+
+
+def resumen_mapa(filas):
+    """La mejor y la peor hora (solo las que tienen al menos MIN_LLAMADAS_HORA llamadas), para decirlo en palabras."""
+    confiables = [c for f in filas for c in f["celdas"] if c["llamadas"] >= MIN_LLAMADAS_HORA]
+    if not confiables:
+        return None
+    mejor = max(confiables, key=lambda c: (c["pct"], c["llamadas"]))
+    peor = min(confiables, key=lambda c: (c["pct"], -c["llamadas"]))
+    return {"mejor": mejor, "peor": peor if peor is not mejor and peor["pct"] < mejor["pct"] else None}
+
+
 def mapa_de_calor(desde, hasta, contacto):
     """Tasa de contacto por día de la semana (1–7) y hora local. Devuelve (horas, filas)."""
     with connection.cursor() as cursor:
@@ -212,16 +225,17 @@ def mapa_de_calor(desde, hasta, contacto):
         celdas = {(d, h): (n, c) for d, h, n, c in cursor.fetchall()}
     horas = sorted({h for _d, h in celdas}) or list(range(9, 18))
     horas = list(range(min(horas), max(horas) + 1))
-    nombres = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+    nombres = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
     filas = []
     for d in range(1, 8):
         fila = []
         for h in horas:
             n, c = celdas.get((d, h), (0, 0))
             pct = round(100 * c / n) if n else None
-            fila.append({"hora": h, "llamadas": n, "contactos": c, "pct": pct, "poco": 0 < n < 5,
-                         "nivel": None if pct is None else min(4, pct // 20)})
-        filas.append({"dia": nombres[d - 1], "celdas": fila})
+            # Un solo color, más intenso cuanto más se logra hablar (4 tonos de 25 en 25).
+            fila.append({"hora": h, "llamadas": n, "contactos": c, "pct": pct, "poco": 0 < n < MIN_LLAMADAS_HORA,
+                         "nivel": None if pct is None else min(3, pct // 25), "dia": nombres[d - 1]})
+        filas.append({"dia": nombres[d - 1][:3].capitalize(), "celdas": fila, "llamadas": sum(c["llamadas"] for c in fila)})
     return horas, filas
 
 

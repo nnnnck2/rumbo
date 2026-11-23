@@ -165,23 +165,49 @@
 
   {# SCRUM-128 · Mejores horas para contactar. #}
   <section class="tarjeta-rumbo mb-3">
-    <h2 class="titulo-tarjeta">Mejores horas para contactar</h2>
-    <p class="small text-body-secondary">Porcentaje de llamadas en que se habló con el cliente, por día y hora. Más oscuro = mejor.
-      Las celdas con borde punteado tienen menos de 5 llamadas (poco confiables).</p>
+    <h2 class="titulo-tarjeta">Mejores horas para llamar</h2>
+    <p class="small text-body-secondary mb-3">De cada 100 llamadas hechas a esa hora, en cuántas se logró hablar con el cliente.</p>
+    {% if resumen_calor %}
+    <div class="resumen-calor mb-3">
+      <div><span class="etiqueta">Mejor momento</span>
+        <strong>{{ resumen_calor.mejor.dia|capfirst }} a las {{ resumen_calor.mejor.hora }}:00</strong>
+        <span class="small text-body-secondary">se habló en {{ resumen_calor.mejor.contactos }} de {{ resumen_calor.mejor.llamadas }} llamadas ({{ resumen_calor.mejor.pct }} %)</span></div>
+      {% if resumen_calor.peor %}
+      <div><span class="etiqueta">Peor momento</span>
+        <strong>{{ resumen_calor.peor.dia|capfirst }} a las {{ resumen_calor.peor.hora }}:00</strong>
+        <span class="small text-body-secondary">se habló en {{ resumen_calor.peor.contactos }} de {{ resumen_calor.peor.llamadas }} llamadas ({{ resumen_calor.peor.pct }} %)</span></div>
+      {% endif %}
+    </div>
+    {% elif hay_llamadas_calor %}
+    <p class="small mb-3">Todavía hay pocas llamadas para recomendar una hora: hacen falta al menos 5 llamadas en un mismo día y hora.</p>
+    {% endif %}
+    {% if not hay_llamadas_calor %}
+    <p class="small text-body-secondary mb-0">No hubo llamadas en este período.</p>
+    {% else %}
     <div class="table-responsive">
-      <table class="mapa-calor" aria-label="Tasa de contacto por día y hora">
-        <thead><tr><th scope="col"><span class="visually-hidden">Día</span></th>{% for h in horas_calor %}<th scope="col">{{ h }}h</th>{% endfor %}</tr></thead>
+      <table class="mapa-calor" aria-label="Porcentaje de llamadas en que se habló con el cliente, por día y hora">
+        <thead><tr><th scope="col"><span class="visually-hidden">Día</span></th>{% for h in horas_calor %}<th scope="col">{{ h }}:00</th>{% endfor %}</tr></thead>
         <tbody>
-        {% for fila in mapa_calor %}
+        {% for fila in mapa_calor %}{% if fila.llamadas %}
           <tr><th scope="row">{{ fila.dia }}</th>
             {% for c in fila.celdas %}
-              <td class="{% if c.nivel is not None %}nivel-{{ c.nivel }}{% else %}sin-datos{% endif %}{% if c.poco %} poco{% endif %}"
-                  title="{{ fila.dia }} {{ c.hora }}:00 · {{ c.contactos }} de {{ c.llamadas }} llamada{{ c.llamadas|pluralize }}">{% if c.pct is not None %}{{ c.pct }}{% endif %}</td>
+              <td class="{% if c.poco %}poco{% elif c.nivel is not None %}nivel-{{ c.nivel }}{% else %}sin-datos{% endif %}"
+                  title="{% if c.llamadas %}{{ c.dia|capfirst }} {{ c.hora }}:00 · se habló en {{ c.contactos }} de {{ c.llamadas }} llamada{{ c.llamadas|pluralize }}{% else %}Sin llamadas{% endif %}">{% if c.pct is not None %}{{ c.pct }}%{% endif %}</td>
             {% endfor %}</tr>
-        {% endfor %}
+        {% endif %}{% endfor %}
         </tbody>
       </table>
     </div>
+    <div class="leyenda-calor">
+      <span>Se habló con</span>
+      <span class="muestra nivel-0"></span><span>menos del 25 %</span>
+      <span class="muestra nivel-1"></span><span>25–49 %</span>
+      <span class="muestra nivel-2"></span><span>50–74 %</span>
+      <span class="muestra nivel-3"></span><span>75 % o más</span>
+      <span class="muestra poco"></span><span>menos de 5 llamadas, aún no es confiable</span>
+    </div>
+    <p class="small text-body-tertiary mb-0 mt-1">Solo se muestran los días con llamadas. Pase el mouse sobre una celda para ver cuántas llamadas hubo.</p>
+    {% endif %}
   </section>
 
   <section class="tarjeta-rumbo"><h2 class="titulo-tarjeta">Por asesor</h2>
