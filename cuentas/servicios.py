@@ -7,6 +7,7 @@ Un usuario son dos filas con el mismo id:
 Se crean y modifican juntas en una transacción. La base solo deja escribir rumbo.usuario y
 rumbo.asesor al rol admin (RLS); aquí no se repite esa regla, se traduce su error.
 """
+import json
 from dataclasses import dataclass
 
 from django.contrib.auth import get_user_model
@@ -128,3 +129,45 @@ def actualizar_usuario(user, *, nombre, rol, activo, password=None, numero_whats
 def guardar_especialidades(asesor_id, paises, visas):
     """SCRUM-118 · Países y tipos de visa que domina el asesor (los usa el reparto). Solo admin (lo valida la base)."""
     _sql("SELECT rumbo.guardar_especialidades(%s, %s, %s)", [asesor_id, list(paises), list(visas)])
+
+
+# ─────────────────────────────── SCRUM-35 · Auditoría ───────────────────────────────
+
+def _filas(sql, params):
+    with connection.cursor() as cursor:
+        cursor.execute(sql, params)
+        columnas = [c.name for c in cursor.description]
+        return [dict(zip(columnas, f)) for f in cursor.fetchall()]
+
+
+def reasignaciones_recientes(limite=300):
+    """Cada cambio de asesor de un lead (automático o manual), con quién lo hizo."""
+    return _filas(
+        """SELECT s.creado_en, s.lead_id, s.motivo::text AS motivo, s.vuelta,
+                  ua.nombre AS desde, un.nombre AS hacia, up.nombre AS por
+           FROM rumbo.asignacion s
+           JOIN rumbo.asesor an ON an.id = s.asesor_id JOIN rumbo.usuario un ON un.id = an.usuario_id
+           LEFT JOIN rumbo.asesor aa ON aa.id = s.asesor_anterior_id LEFT JOIN rumbo.usuario ua ON ua.id = aa.usuario_id
+           LEFT JOIN rumbo.usuario up ON up.id = s.asignado_por_usuario_id
+           WHERE s.asesor_anterior_id IS NOT NULL OR s.motivo <> 'reparto'
+           ORDER BY s.id DESC LIMIT %s""", [limite])
+
+
+def cambios_auditados(tabla, limite=300):
+    """Cambios de auditoria.registro de una tabla (configuración o usuarios), con el nombre de quien los hizo."""
+    filas = _filas(
+        """SELECT r.ocurrido_en, r.operacion, r.registro_id, r.cambios, r.despues, r.cliente_ip, u.nombre AS por
+           FROM auditoria.registro r LEFT JOIN rumbo.usuario u ON u.id = r.usuario_id
+           WHERE r.tabla = %s ORDER BY r.id DESC LIMIT %s""", [tabla, limite])
+    for f in filas:
+        for k in ("cambios", "despues"):                 # Django entrega jsonb como texto en cursores crudos
+            if isinstance(f[k], str):
+                f[k] = json.loads(f[k])
+        texto = lambda v: v if isinstance(v, str) else json.dumps(v, ensure_ascii=False)  # noqa: E731
+        f["etiqueta"] = f["registro_id"] or (f["despues"] or {}).get("clave") or ""
+        if f["operacion"] == "UPDATE":
+            f["detalle"] = [(k, texto(v.get("antes")), texto(v.get("despues"))) for k, v in (f["cambios"] or {}).items()]
+        else:
+            f["detalle"] = [(k, None, texto(v)) for k, v in (f["despues"] or {}).items()
+                            if k in ("valor", "nombre", "rol", "activo")]
+    return filas

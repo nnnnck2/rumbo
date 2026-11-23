@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block titulo %}Auditoría{% endblock %}
+{% block contenido %}
+  <div class="encabezado-pagina">
+    <div>
+      <h1 class="titulo-pagina">Auditoría</h1>
+      <p class="ayuda-pagina">Registro de solo lectura: la base no deja modificar ni borrar estas filas. Muestra lo más reciente primero.</p>
+    </div>
+  </div>
+  {% include "leads/_mensajes.html" %}
+  <nav class="pestanas-lista mb-3" aria-label="Ver">
+    {% for clave, nombre in pestanas.items %}
+      <a class="pestana{% if pestana == clave %} activa{% endif %}" href="?ver={{ clave }}"{% if pestana == clave %} aria-current="page"{% endif %}>{{ nombre }}</a>
+    {% endfor %}
+  </nav>
+
+  {% if pestana == "ingresos" %}
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    <a class="btn btn-sm {% if not evento %}btn-primary{% else %}btn-light border{% endif %}" href="?ver=ingresos">Todos</a>
+    {% for clave, nombre in eventos.items %}
+      <a class="btn btn-sm {% if evento == clave %}btn-primary{% else %}btn-light border{% endif %}" href="?ver=ingresos&evento={{ clave }}">{{ nombre }}</a>
+    {% endfor %}
+  </div>
+  <p class="small text-body-secondary">Tras 5 contraseñas incorrectas en 15 minutos el usuario queda bloqueado 15 minutos (30 fallos desde una misma IP bloquean esa IP).</p>
+  <div class="tarjeta-rumbo"><div class="table-responsive">
+    <table class="table align-middle mb-0 tabla-apilable">
+      <thead><tr><th>Cuándo</th><th>Usuario</th><th>Qué pasó</th><th>IP</th><th class="d-none d-lg-table-cell">Navegador</th></tr></thead>
+      <tbody>
+      {% for f in filas %}
+        <tr>
+          <td class="small text-nowrap" data-etiqueta="Cuándo">{{ f.ocurrido_en|date:"d/m/Y H:i:s" }}</td>
+          <td data-etiqueta="Usuario">{{ f.usuario }}{% if not f.usuario_id %} <span class="badge text-bg-light border" title="No existe un usuario con ese nombre">no existe</span>{% endif %}</td>
+          <td data-etiqueta="Qué pasó"><span class="badge {% if f.evento == 'ingreso' %}text-bg-success{% elif f.evento == 'salida' %}text-bg-secondary{% elif f.evento == 'bloqueado' %}text-bg-danger{% else %}text-bg-warning{% endif %}">{{ f.evento_texto }}</span></td>
+          <td class="small" data-etiqueta="IP">{{ f.ip|default:"—" }}</td>
+          <td class="small text-body-secondary d-none d-lg-table-cell">{{ f.agente|truncatechars:70 }}</td>
+        </tr>
+      {% empty %}<tr><td colspan="5" class="text-center text-body-secondary py-4">Sin registros.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div></div>
+
+  {% elif pestana == "reasignaciones" %}
+  <div class="tarjeta-rumbo"><div class="table-responsive">
+    <table class="table align-middle mb-0 tabla-apilable">
+      <thead><tr><th>Cuándo</th><th>Lead</th><th>De</th><th>A</th><th>Motivo</th><th>Hecha por</th></tr></thead>
+      <tbody>
+      {% for f in filas %}
+        <tr>
+          <td class="small text-nowrap" data-etiqueta="Cuándo">{{ f.creado_en|date:"d/m/Y H:i:s" }}</td>
+          <td data-etiqueta="Lead"><a href="{% url 'leads:ficha' f.lead_id %}">#{{ f.lead_id }}</a></td>
+          <td data-etiqueta="De">{{ f.desde|default:"—" }}</td>
+          <td data-etiqueta="A">{{ f.hacia }}</td>
+          <td data-etiqueta="Motivo">{{ f.motivo_texto }}{% if f.vuelta > 1 %} <span class="small text-body-secondary">· vuelta {{ f.vuelta }}</span>{% endif %}</td>
+          <td class="small" data-etiqueta="Hecha por">{{ f.por|default:"Sistema" }}</td>
+        </tr>
+      {% empty %}<tr><td colspan="6" class="text-center text-body-secondary py-4">Sin reasignaciones.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div></div>
+
+  {% else %}
+  <div class="tarjeta-rumbo"><div class="table-responsive">
+    <table class="table align-middle mb-0 tabla-apilable">
+      <thead><tr><th>Cuándo</th><th>Quién</th><th>{% if pestana == "configuracion" %}Clave{% else %}Usuario (id){% endif %}</th><th>Cambio</th></tr></thead>
+      <tbody>
+      {% for f in filas %}
+        <tr>
+          <td class="small text-nowrap" data-etiqueta="Cuándo">{{ f.ocurrido_en|date:"d/m/Y H:i:s" }}</td>
+          <td class="small" data-etiqueta="Quién">{{ f.por|default:"Sistema / migración" }}{% if f.cliente_ip %}<span class="d-block text-body-secondary">{{ f.cliente_ip }}</span>{% endif %}</td>
+          <td data-etiqueta="{% if pestana == 'configuracion' %}Clave{% else %}Usuario{% endif %}"><code>{{ f.etiqueta }}</code> <span class="badge text-bg-light border">{% if f.operacion == "INSERT" %}alta{% elif f.operacion == "UPDATE" %}cambio{% else %}baja{% endif %}</span></td>
+          <td class="small" data-etiqueta="Cambio">
+            {% for campo, antes, despues in f.detalle %}
+              <div><strong>{{ campo }}</strong>: {% if f.operacion == "UPDATE" %}<span class="text-body-secondary text-decoration-line-through">{{ antes|truncatechars:120 }}</span> → {% endif %}{{ despues|truncatechars:160 }}</div>
+            {% endfor %}
+          </td>
+        </tr>
+      {% empty %}<tr><td colspan="4" class="text-center text-body-secondary py-4">Sin cambios registrados.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div></div>
+  {% endif %}
+{% endblock %}

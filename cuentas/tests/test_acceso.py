@@ -1,0 +1,80 @@
+"""SCRUM-35 sin base: contraseñas robustas, IP del cliente, bloqueo en el login y auditoría solo para admin.
+La parte de base (registro inmutable y cálculo del bloqueo) está en db/pruebas/12_seguridad_acceso.sql."""
+import datetime as dt
+from unittest import mock
+
+from django.contrib.auth import password_validation
+from django.core.exceptions import ValidationError
+from django.test import RequestFactory, SimpleTestCase, override_settings
+
+from cuentas import acceso
+from cuentas.forms import LoginForm
+
+AHORA = dt.datetime(2026, 11, 23, 15, 0, tzinfo=dt.timezone.utc)
+
+
+class ComplejidadTests(SimpleTestCase):
+    def test_rechaza_contrasenas_simples(self):
+        for clave in ("solamenteletras", "1234567890123", "minusculas123"):
+            with self.subTest(clave=clave), self.assertRaises(ValidationError):
+                acceso.ComplejidadValidator().validate(clave)
+
+    def test_acepta_robustas(self):
+        for clave in ("Visas-Rumbo-2026!", "Multivisa2026x!", "OtraClave2026"):
+            with self.subTest(clave=clave):
+                acceso.ComplejidadValidator().validate(clave)
+
+    def test_esta_en_los_validadores_del_proyecto(self):
+        nombres = [type(v).__name__ for v in password_validation.get_default_password_validators()]
+        self.assertIn("ComplejidadValidator", nombres)
+        self.assertIn("MinimumLengthValidator", nombres)
+
+
+class IpClienteTests(SimpleTestCase):
+    def setUp(self):
+        self.rf = RequestFactory()
+
+    def test_en_desarrollo_usa_remote_addr_e_ignora_x_real_ip(self):
+        r = self.rf.get("/", REMOTE_ADDR="10.0.0.5", HTTP_X_REAL_IP="1.2.3.4")
+        self.assertEqual(acceso.ip_cliente(r), "10.0.0.5")
+
+    @override_settings(RUMBO_CONFIAR_X_REAL_IP=True)
+    def test_detras_de_nginx_usa_x_real_ip(self):
+        r = self.rf.get("/", REMOTE_ADDR="172.18.0.2", HTTP_X_REAL_IP="190.10.20.30")
+        self.assertEqual(acceso.ip_cliente(r), "190.10.20.30")
+
+    @override_settings(RUMBO_CONFIAR_X_REAL_IP=True)
+    def test_ip_invalida_cae_a_remote_addr(self):
+        r = self.rf.get("/", REMOTE_ADDR="172.18.0.2", HTTP_X_REAL_IP="no-es-ip")
+        self.assertEqual(acceso.ip_cliente(r), "172.18.0.2")
+
+
+class TextoEsperaTests(SimpleTestCase):
+    def test_redondea_hacia_arriba(self):
+        self.assertEqual(acceso.texto_espera(AHORA + dt.timedelta(minutes=14, seconds=5), AHORA), "15 minutos")
+        self.assertEqual(acceso.texto_espera(AHORA + dt.timedelta(seconds=20), AHORA), "1 minuto")
+
+
+class LoginBloqueadoTests(SimpleTestCase):
+    def test_bloqueado_no_comprueba_la_contrasena(self):
+        request = RequestFactory().post("/cuentas/ingresar/")
+        form = LoginForm(request, data={"username": "ana", "password": "la-correcta"})
+        hasta = dt.datetime.now(dt.timezone.utc) + dt.timedelta(minutes=10)
+        with mock.patch.object(acceso, "bloqueado_hasta", return_value=hasta), \
+             mock.patch.object(acceso, "registrar") as registrar, \
+             mock.patch("cuentas.forms.get_user_model") as modelo, \
+             mock.patch("django.contrib.auth.forms.authenticate") as autenticar:
+            modelo.return_value.objects.filter.return_value.values_list.return_value.first.return_value = 7
+            self.assertFalse(form.is_valid())
+        autenticar.assert_not_called()
+        registrar.assert_called_once_with(request, "ana", "bloqueado", 7)
+        self.assertIn("espere 10 minutos", form.non_field_errors()[0])
+
+    def test_sin_bloqueo_autentica_normal(self):
+        request = RequestFactory().post("/cuentas/ingresar/")
+        form = LoginForm(request, data={"username": "ana", "password": "mal"})
+        with mock.patch.object(acceso, "bloqueado_hasta", return_value=None), \
+             mock.patch("django.contrib.auth.forms.authenticate", return_value=None) as autenticar:
+            self.assertFalse(form.is_valid())
+        autenticar.assert_called_once()
+        self.assertIn("incorrectos", form.non_field_errors()[0])

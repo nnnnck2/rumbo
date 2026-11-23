@@ -11,7 +11,7 @@ from django.views.decorators.http import require_http_methods, require_POST
 from leads.models import Asesor, EstadoAsesor, Usuario
 from leads.servicios import ErrorNegocio
 
-from . import servicios
+from . import acceso, servicios
 from .forms import LoginForm, UsuarioForm
 from .permisos import ADMIN, SUPERVISION, con_rol
 
@@ -25,14 +25,28 @@ class Ingresar(auth_views.LoginView):
     authentication_form = LoginForm
     redirect_authenticated_user = True
 
+    def form_valid(self, form):
+        usuario = form.get_user()
+        acceso.registrar(self.request, usuario.get_username(), "ingreso", usuario.pk)          # SCRUM-35
+        seguridad.info("Ingreso · usuario=%r · ip=%s", usuario.get_username(), acceso.ip_cliente(self.request))
+        return super().form_valid(form)
+
     def form_invalid(self, form):
-        seguridad.warning("Ingreso fallido · usuario=%r · ip=%s", form.data.get("username", "")[:150],
-                          self.request.META.get("REMOTE_ADDR", ""))
+        usuario = form.data.get("username", "")[:150]
+        bloqueado = any(e.code == "bloqueado" for e in form.errors.as_data().get("__all__", []))
+        if not bloqueado and usuario:                       # el bloqueado ya quedó registrado en el form
+            existente = get_user_model().objects.filter(username__iexact=usuario).values_list("pk", flat=True).first()
+            acceso.registrar(self.request, usuario, "fallido", existente)
+        seguridad.warning("Ingreso %s · usuario=%r · ip=%s", "bloqueado" if bloqueado else "fallido", usuario,
+                          acceso.ip_cliente(self.request))
         return super().form_invalid(form)
 
 
 class Salir(auth_views.LogoutView):
-    pass
+    def post(self, request, *args, **kwargs):
+        if request.user.is_authenticated:                                                    # SCRUM-35
+            acceso.registrar(request, request.user.get_username(), "salida", request.user.pk)
+        return super().post(request, *args, **kwargs)
 
 
 # ─────────────────────────────── RF-11 · Estado del asesor ───────────────────────────────
@@ -144,3 +158,36 @@ def usuario_editar(request, pk):
         "rumbo": request.rumbo, "form": form, "nuevo": False, "editado": user,
         "es_asesor": bool(perfil and perfil.rol == "asesor"),
     })
+
+
+# ─────────────────────────────── SCRUM-35 · Auditoría ───────────────────────────────
+
+PESTANAS_AUDITORIA = {"ingresos": "Ingresos", "reasignaciones": "Reasignaciones", "configuracion": "Configuración",
+                      "usuarios": "Usuarios"}
+EVENTOS_ACCESO = {"ingreso": "Ingresó", "fallido": "Contraseña incorrecta", "bloqueado": "Bloqueado", "salida": "Salió"}
+
+
+@require_http_methods(["GET"])
+@con_rol(*ADMIN)
+def auditoria(request):
+    """Quién entró (y quién falló), las reasignaciones y los cambios de configuración y usuarios.
+    Todo sale de registros que la base no deja modificar (auditoria.acceso, rumbo.asignacion, auditoria.registro)."""
+    pestana = request.GET.get("ver") if request.GET.get("ver") in PESTANAS_AUDITORIA else "ingresos"
+    contexto = {"rumbo": request.rumbo, "pestana": pestana, "pestanas": PESTANAS_AUDITORIA}
+    if pestana == "ingresos":
+        evento = request.GET.get("evento") if request.GET.get("evento") in EVENTOS_ACCESO else None
+        filas = acceso.accesos_recientes(300, evento)
+        for f in filas:
+            f["evento_texto"] = EVENTOS_ACCESO.get(f["evento"], f["evento"])
+        contexto.update(filas=filas, evento=evento, eventos=EVENTOS_ACCESO)
+    elif pestana == "reasignaciones":
+        from leads.views import MOTIVOS_REASIGNACION
+
+        filas = servicios.reasignaciones_recientes(300)
+        for f in filas:
+            f["motivo_texto"] = MOTIVOS_REASIGNACION.get(f["motivo"], "Reparto")
+        contexto["filas"] = filas
+    else:
+        contexto["filas"] = servicios.cambios_auditados("rumbo.configuracion" if pestana == "configuracion"
+                                                        else "rumbo.usuario", 300)
+    return render(request, "cuentas/auditoria.html", contexto)

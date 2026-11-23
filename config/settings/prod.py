@@ -7,6 +7,8 @@ DEBUG = False
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS") + ["127.0.0.1", "localhost"]
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+# SCRUM-35: IP real del cliente para el bloqueo de ingresos (nginx pone X-Real-IP = $remote_addr).
+RUMBO_CONFIAR_X_REAL_IP = env.bool("RUMBO_CONFIAR_X_REAL_IP", default=True)
 SECURE_SSL_REDIRECT = env.bool("DJANGO_SECURE_SSL_REDIRECT", default=True)
 SECURE_REDIRECT_EXEMPT = [r"^salud/$"]
 SECURE_HSTS_SECONDS = env.int("DJANGO_HSTS_SECONDS", default=60 * 60 * 24 * 30)

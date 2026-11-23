@@ -12,7 +12,22 @@ class LoginForm(Bootstrap, AuthenticationForm):
     error_messages = {
         "invalid_login": "Usuario o contraseña incorrectos.",
         "inactive": "Este usuario está desactivado.",
+        "bloqueado": "Demasiados intentos fallidos. Por seguridad, espere %(espera)s y vuelva a intentar.",
     }
+
+    def clean(self):
+        """SCRUM-35: si el usuario o la IP están bloqueados no se comprueba la contraseña (ni siquiera la correcta)."""
+        from . import acceso
+
+        usuario = self.cleaned_data.get("username")
+        if usuario and self.request is not None:
+            hasta = acceso.bloqueado_hasta(self.request, usuario)
+            if hasta:
+                existente = get_user_model().objects.filter(username__iexact=usuario).values_list("pk", flat=True).first()
+                acceso.registrar(self.request, usuario, "bloqueado", existente)
+                raise forms.ValidationError(self.error_messages["bloqueado"], code="bloqueado",
+                                            params={"espera": acceso.texto_espera(hasta)})
+        return super().clean()
 
 
 class UsuarioForm(Bootstrap, forms.Form):

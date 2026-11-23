@@ -93,6 +93,7 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator", "OPTIONS": {"min_length": 10}},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+    {"NAME": "cuentas.acceso.ComplejidadValidator"},                  # SCRUM-35: letras, números y mayúscula o símbolo
 ]
 
 LANGUAGE_CODE = "es-ec"
