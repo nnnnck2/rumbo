@@ -60,6 +60,7 @@ def _contexto_ficha(request, lead, intento_form=None, etapa_form=None, reasignar
         "reapertura": reapertura(lead),                                                   # SCRUM-110
         **_extras_ficha(request, lead, config),                                          # SCRUM-114 a 126
         "hoy": timezone.localdate(),
+        "ahora": timezone.now(),                                                          # SCRUM-29
         **_modo_siguiente(request),
         "datos_form": (datos_form or DatosLeadForm(initial={"version": lead.version, "tipo_visa": lead.tipo_visa,
                                                             "pais_interes": lead.pais_interes,
@@ -292,8 +293,8 @@ def _pendientes(request):
     qs = Lead.objects.filter(estado_asignacion=EstadoAsignacion.ASIGNADO, proxima_accion_en__lte=timezone.now())
     if request.rumbo.asesor_id:
         qs = qs.filter(asesor_id=request.rumbo.asesor_id)
-    # SCRUM-119: primero los más calientes; a igual prioridad, el más atrasado.
-    return operacion.con_prioridad(qs).order_by("-prioridad", "proxima_accion_en", "id")
+    # SCRUM-28: primero los nuevos, luego agendadas y reintentos; dentro, los más calientes (SCRUM-119).
+    return operacion.orden_lista_llamadas(qs)
 
 
 def _en_modo_siguiente(request):
@@ -618,7 +619,7 @@ def _pestana(request, qs):
     f = request.GET
     if f.get("pendientes"):
         pendientes = qs.filter(estado_asignacion=EstadoAsignacion.ASIGNADO, proxima_accion_en__lte=timezone.now())
-        return "pendientes", operacion.con_prioridad(pendientes).order_by("-prioridad", "proxima_accion_en")
+        return "pendientes", operacion.orden_lista_llamadas(pendientes)          # SCRUM-28 (RF-20)
     if f.get("estado") in EstadoAsignacion.values:
         return f["estado"], qs.filter(estado_asignacion=f["estado"])
     return "", qs
@@ -654,6 +655,9 @@ def lista(request):
     for l in pagina.object_list:                                      # SCRUM-119
         l.prioridad_alta = (getattr(l, "prioridad", 0) or 0) >= operacion.PRIORIDAD_ALTA
         l.razones = operacion.razones_prioridad(l) if l.prioridad_alta else ""
+        if activa == "pendientes":                                    # SCRUM-28: tipo y tiempo de espera
+            l.tipo_texto = operacion.TIPOS_LLAMADA.get(l.tipo_llamada, "")
+            l.espera = operacion.texto_espera(l.espera_desde, ahora)
     # Para mantener la búsqueda y los filtros al cambiar de pestaña o de página.
     extra = "&".join(f"{k}={quote(v)}" for k, v in f.items() if k in FILTROS_LISTA and v)
     return render(request, "leads/lista.html", {

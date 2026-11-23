@@ -38,6 +38,51 @@ def con_prioridad(qs, ahora=None):
     return qs.annotate(prioridad=ExpressionWrapper(puntaje, output_field=IntegerField()))
 
 
+# ─────────────────────────────── SCRUM-28 · Lista de llamadas (RF-20) ───────────────────────────────
+
+TIPO_NUEVO, TIPO_AGENDADA, TIPO_REINTENTO = 0, 1, 2
+TIPOS_LLAMADA = {TIPO_NUEVO: "Nuevo", TIPO_AGENDADA: "Agendada", TIPO_REINTENTO: "Reintento"}
+
+
+def con_tipo_llamada(qs):
+    """Agrega `tipo_llamada` y `espera_desde` a leads asignados:
+      · Nuevo: el asesor aún no lo llamó ni lo agendó (el reparto deja proxima_accion_en = asignado_en).
+      · Agendada: tiene una hora acordada (agendar sin intento, o último intento con "volver a llamar").
+      · Reintento: le toca de nuevo tras un intento sin contacto.
+    `espera_desde` es desde cuándo está esperando la llamada (al recibirlo o a la hora que tocaba)."""
+    from .models import IntentoLlamada
+
+    ultimo_agendado = (IntentoLlamada.objects.filter(lead=OuterRef("pk"), asesor=OuterRef("asesor_id"))
+                       .order_by("-numero").values("agendado_para")[:1])
+    qs = qs.annotate(ultimo_agendado=Subquery(ultimo_agendado))
+    es_nuevo = Q(intentos_asesor_actual=0) & Q(proxima_accion_en__lte=F("asignado_en"))
+    tipo = Case(
+        When(es_nuevo, then=Value(TIPO_NUEVO)),
+        When(Q(intentos_asesor_actual=0) | Q(ultimo_agendado__isnull=False), then=Value(TIPO_AGENDADA)),
+        default=Value(TIPO_REINTENTO), output_field=IntegerField())
+    espera = Case(When(es_nuevo, then=F("asignado_en")),
+                  default=F("proxima_accion_en"))
+    return qs.annotate(tipo_llamada=tipo, espera_desde=espera)
+
+
+def orden_lista_llamadas(qs):
+    """RF-20: primero los nuevos; después agendadas y reintentos vencidos. Dentro de cada grupo, los más
+    calientes (SCRUM-119) y, a igual prioridad, el que más espera."""
+    return con_tipo_llamada(con_prioridad(qs)).order_by("tipo_llamada", "-prioridad", "espera_desde", "id")
+
+
+def texto_espera(desde, ahora=None):
+    """"3 min", "1 h 05 min", "2 d": cuánto lleva esperando el cliente."""
+    if not desde:
+        return ""
+    minutos = max(0, int(((ahora or timezone.now()) - desde).total_seconds() // 60))
+    if minutos < 60:
+        return f"{minutos} min"
+    if minutos < 24 * 60:
+        return f"{minutos // 60} h {minutos % 60:02d} min"
+    return f"{minutos // (24 * 60)} d"
+
+
 def razones_prioridad(lead, ahora=None):
     """Texto corto de por qué el lead tiene esa prioridad (para el chip)."""
     ahora = ahora or timezone.now()

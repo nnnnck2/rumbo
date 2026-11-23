@@ -1247,3 +1247,12 @@ html[data-bs-theme="dark"] .pasos-recorrido .marca { background: var(--rb-superf
 html[data-bs-theme="dark"] .pasos-recorrido li.actual .marca { background: rgba(255, 255, 255, .2); color: #fff; }
 html[data-bs-theme="dark"] .pasos-recorrido li.pasado { color: var(--rb-texto-tenue); text-decoration-color: var(--rb-borde-fuerte); }
 html[data-bs-theme="dark"] .pasos-recorrido li.vuelve { background: none; color: var(--rb-texto-tenue); }
+
+/* ══════════ SCRUM-28 · Tipo de llamada en "Por llamar ahora" ══════════ */
+.tipo-llamada { font-weight: 600; }
+.tipo-llamada-0 { color: #136b48; }
+.tipo-llamada-1 { color: #1f4f9c; }
+.tipo-llamada-2 { color: #7a5300; }
+[data-bs-theme="dark"] .tipo-llamada-0 { color: #6fd3a5; }
+[data-bs-theme="dark"] .tipo-llamada-1 { color: #8db4f0; }
+[data-bs-theme="dark"] .tipo-llamada-2 { color: #f0c35c; }

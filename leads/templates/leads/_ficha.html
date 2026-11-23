@@ -55,6 +55,12 @@
 
   <dl class="resumen-lead">
     <div><dt>Situación</dt><dd>{% include "leads/_situacion.html" with s=lead.situacion %}</dd></div>
+    {# SCRUM-29 (RF-21) · Etapa actual y próxima acción, siempre a la vista. #}
+    <div><dt>Etapa · próxima acción</dt><dd><span class="etiqueta-etapa">{{ lead.etapa.nombre }}</span>
+      <span class="d-block small mt-1">{% if lead.estado_asignacion == "cerrado" %}<span class="text-body-secondary">Sin acciones: el caso está cerrado</span>
+      {% elif lead.estado_asignacion == "en_cola" %}<span class="text-body-secondary">Esperando a un asesor en turno</span>
+      {% elif lead.proxima_accion_en %}<i class="bi bi-telephone-forward" aria-hidden="true"></i> Llamar {% if lead.proxima_accion_en <= ahora %}ahora{% if lead.proxima_accion_en|date:"Ymd" != hoy|date:"Ymd" %} (tocaba el {{ lead.proxima_accion_en|date:"d/m H:i" }}){% endif %}{% elif lead.proxima_accion_en|date:"Ymd" == hoy|date:"Ymd" %}hoy a las {{ lead.proxima_accion_en|date:"H:i" }}{% else %}el {{ lead.proxima_accion_en|date:"d/m" }} a las {{ lead.proxima_accion_en|date:"H:i" }}{% endif %}
+      {% else %}<span class="text-body-secondary">Sin llamada pendiente</span>{% endif %}</span></dd></div>
     <div><dt>Intentos</dt><dd>{{ lead.intentos_asesor_actual }} con el asesor · {{ lead.intentos_totales }} en total
       {% if ultimo_aviso %}<span class="d-block small text-body-secondary mt-1"><i class="bi bi-whatsapp text-success" aria-hidden="true"></i> Aviso de no contesta enviado {% if ultimo_aviso.ocurrido_en|date:"Ymd" == hoy|date:"Ymd" %}hoy{% else %}el {{ ultimo_aviso.ocurrido_en|date:"d/m" }}{% endif %} {{ ultimo_aviso.ocurrido_en|date:"H:i" }}</span>{% endif %}</dd></div>
     <div><dt>Visa / país</dt><dd>{{ lead.tipo_visa|default:"—" }}{% if lead.pais_interes %} · {{ lead.pais_interes }}{% endif %}</dd></div>

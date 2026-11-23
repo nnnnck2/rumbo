@@ -4,7 +4,7 @@
   <div class="encabezado-pagina">
     <div>
       <h1 class="titulo-pagina">{% if rumbo.es_supervisor %}Leads{% else %}Mis leads{% endif %}</h1>
-      <p class="ayuda-pagina">{% if activa == "pendientes" %}Clientes a los que ya toca llamar, del más atrasado al más reciente. Abra uno, llame y registre el resultado.{% else %}Toque un cliente para ver su ficha y registrar llamadas.{% endif %}</p>
+      <p class="ayuda-pagina">{% if activa == "pendientes" %}Primero los clientes nuevos; después las llamadas agendadas y los reintentos que ya tocan. Se actualiza sola. Abra uno, llame y registre el resultado.{% else %}Toque un cliente para ver su ficha y registrar llamadas.{% endif %}</p>
     </div>
     {% if rumbo.es_supervisor %}
     {# SCRUM-93 · Descarga lo que se está viendo (pestaña, búsqueda y filtros). #}
@@ -29,7 +29,7 @@
   {% endif %}
 
   {# Pestañas: lo que más se usa, a un clic. #}
-  <nav class="pestanas-lista mb-3" aria-label="Ver">
+  <nav class="pestanas-lista mb-3" id="pestanas-lista" aria-label="Ver">
     {% for p in pestanas %}
       <a class="pestana{% if activa == p.clave %} activa{% endif %}{% if p.clave == 'pendientes' and p.n %} urgente{% endif %}"
          href="?{{ p.url }}{% if p.url and extra %}&{% endif %}{{ extra }}"{% if activa == p.clave %} aria-current="page"{% endif %}>
@@ -89,7 +89,12 @@
     </div>
   </form>
 
-  <form method="post" action="{% url 'leads:reasignar_lote' %}" class="tarjeta-tabla">
+  {% comment %}SCRUM-28 (RF-20) · "Por llamar ahora" se actualiza sola cada 10 s: un lead nuevo aparece en segundos.
+     No se refresca mientras el supervisor tiene clientes marcados para reasignar.{% endcomment %}
+  <form method="post" action="{% url 'leads:reasignar_lote' %}" class="tarjeta-tabla" id="lista-leads"
+        {% if activa == "pendientes" %}hx-get="{{ request.get_full_path }}" hx-params="none" hx-select="#lista-leads"
+        hx-select-oob="#pestanas-lista" hx-swap="outerHTML"
+        hx-trigger="every 10s [!document.querySelector('.marca-lead:checked') && document.visibilityState === 'visible']"{% endif %}>
     {% csrf_token %}<input type="hidden" name="volver" value="{{ volver }}">
     <div class="table-responsive">
       <table class="table table-hover align-middle mb-0 tabla-leads">
@@ -115,7 +120,8 @@
             <td class="d-none d-lg-table-cell"><span class="estado-lead estado-lead-{{ l.estado_asignacion }}">{{ l.get_estado_asignacion_display }}</span></td>
             {% if rumbo.es_supervisor %}<td class="small d-none d-md-table-cell">{% if l.asesor %}{{ l.asesor.usuario.nombre }}{% else %}<span class="text-body-secondary">Sin asesor</span>{% endif %}</td>{% endif %}
             <td class="text-center small d-none d-lg-table-cell" title="Intentos con el asesor actual / intentos totales">{{ l.intentos_asesor_actual }} / {{ l.intentos_totales }}</td>
-            <td class="text-nowrap">{% include "leads/_situacion.html" with s=l.situacion %}</td>
+            <td class="text-nowrap">{% include "leads/_situacion.html" with s=l.situacion %}
+              {% if l.tipo_texto %}<div class="small text-body-secondary mt-1"><span class="tipo-llamada tipo-llamada-{{ l.tipo_llamada }}">{{ l.tipo_texto }}</span> · espera {{ l.espera }}</div>{% endif %}</td>
             <td class="small text-nowrap d-none d-xl-table-cell">{{ l.primer_contacto_en|date:"d/m/Y" }} <span class="text-body-secondary">{{ l.primer_contacto_en|date:"H:i" }}</span></td>
           </tr>
         {% empty %}
@@ -154,8 +160,12 @@
 
   {% if lote_form %}
   <script>
-    // Selección para reasignar en lote: marcar todos y contador.
-    (function () {
+    // Selección para reasignar en lote: marcar todos y contador. Se vuelve a enganchar cuando
+    // la lista se actualiza sola (SCRUM-28).
+    function engancharLote() {
+      const lista = document.getElementById('lista-leads');
+      if (!lista || lista.dataset.enganchado) return;
+      lista.dataset.enganchado = '1';
       const todos = document.getElementById('marcar-todos');
       const marcas = Array.from(document.querySelectorAll('.marca-lead'));
       const contador = document.getElementById('contador-lote');
@@ -170,7 +180,9 @@
       if (todos) todos.addEventListener('change', () => { marcas.forEach(c => c.checked = todos.checked); actualizar(); });
       marcas.forEach(c => c.addEventListener('change', actualizar));
       actualizar();
-    })();
+    }
+    engancharLote();
+    document.body.addEventListener('htmx:afterSettle', engancharLote);
   </script>
   {% endif %}
 {% endblock %}
