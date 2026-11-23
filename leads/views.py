@@ -648,7 +648,14 @@ def reasignar_lote(request):
 
 # ─────────────────────────────── Lista con filtros (RF-25: filtro por etapa) ───────────────────────────────
 
-FILTROS_LISTA = ("q", "etapa", "asesor", "pais", "varias")
+FILTROS_LISTA = ("q", "etapa", "asesor", "pais", "varias", "desde", "hasta", "campana")     # SCRUM-51: fechas y campaña
+
+
+def _fecha_filtro(valor):
+    try:
+        return dt.date.fromisoformat(valor or "")
+    except ValueError:
+        return None
 
 
 def _leads_filtrados(request):
@@ -677,6 +684,14 @@ def _leads_filtrados(request):
         qs = qs.filter(pais_interes=f["pais"]) if f["pais"] != "sin_pais" else qs.filter(pais_interes__isnull=True)
     if f.get("varias"):                     # SCRUM-100: llegó por más de un anuncio
         qs = qs.filter(n_anuncios__gte=2)
+    # SCRUM-51: fecha de llegada (primer contacto, días de Ecuador) y campaña (anuncio del que llegó)
+    zona = timezone.get_current_timezone()
+    if desde := _fecha_filtro(f.get("desde")):
+        qs = qs.filter(primer_contacto_en__gte=dt.datetime.combine(desde, dt.time.min, zona))
+    if hasta := _fecha_filtro(f.get("hasta")):
+        qs = qs.filter(primer_contacto_en__lt=dt.datetime.combine(hasta + dt.timedelta(days=1), dt.time.min, zona))
+    if f.get("campana", "").isdigit():
+        qs = qs.filter(Exists(LeadOrigen.objects.filter(lead=OuterRef("pk"), anuncio_id=int(f["campana"]))))
     return qs
 
 
@@ -735,7 +750,9 @@ def lista(request):
         "pestanas": pestanas,
         "activa": activa,
         "extra": extra,
-        "mas_filtros": bool(f.get("etapa") or f.get("asesor") or f.get("pais") or f.get("varias")),
+        "mas_filtros": bool(f.get("etapa") or f.get("asesor") or f.get("pais") or f.get("varias") or f.get("desde")
+                            or f.get("hasta") or f.get("campana")),
+        "campanas": Anuncio.objects.order_by("pais", "nombre_campana", "titulo") if request.rumbo.es_supervisor else [],
         "consulta": request.GET.urlencode(),
         "total_leads": Lead.objects.count() if request.rumbo.es_supervisor else None,     # SCRUM-109
         "paises_leads": sorted(p for p in Lead.objects.exclude(pais_interes__isnull=True)
@@ -920,25 +937,41 @@ def _fecha(valor):
 
 COLUMNAS_LEADS = ["Id", "Nombre", "Teléfono", "Etapa", "Estado", "Asesor", "Intentos con el asesor", "Intentos totales",
                   "Tipo de visa", "País de interés", "Anuncio de origen", "País de la campaña", "Anuncios distintos",
-                  "Primer contacto", "Último mensaje", "Próxima llamada", "Cerrado"]
+                  "Canal", "Primer contacto", "Último mensaje", "Próxima llamada", "Cerrado"]
+
+
+def _es_excel(request):
+    """SCRUM-51 · ?formato=xlsx → Excel; si no, CSV (también lo abre Excel)."""
+    return request.GET.get("formato") == "xlsx"
 
 
 @require_http_methods(["GET"])
 @con_rol(*SUPERVISION)
 def exportar_leads(request):
-    """La lista de leads con los mismos filtros y pestaña que se están viendo."""
+    """La lista de leads con los mismos filtros y pestaña que se están viendo, en CSV o Excel."""
+    from .excel import HojaExcel
+    from .forms import ORIGENES
+
     _activa, qs = _pestana(request, _leads_filtrados(request))
     filas = list(qs[:20000])
+    excel = _es_excel(request)
     servicios.registrar_exportacion("leads", len(filas), {k: v for k, v in request.GET.items()})
-    respuesta, w = _respuesta_csv(f"rumbo-leads-{timezone.localdate():%Y%m%d}.csv")
+    nombre = f"rumbo-leads-{timezone.localdate():%Y%m%d}"
+    if excel:
+        w = HojaExcel("Leads")
+        fecha = lambda x: x  # noqa: E731 — Excel guarda la fecha como fecha (se puede ordenar y filtrar)
+    else:
+        respuesta, w = _respuesta_csv(f"{nombre}.csv")
+        fecha = _fecha
     w.writerow(COLUMNAS_LEADS)
     for l in filas:
         w.writerow([_celda(x) for x in (
             l.pk, l.nombre_perfil, l.telefono, l.etapa.nombre, l.get_estado_asignacion_display(),
             l.asesor.usuario.nombre if l.asesor else "", l.intentos_asesor_actual, l.intentos_totales,
             l.tipo_visa, l.pais_interes, l.anuncio_titulo or l.anuncio_clave, l.anuncio_pais, l.n_anuncios,
-            _fecha(l.primer_contacto_en), _fecha(l.ultimo_mensaje_en), _fecha(l.proxima_accion_en), _fecha(l.cerrado_en))])
-    return respuesta
+            ORIGENES.get(l.origen, l.origen),
+            fecha(l.primer_contacto_en), fecha(l.ultimo_mensaje_en), fecha(l.proxima_accion_en), fecha(l.cerrado_en))])
+    return w.respuesta(f"{nombre}.xlsx") if excel else respuesta
 
 
 @require_http_methods(["GET"])
@@ -947,11 +980,18 @@ def exportar_metricas(request):
     """Las tablas de Métricas del rango elegido, una debajo de la otra (igual que el correo semanal)."""
     from .reportes import escribir_metricas
 
+    from .excel import HojaExcel
+
     desde, hasta, _inicio, _fin = _rango_metricas(request)
-    respuesta, w = _respuesta_csv(f"rumbo-metricas-{desde:%Y%m%d}-{hasta:%Y%m%d}.csv")
+    nombre = f"rumbo-metricas-{desde:%Y%m%d}-{hasta:%Y%m%d}"
+    if _es_excel(request):                                               # SCRUM-51
+        w = HojaExcel("Métricas", encabezado_en=0)
+    else:
+        respuesta, w = _respuesta_csv(f"{nombre}.csv")
     _datos, filas = escribir_metricas(w, desde, hasta)
-    servicios.registrar_exportacion("metricas", filas, {"desde": desde.isoformat(), "hasta": hasta.isoformat()})
-    return respuesta
+    servicios.registrar_exportacion("metricas", filas, {"desde": desde.isoformat(), "hasta": hasta.isoformat(),
+                                                        "formato": "xlsx" if _es_excel(request) else "csv"})
+    return w.respuesta(f"{nombre}.xlsx") if _es_excel(request) else respuesta
 
 
 # ─────────────────────────────── SCRUM-98 · Panel en vivo ───────────────────────────────

@@ -15,11 +15,16 @@
       <button class="btn btn-light border dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
         <i class="bi bi-download" aria-hidden="true"></i> Exportar a Excel</button>
       <ul class="dropdown-menu dropdown-menu-end menu-exportar">
-        <li><a class="dropdown-item" href="{% url 'leads:exportar_leads' %}{% if consulta %}?{{ consulta }}{% endif %}">
-          <span class="d-block fw-semibold">Lo que estoy viendo</span>
+        {# SCRUM-51 · Excel (.xlsx) o CSV, con la pestaña y los filtros (fechas, asesor, campaña, etapa) que se ven. #}
+        <li><a class="dropdown-item" href="{% url 'leads:exportar_leads' %}?formato=xlsx{% if consulta %}&amp;{{ consulta }}{% endif %}">
+          <span class="d-block fw-semibold"><i class="bi bi-file-earmark-excel" aria-hidden="true"></i> Lo que estoy viendo · Excel</span>
           <span class="small text-body-secondary">{{ pagina.paginator.count }} lead{{ pagina.paginator.count|pluralize }} · pestaña y filtros actuales</span></a></li>
-        <li><a class="dropdown-item" href="{% url 'leads:exportar_leads' %}">
-          <span class="d-block fw-semibold">Todos los leads</span>
+        <li><a class="dropdown-item" href="{% url 'leads:exportar_leads' %}{% if consulta %}?{{ consulta }}{% endif %}">
+          <span class="d-block fw-semibold"><i class="bi bi-filetype-csv" aria-hidden="true"></i> Lo que estoy viendo · CSV</span>
+          <span class="small text-body-secondary">Para otros programas</span></a></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item" href="{% url 'leads:exportar_leads' %}?formato=xlsx">
+          <span class="d-block fw-semibold">Todos los leads · Excel</span>
           <span class="small text-body-secondary">{{ total_leads }} lead{{ total_leads|pluralize }} · sin filtros</span></a></li>
       </ul>
     </div>
@@ -79,6 +84,24 @@
             <label class="form-check-label small" for="f-varias">Llegaron por varios anuncios</label>
           </div>
         </div>
+        {# SCRUM-51 · Fecha de llegada y campaña #}
+        <div class="col-sm-6 col-lg-3">
+          <label class="form-label small mb-1" for="f-desde">Llegó desde</label>
+          <input id="f-desde" name="desde" type="date" value="{{ filtros.desde|default:'' }}" class="form-control form-control-sm" onchange="this.form.submit()">
+        </div>
+        <div class="col-sm-6 col-lg-3">
+          <label class="form-label small mb-1" for="f-hasta">Hasta</label>
+          <input id="f-hasta" name="hasta" type="date" value="{{ filtros.hasta|default:'' }}" class="form-control form-control-sm" onchange="this.form.submit()">
+        </div>
+        {% if campanas %}
+        <div class="col-sm-6 col-lg-3">
+          <label class="form-label small mb-1" for="f-campana">Campaña / anuncio</label>
+          <select id="f-campana" name="campana" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">Todas</option>
+            {% for a in campanas %}<option value="{{ a.pk }}" {% if filtros.campana == a.pk|stringformat:"s" %}selected{% endif %}>{% if a.pais %}{{ a.pais }} · {% endif %}{{ a.nombre_campana|default:a.titulo|default:a.clave|truncatechars:40 }}</option>{% endfor %}
+          </select>
+        </div>
+        {% endif %}
         {% if rumbo.es_supervisor %}
         <div class="col-sm-6 col-lg-3">
           <label class="form-label small mb-1" for="f-asesor">Asesor</label>
