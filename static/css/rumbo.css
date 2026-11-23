@@ -1256,3 +1256,10 @@ html[data-bs-theme="dark"] .pasos-recorrido li.vuelve { background: none; color:
 [data-bs-theme="dark"] .tipo-llamada-0 { color: #6fd3a5; }
 [data-bs-theme="dark"] .tipo-llamada-1 { color: #8db4f0; }
 [data-bs-theme="dark"] .tipo-llamada-2 { color: #f0c35c; }
+
+/* ══════════ SCRUM-34 · Objetivos táctiles de 44 px mínimo en el celular (llamar y registrar resultado) ══════════ */
+@media (max-width: 575.98px) {
+  a.btn[href^="tel:"], .botones-resultado .btn, .boton-siguiente {
+    min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: .35rem;
+  }
+}
