@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import include, path
 
+from core import api_callflow
 from core import views as core_views
 
 urlpatterns = [
@@ -16,6 +17,9 @@ urlpatterns = [
     path("sw.js", core_views.service_worker, name="service_worker"),
     path("manifest.webmanifest", core_views.manifest, name="manifest"),
     path("push/suscribir/", core_views.push_suscribir, name="push_suscribir"),
+    # SCRUM-57 · API de solo lectura para CALLFLOW (token Bearer)
+    path("api/callflow/v1/ventas/", api_callflow.ventas, name="api_callflow_ventas"),
+    path("api/callflow/v1/asesores/", api_callflow.asesores, name="api_callflow_asesores"),
     path("whatsapp/", include("whatsapp.urls")),
     path("leads/", include("leads.urls")),
     path("cuentas/", include("cuentas.urls")),

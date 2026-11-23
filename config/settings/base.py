@@ -142,6 +142,10 @@ EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
 EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Rumbo <no-responder@multivisa.ec>")
 
+# ── API para CALLFLOW (SCRUM-57) ──────────────────────────────────────────────────────
+# SHA-256 de los tokens válidos (python manage.py generar_token_callflow). Vacío = API cerrada.
+CALLFLOW_API_TOKENS_SHA256 = env.list("CALLFLOW_API_TOKENS_SHA256", default=[])
+
 # ── Monitoreo (SCRUM-41) ──────────────────────────────────────────────────────────────
 # Minutos sin mensajes de WhatsApp, en horario de atención, para avisar a los administradores.
 WEBHOOK_MINUTOS_SILENCIO = env.int("WEBHOOK_MINUTOS_SILENCIO", default=180)

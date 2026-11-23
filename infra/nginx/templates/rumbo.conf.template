@@ -64,6 +64,23 @@ server {
         include /etc/nginx/templates/proxy_comun.inc;
     }
 
+    # SCRUM-35: el login de Rumbo también se frena por IP (además del bloqueo por usuario en la base).
+    # burst 20: los 10 asesores de la oficina pueden entrar a la vez desde la misma IP pública.
+    location = /cuentas/ingresar/ {
+        limit_req zone=login burst=20 nodelay;
+        proxy_pass $app;
+        include /etc/nginx/templates/proxy_comun.inc;
+    }
+
+    # SCRUM-57: API de solo lectura para CALLFLOW (token Bearer). Sin cuerpo: solo GET.
+    location /api/callflow/ {
+        limit_req zone=api burst=20 nodelay;
+        limit_except GET { deny all; }
+        client_max_body_size 1k;
+        proxy_pass $app;
+        include /etc/nginx/templates/proxy_comun.inc;
+    }
+
     location / {
         limit_req zone=general burst=40 nodelay;
         proxy_pass $app;
