@@ -156,13 +156,29 @@
                     {% if not ventana_abierta %}disabled{% endif %}></textarea>
           <button type="submit" class="btn btn-success" {% if not ventana_abierta %}disabled{% endif %} aria-label="Enviar por WhatsApp"><i class="bi bi-send" aria-hidden="true"></i></button>
         </div>
+        {# SCRUM-59 · El cliente ve el número asignado al asesor. #}
+        <p class="small text-body-secondary mt-1 mb-0">{% if numero_envio %}<i class="bi bi-phone" aria-hidden="true"></i> Sale por el número {{ numero_envio }}{% else %}<i class="bi bi-exclamation-triangle text-warning" aria-hidden="true"></i> El asesor no tiene número de WhatsApp asignado{% endif %}</p>
       </form>
+      {# SCRUM-55 · Plantillas aprobadas por Meta: sirven también fuera de las 24 h (cada envío tiene costo). #}
+      {% if plantillas %}
+      <form class="mb-3" method="post" action="{% url 'leads:enviar_plantilla' lead.pk %}"
+            hx-post="{% url 'leads:enviar_plantilla' lead.pk %}" hx-target="#ficha" hx-swap="innerHTML" hx-disabled-elt="find button"
+            hx-confirm="¿Enviar esta plantilla al cliente? Fuera de las 24 h, Meta la cobra.">
+        {% csrf_token %}
+        <div class="small fw-semibold mb-1">Plantillas de seguimiento</div>
+        <div class="respuestas-rapidas">
+          {% for p in plantillas %}<button type="submit" name="plantilla" value="{{ p.nombre }}" class="chip-respuesta"><i class="bi bi-file-earmark-text" aria-hidden="true"></i> {{ p.titulo }}</button>{% endfor %}
+        </div>
+      </form>
+      {% elif not ventana_abierta %}
+      <p class="small text-body-secondary mb-3">Para escribirle ahora hace falta una plantilla aprobada por Meta. Las plantillas de seguimiento están desactivadas: el administrador las activa en Configuración → WhatsApp.</p>
+      {% endif %}
       {% endif %}
       <div class="chat-lead">
         {% for m in mensajes %}
           <div class="burbuja {% if m.direccion == 'entrante' %}burbuja-cliente{% elif m.payload.automatica %}burbuja-multivisa burbuja-automatica{% else %}burbuja-multivisa{% endif %}">
             <div style="white-space: pre-line">{% if m.cuerpo %}{{ m.cuerpo }}{% else %}<em>[{{ m.tipo }}]</em>{% endif %}</div>
-            <div class="hora-burbuja">{% if m.direccion == "entrante" %}Cliente{% elif m.payload.automatica %}<i class="bi bi-robot" aria-hidden="true"></i> Automático · {% if m.payload.aviso_no_contesta %}no contesta{% else %}respuesta al primer mensaje{% endif %}{% else %}Multivisa{% endif %} · {{ m.ocurrido_en|date:"d/m H:i" }}</div>
+            <div class="hora-burbuja">{% if m.direccion == "entrante" %}Cliente{% elif m.payload.automatica %}<i class="bi bi-robot" aria-hidden="true"></i> Automático · {% if m.payload.aviso_no_contesta %}no contesta{% else %}respuesta al primer mensaje{% endif %}{% elif m.payload.seguimiento %}<i class="bi bi-file-earmark-text" aria-hidden="true"></i> Plantilla · Multivisa{% else %}Multivisa{% endif %} · {{ m.ocurrido_en|date:"d/m H:i" }}</div>
           </div>
         {% empty %}<p class="text-body-secondary small mb-0">Sin mensajes.</p>{% endfor %}
       </div>

@@ -133,6 +133,27 @@
         </div>
       </div>
 
+      {# SCRUM-55 · Plantillas de seguimiento (RF-27) #}
+      <div class="tarjeta-rumbo mt-3">
+        <h2 class="titulo-tarjeta">Plantillas de seguimiento</h2>
+        <p class="small text-body-secondary">Mensajes aprobados por Meta (lista de documentos, recordatorios) que el asesor envía desde la ficha, también cuando el cliente no escribe hace más de 24 h.
+          Créelas primero en el Administrador de WhatsApp de Meta y copie aquí su nombre exacto.</p>
+        <div class="form-check form-switch mb-1">{{ form.pl_activo }}
+          <label class="form-check-label" for="{{ form.pl_activo.id_for_label }}">{{ form.pl_activo.label }}</label></div>
+        <div class="alert alert-warning py-2 small"><i class="bi bi-cash-coin" aria-hidden="true"></i> {{ form.pl_activo.help_text }}</div>
+        <div class="row g-3">
+          {% for nombre, titulo, idioma, variables in form.plantillas_seguimiento %}
+          <div class="col-lg-4"><div class="respuesta-config">
+            {% include "leads/_campo.html" with campo=nombre %}
+            {% include "leads/_campo.html" with campo=titulo %}
+            {% include "leads/_campo.html" with campo=idioma %}
+            <div class="form-label small mb-1">{{ variables.label }}</div>
+            <div class="opciones-especialidad">{% for o in variables %}<label class="dia-semana">{{ o.tag }} <span>{{ o.choice_label }}</span></label>{% endfor %}</div>
+          </div></div>
+          {% endfor %}
+        </div>
+      </div>
+
       <div class="tarjeta-rumbo mt-3">
         <h2 class="titulo-tarjeta">Respuestas rápidas del asesor</h2>
         <p class="small text-body-secondary">Botones para responder por WhatsApp desde la ficha. {nombre}, {asesor}, {documentos} (lo que falta) y {cita} se completan solos.</p>

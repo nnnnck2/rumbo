@@ -29,5 +29,6 @@ urlpatterns = [
     path("<int:pk>/nota/", views.agregar_nota, name="agregar_nota"),
     path("<int:pk>/reasignar/", views.reasignar, name="reasignar"),
     path("<int:pk>/whatsapp/", views.responder_whatsapp, name="responder_whatsapp"),
+    path("<int:pk>/plantilla/", views.enviar_plantilla, name="enviar_plantilla"),          # SCRUM-55
     path("<int:pk>/documento/", views.marcar_documento, name="marcar_documento"),
 ]

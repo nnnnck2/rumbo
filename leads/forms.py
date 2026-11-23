@@ -266,6 +266,10 @@ class ConfiguracionForm(Bootstrap, forms.Form):
     rec_plantilla = forms.CharField(max_length=512, required=False, label="Plantilla de Meta (más de 24 h)",
                                     help_text="Con dos variables: {{1}} nombre y {{2}} fecha de la cita.")
     rec_idioma = forms.CharField(max_length=5, required=False, initial="es", label="Idioma de la plantilla")
+    # SCRUM-55 · Plantillas de seguimiento (aprobadas por Meta; cada envío fuera de 24 h tiene costo)
+    pl_activo = forms.BooleanField(required=False, label="Permitir a los asesores enviar plantillas de seguimiento",
+                                   help_text="Actívelo solo después de confirmar las tarifas de Meta: cada plantilla enviada "
+                                             "fuera de la ventana de 24 h se cobra.")
     # SCRUM-121 · Reporte semanal · SCRUM-130 · Comisión estimada
     reporte_destinatarios = forms.CharField(max_length=2000, required=False, label="Enviar el reporte de los lunes a",
                                             widget=forms.Textarea(attrs={"rows": 2, "placeholder": "gerencia@multivisa.ec, …"}),
@@ -291,6 +295,9 @@ class ConfiguracionForm(Bootstrap, forms.Form):
     # SCRUM-96 · Un guion de llamada por tipo de visa (más el general). SCRUM-117 · Lo mismo para documentos.
     TIPOS_GUION = ["General", *TIPOS_VISA]
     RESPUESTAS = 4             # SCRUM-114 · espacios para respuestas rápidas
+    PLANTILLAS = 3             # SCRUM-55 · espacios para plantillas de seguimiento
+    VARIABLES_PLANTILLA = [("nombre", "Nombre"), ("asesor", "Asesor"), ("documentos", "Documentos que faltan"),
+                           ("cita", "Fecha de la cita")]
     # SCRUM-111 · Campos de cada pestaña (para abrir la que tiene errores).
     PESTANAS = {
         "horario": ["hora_inicio", "hora_fin", "dias"],
@@ -299,7 +306,8 @@ class ConfiguracionForm(Bootstrap, forms.Form):
         "whatsapp": ["texto_bienvenida", "texto_fuera_horario", "texto_privacidad", "aviso_activo", "aviso_texto",
                      "aviso_plantilla", "aviso_idioma", "aviso_horas", "bot_activo", "bot_texto_visa", "bot_texto_pais",
                      "bot_texto_gracias", "rec_activo", "rec_texto", "rec_plantilla", "rec_idioma",
-                     *[f"rr_{c}_{i}" for i in range(4) for c in ("titulo", "texto")]],
+                     *[f"rr_{c}_{i}" for i in range(4) for c in ("titulo", "texto")],
+                     "pl_activo", *[f"pl_{c}_{i}" for i in range(3) for c in ("nombre", "titulo", "idioma", "variables")]],
         "metas": ["meta_llamadas", "meta_citas", "meta_ventas", "comision_tipo", "comision_valor"],
         "guiones": [f"guion_{i}" for i in range(len(TIPOS_GUION))] + [f"doc_{i}" for i in range(len(TIPOS_GUION))],
         "reportes": ["reporte_destinatarios"],
@@ -326,7 +334,20 @@ class ConfiguracionForm(Bootstrap, forms.Form):
                 max_length=1000, required=False, label="Mensaje",
                 widget=forms.Textarea(attrs={"rows": 2, "class": "form-control",
                                              "placeholder": "{nombre}, {asesor}, {documentos} y {cita} se completan solos"}))
-        for campo in ("bot_activo", "rec_activo", "lead_manual_asignar"):
+        for i in range(self.PLANTILLAS):                                                  # SCRUM-55
+            self.fields[f"pl_nombre_{i}"] = forms.RegexField(
+                regex=r"^[a-z0-9_]*$", max_length=512, required=False, label="Nombre en Meta",
+                error_messages={"invalid": "Solo minúsculas, números y _ (como en el Administrador de WhatsApp)."},
+                widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "lista_documentos"}))
+            self.fields[f"pl_titulo_{i}"] = forms.CharField(max_length=80, required=False, label="Botón en la ficha",
+                                                            widget=forms.TextInput(attrs={"class": "form-control"}))
+            self.fields[f"pl_idioma_{i}"] = forms.RegexField(regex=r"^[a-z]{2}(_[A-Z]{2})?$", max_length=5, required=False,
+                                                             initial="es", label="Idioma",
+                                                             widget=forms.TextInput(attrs={"class": "form-control"}))
+            self.fields[f"pl_variables_{i}"] = forms.MultipleChoiceField(
+                choices=self.VARIABLES_PLANTILLA, required=False, label="Variables {{1}}, {{2}}… en este orden",
+                widget=forms.CheckboxSelectMultiple)
+        for campo in ("bot_activo", "rec_activo", "lead_manual_asignar", "pl_activo"):
             self.fields[campo].widget.attrs["class"] = "form-check-input"
 
     @property
@@ -336,6 +357,11 @@ class ConfiguracionForm(Bootstrap, forms.Form):
     @property
     def campos_documentos(self):
         return [self[f"doc_{i}"] for i in range(len(self.TIPOS_GUION))]
+
+    @property
+    def plantillas_seguimiento(self):
+        return [(self[f"pl_nombre_{i}"], self[f"pl_titulo_{i}"], self[f"pl_idioma_{i}"], self[f"pl_variables_{i}"])
+                for i in range(self.PLANTILLAS)]
 
     @property
     def respuestas_rapidas(self):
@@ -376,6 +402,11 @@ class ConfiguracionForm(Bootstrap, forms.Form):
         rec = config.get("recordatorio_cita") or {}
         inicial.update({"rec_activo": rec.get("activo", True), "rec_texto": rec.get("texto", ""),
                         "rec_plantilla": rec.get("plantilla", ""), "rec_idioma": rec.get("idioma", "es")})
+        pl = config.get("plantillas_seguimiento") or {}
+        inicial["pl_activo"] = bool(pl.get("activo"))
+        for i, p in enumerate((pl.get("plantillas") or [])[:cls.PLANTILLAS]):
+            inicial.update({f"pl_nombre_{i}": p.get("nombre", ""), f"pl_titulo_{i}": p.get("titulo", ""),
+                            f"pl_idioma_{i}": p.get("idioma", "es"), f"pl_variables_{i}": p.get("variables", [])})
         inicial["reporte_destinatarios"] = ", ".join((config.get("reporte_semanal") or {}).get("destinatarios", []))
         comision = config.get("comision") or {}
         inicial.update({"comision_tipo": comision.get("tipo", "porcentaje"), "comision_valor": comision.get("valor", 5)})
@@ -414,6 +445,9 @@ class ConfiguracionForm(Bootstrap, forms.Form):
 
     def clean(self):
         datos = super().clean()
+        for i in range(self.PLANTILLAS):                                    # SCRUM-55: nombre y botón van juntos
+            if bool((datos.get(f"pl_nombre_{i}") or "").strip()) != bool((datos.get(f"pl_titulo_{i}") or "").strip()):
+                self.add_error(f"pl_titulo_{i}", "Complete el nombre en Meta y el texto del botón (o deje los dos vacíos).")
         inicio, fin = datos.get("hora_inicio"), datos.get("hora_fin")
         if inicio and fin and inicio >= fin:
             self.add_error("hora_fin", "Debe ser después de la hora de apertura.")
@@ -456,6 +490,12 @@ class ConfiguracionForm(Bootstrap, forms.Form):
             "texto": (d.get("rec_texto") or "").strip() or "Hola {nombre}, te recordamos tu cita con Multivisa el {cita}.",
             "plantilla": d.get("rec_plantilla") or "", "idioma": (d.get("rec_idioma") or "es").strip() or "es"}
         cambios["reporte_semanal"] = {"destinatarios": d.get("reporte_destinatarios") or []}
+        orden = [v for v, _ in self.VARIABLES_PLANTILLA]
+        cambios["plantillas_seguimiento"] = {"activo": bool(d.get("pl_activo")), "plantillas": [
+            {"nombre": d[f"pl_nombre_{i}"].strip(), "titulo": d[f"pl_titulo_{i}"].strip(),
+             "idioma": (d.get(f"pl_idioma_{i}") or "es").strip() or "es",
+             "variables": sorted(d.get(f"pl_variables_{i}") or [], key=orden.index)}
+            for i in range(self.PLANTILLAS) if (d.get(f"pl_nombre_{i}") or "").strip()]}
         if d.get("comision_tipo"):
             cambios["comision"] = {"tipo": d["comision_tipo"], "valor": float(d.get("comision_valor") or 0)}
         return cambios

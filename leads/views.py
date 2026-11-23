@@ -123,6 +123,9 @@ def _extras_ficha(request, lead, config):
         "pedir_documentos": envio_asesor.completar("Hola {nombre}, para avanzar con su trámite necesitamos: {documentos}.",
                                                    lead, asesor, faltan) if faltan else "",
         "respuestas_rapidas": rapidas, "ventana_abierta": abierta, "ventana_cierra": cierra,
+        # SCRUM-55: plantillas de seguimiento · SCRUM-59: número por el que sale el mensaje
+        "plantillas": envio_asesor.plantillas_disponibles(config.get("plantillas_seguimiento")),
+        "numero_envio": lead.asesor.numero_whatsapp.telefono if lead.asesor and lead.asesor.numero_whatsapp else None,
         "puede_escribir": bool(puede and lead.estado_asignacion != EstadoAsignacion.CERRADO or puede and abierta),
         "cita": cita,
         "prioridad": prioridad, "prioridad_alta": prioridad >= operacion.PRIORIDAD_ALTA,
@@ -383,6 +386,31 @@ def responder_whatsapp(request, pk):
         messages.error(request, e.mensaje)
     else:
         messages.success(request, "Mensaje enviado por WhatsApp.")
+    return _responder_ficha(request, _lead(pk) or lead)
+
+
+@require_POST
+@con_rol(*TODOS)
+def enviar_plantilla(request, pk):
+    """SCRUM-55 · Plantilla aprobada por Meta (lista de documentos, recordatorio…), también fuera de las 24 h."""
+    from whatsapp import envio_asesor
+
+    lead = _lead(pk)
+    if lead is None:
+        raise PermissionDenied
+    if not (request.rumbo.es_supervisor or lead.asesor_id == request.rumbo.asesor_id):
+        raise PermissionDenied
+    config = servicios.leer_configuracion()
+    faltan = [d["nombre"] for d in operacion.documentos_de(lead, config.get("documentos_por_visa")) if d["estado"] != "recibido"]
+    cita = operacion.cita_de(lead)
+    try:
+        envio_asesor.enviar_plantilla(lead, request.POST.get("plantilla", ""), config.get("plantillas_seguimiento"),
+                                      _nombre_usuario(request), faltan,
+                                      cita and timezone.localtime(cita).strftime("%d/%m a las %H:%M"))
+    except envio_asesor.NoEnviado as e:
+        messages.error(request, e.mensaje)
+    else:
+        messages.success(request, "Plantilla enviada por WhatsApp.")
     return _responder_ficha(request, _lead(pk) or lead)
 
 
