@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django import forms
 from django.contrib.auth import get_user_model, password_validation
 from django.contrib.auth.forms import AuthenticationForm
@@ -6,6 +8,8 @@ from leads.forms import Bootstrap
 from leads.models import Asesor, NumeroWhatsapp
 
 ROLES = [("asesor", "Asesor"), ("supervisor", "Supervisor"), ("admin", "Administrador")]
+PESOS_REPARTO = [(Decimal("1.00"), "100 % · normal"), (Decimal("0.75"), "75 %"), (Decimal("0.50"), "50 % · asesor nuevo"),
+                 (Decimal("0.25"), "25 %")]
 
 
 class LoginForm(Bootstrap, AuthenticationForm):
@@ -42,6 +46,14 @@ class UsuarioForm(Bootstrap, forms.Form):
                                              help_text="Solo asesores: número desde el que escribe a sus clientes.")
     codigo_callflow = forms.CharField(max_length=40, required=False, label="Código CALLFLOW",
                                       help_text="Solo asesores: código de empleado para comisiones.")
+    # SCRUM-54 · carga del asesor en el reparto
+    max_pendientes = forms.IntegerField(required=False, min_value=1, max_value=200, label="Máximo de clientes por llamar",
+                                        help_text="Al llegar a este número deja de recibir leads nuevos hasta llamar. "
+                                                  "Vacío = sin límite.")
+    peso_reparto = forms.TypedChoiceField(choices=PESOS_REPARTO, coerce=Decimal, initial=Decimal("1.00"), required=False,
+                                          empty_value=Decimal("1.00"),
+                                          label="Parte del reparto",
+                                          help_text="Con 50 % recibe la mitad de leads que los demás (p. ej. asesores nuevos).")
     # SCRUM-118 · el reparto prefiere al especialista en el país o tipo de visa del cliente
     especialidad_paises = forms.MultipleChoiceField(required=False, label="Países que domina",
                                                     widget=forms.CheckboxSelectMultiple)
@@ -109,3 +121,8 @@ class UsuarioForm(Bootstrap, forms.Form):
             "numero_whatsapp_id": d["numero_whatsapp"].pk if es_asesor and d.get("numero_whatsapp") else None,
             "codigo_callflow": d["codigo_callflow"] if es_asesor else None,
         }
+
+    def datos_carga(self):
+        """SCRUM-54 · (max_pendientes, peso_reparto) para rumbo.guardar_carga_asesor."""
+        d = self.cleaned_data
+        return d.get("max_pendientes"), d.get("peso_reparto") or Decimal("1.00")

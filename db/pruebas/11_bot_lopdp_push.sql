@@ -5,7 +5,7 @@ CREATE FUNCTION prueba.dueno(p_tel text) RETURNS bigint
 LANGUAGE sql STABLE SECURITY DEFINER AS $$
     SELECT a.usuario_id FROM rumbo.lead l JOIN rumbo.asesor a ON a.id = l.asesor_id WHERE l.telefono = p_tel $$;
 CREATE FUNCTION prueba.todos_disponibles_sin_turno() RETURNS void
-LANGUAGE sql SECURITY DEFINER AS $$ UPDATE rumbo.asesor SET ultimo_lead_en = NULL $$;
+LANGUAGE sql SECURITY DEFINER AS $$ UPDATE rumbo.asesor SET ultimo_lead_en = NULL, reparto_pase = 0 $$;   -- 022: y el pase
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA prueba TO PUBLIC;
 
 SET ROLE rumbo_app;

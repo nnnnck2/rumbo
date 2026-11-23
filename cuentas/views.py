@@ -1,5 +1,6 @@
 """Login (RF-30), gestión de usuarios (admin) y estado de los asesores (RF-11)."""
 import logging
+from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model, update_session_auth_hash
@@ -104,7 +105,12 @@ def usuario_nuevo(request):
     form = UsuarioForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         try:
-            servicios.crear_usuario(username=form.cleaned_data["username"], **form.datos_servicio())
+            user = servicios.crear_usuario(username=form.cleaned_data["username"], **form.datos_servicio())
+            asesor = Asesor.objects.filter(usuario_id=user.pk).first()
+            if asesor is not None:                                                   # SCRUM-54 y SCRUM-118
+                servicios.guardar_carga(asesor.pk, *form.datos_carga())
+                servicios.guardar_especialidades(asesor.pk, form.cleaned_data.get("especialidad_paises") or [],
+                                                 form.cleaned_data.get("especialidad_visas") or [])
         except ErrorNegocio as e:
             messages.error(request, e.mensaje)
         else:
@@ -130,6 +136,8 @@ def usuario_editar(request, pk):
         "codigo_callflow": asesor.codigo_callflow if asesor else "",
         "especialidad_paises": (asesor.preferencias or {}).get("paises", []) if asesor else [],
         "especialidad_visas": (asesor.preferencias or {}).get("visas", []) if asesor else [],
+        "max_pendientes": asesor.max_pendientes if asesor else None,                   # SCRUM-54
+        "peso_reparto": asesor.peso_reparto if asesor else Decimal("1.00"),
     }
     form = UsuarioForm(request.POST or None, usuario=user, initial=inicial)
     if perfil and perfil.rol == "asesor":
@@ -147,6 +155,7 @@ def usuario_editar(request, pk):
             if asesor is not None:                                   # SCRUM-118
                 servicios.guardar_especialidades(asesor.pk, form.cleaned_data.get("especialidad_paises") or [],
                                                  form.cleaned_data.get("especialidad_visas") or [])
+                servicios.guardar_carga(asesor.pk, *form.datos_carga())             # SCRUM-54
             if datos["password"] and user.pk == request.user.pk:
                 update_session_auth_hash(request, user)
             seguridad.info("Usuario modificado · %s por usuario_id=%s (rol=%s activo=%s clave_cambiada=%s)",

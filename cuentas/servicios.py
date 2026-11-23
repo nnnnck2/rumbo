@@ -47,13 +47,17 @@ def asesores_con_carga():
     with connection.cursor() as cursor:
         cursor.execute(
             """SELECT a.id, u.nombre, a.estado::text, a.estado_desde, n.telefono,
-                      count(l.id) FILTER (WHERE l.estado_asignacion = 'asignado') AS abiertos
+                      count(l.id) FILTER (WHERE l.estado_asignacion = 'asignado') AS abiertos,
+                      -- SCRUM-54: por llamar ahora frente a su límite, y su parte del reparto
+                      count(l.id) FILTER (WHERE l.estado_asignacion = 'asignado'
+                                            AND (l.proxima_accion_en IS NULL OR l.proxima_accion_en <= now())) AS pendientes,
+                      a.max_pendientes, a.peso_reparto
                FROM rumbo.asesor a
                JOIN rumbo.usuario u ON u.id = a.usuario_id
                LEFT JOIN rumbo.numero_whatsapp n ON n.id = a.numero_whatsapp_id
                LEFT JOIN rumbo.lead l ON l.asesor_id = a.id
                WHERE u.activo
-               GROUP BY a.id, u.nombre, a.estado, a.estado_desde, n.telefono
+               GROUP BY a.id, u.nombre, a.estado, a.estado_desde, n.telefono, a.max_pendientes, a.peso_reparto
                ORDER BY (a.estado <> 'disponible'), u.nombre""")
         columnas = [c.name for c in cursor.description]
         return [dict(zip(columnas, fila)) for fila in cursor.fetchall()]
@@ -124,6 +128,11 @@ def actualizar_usuario(user, *, nombre, rol, activo, password=None, numero_whats
         if password:
             user.set_password(password)
         user.save()
+
+
+def guardar_carga(asesor_id, max_pendientes, peso):
+    """SCRUM-54 · Límite de leads por llamar y parte del reparto del asesor. Solo admin (lo valida la base)."""
+    _sql("SELECT rumbo.guardar_carga_asesor(%s, %s::smallint, %s)", [asesor_id, max_pendientes, peso])
 
 
 def guardar_especialidades(asesor_id, paises, visas):

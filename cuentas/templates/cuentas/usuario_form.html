@@ -26,6 +26,9 @@
       <div class="row g-3">
         <div class="col-md-6">{% include "leads/_campo.html" with campo=form.numero_whatsapp %}</div>
         <div class="col-md-6">{% include "leads/_campo.html" with campo=form.codigo_callflow %}</div>
+        {# SCRUM-54 · Carga del asesor en el reparto. #}
+        <div class="col-md-6">{% include "leads/_campo.html" with campo=form.max_pendientes %}</div>
+        <div class="col-md-6">{% include "leads/_campo.html" with campo=form.peso_reparto %}</div>
         {# SCRUM-118 · El reparto prefiere al especialista en el país o tipo de visa del cliente. #}
         <div class="col-md-6"><div class="form-label small mb-1">{{ form.especialidad_paises.label }}</div>
           <div class="opciones-especialidad">{% for o in form.especialidad_paises %}<label class="dia-semana">{{ o.tag }} <span>{{ o.choice_label }}</span></label>{% endfor %}</div></div>

@@ -153,6 +153,9 @@ class Asesor(ModeloRumbo):
     estado_desde = models.DateTimeField()
     ultimo_lead_en = models.DateTimeField(null=True)
     preferencias = models.JSONField()
+    max_pendientes = models.SmallIntegerField(null=True)                         # 022 · SCRUM-54
+    peso_reparto = models.DecimalField(max_digits=3, decimal_places=2)            # 022 · SCRUM-54
+    reparto_pase = models.DecimalField(max_digits=14, decimal_places=4)           # 022 · lo maneja _repartir
     version = models.IntegerField()
     creado_en = models.DateTimeField()
     actualizado_en = models.DateTimeField()

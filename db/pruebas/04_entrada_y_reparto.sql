@@ -45,7 +45,7 @@ SELECT prueba.debe_fallar($$SELECT * FROM prueba.msg('wamid.bad', '0991234567', 
 -- ───────────── RF-10 · Reparto rotativo entre asesores en turno (SCRUM-24) ─────────────
 -- Empezamos el turno desde cero para poder predecir el orden.
 RESET ROLE; SET ROLE rumbo_owner;
-UPDATE rumbo.asesor SET ultimo_lead_en = NULL;
+UPDATE rumbo.asesor SET ultimo_lead_en = NULL, reparto_pase = 0;   -- 022: también el pase del reparto ponderado
 SET ROLE rumbo_app;
 SELECT prueba.como(0);
 

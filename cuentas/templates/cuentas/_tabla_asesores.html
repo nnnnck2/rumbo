@@ -4,7 +4,7 @@
   {% if filas %}
   <div class="table-responsive">
     <table class="table align-middle mb-0 tabla-apilable">
-      <thead><tr><th>Asesor</th><th>Estado</th><th>Desde</th><th class="text-end">Leads abiertos</th><th>Número</th><th>Cambiar</th></tr></thead>
+      <thead><tr><th>Asesor</th><th>Estado</th><th>Desde</th><th class="text-end">Leads abiertos</th><th class="text-end" title="Por llamar ahora / máximo permitido (SCRUM-54)">Por llamar</th><th class="text-end">Reparto</th><th>Número</th><th>Cambiar</th></tr></thead>
       <tbody>
       {% for f in filas %}
         <tr>
@@ -12,6 +12,8 @@
           <td><span class="badge estado-{{ f.estado }}">{% if f.estado == 'disponible' %}Disponible{% elif f.estado == 'pausa' %}En pausa{% elif f.estado == 'ocupado' %}Ocupado{% else %}Fuera de turno{% endif %}</span></td>
           <td class="small text-body-secondary" title="{{ f.estado_desde }}">hace {{ f.estado_desde|timesince }}</td>
           <td class="text-end">{{ f.abiertos }}</td>
+          <td class="text-end" data-etiqueta="Por llamar">{{ f.pendientes }}{% if f.max_pendientes %} / {{ f.max_pendientes }}{% if f.pendientes >= f.max_pendientes %} <span class="badge text-bg-warning" title="No recibe leads nuevos hasta llamar">lleno</span>{% endif %}{% endif %}</td>
+          <td class="text-end small" data-etiqueta="Reparto">{% widthratio f.peso_reparto 1 100 %} %</td>
           <td class="small">{{ f.telefono|default:"—" }}</td>
           <td>
             <form method="post" action="{% url 'cuentas:asesores' %}" hx-post="{% url 'cuentas:asesores' %}"
