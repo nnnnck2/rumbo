@@ -237,6 +237,10 @@ class ConfiguracionForm(Bootstrap, forms.Form):
     max_intentos_por_lead = forms.IntegerField(min_value=1, max_value=30, label="Tope de intentos por cliente",
                                                help_text="Intentos sin contacto sumando todos los asesores. Al llegar, "
                                                          "el cliente se descarta solo (se reabre si vuelve a escribir).")
+    # SCRUM-53 · Leads registrados a mano
+    lead_manual_asignar = forms.BooleanField(
+        required=False, label="El cliente que registra un asesor queda asignado a ese asesor",
+        help_text="Desmarcado: entra al reparto como un lead de WhatsApp. Lo que registra un supervisor siempre entra al reparto.")
     # SCRUM-88 · WhatsApp cuando el cliente no contesta
     aviso_activo = forms.BooleanField(required=False, label="Enviar WhatsApp cuando el cliente no contesta")
     aviso_texto = forms.CharField(max_length=1024, label="Texto del aviso",
@@ -291,7 +295,7 @@ class ConfiguracionForm(Bootstrap, forms.Form):
     PESTANAS = {
         "horario": ["hora_inicio", "hora_fin", "dias"],
         "reparto": ["max_intentos_por_asesor", "minutos_primera_llamada", "minutos_entre_reintentos",
-                    "minutos_alerta_supervisor", "max_intentos_por_lead"],
+                    "minutos_alerta_supervisor", "max_intentos_por_lead", "lead_manual_asignar"],
         "whatsapp": ["texto_bienvenida", "texto_fuera_horario", "texto_privacidad", "aviso_activo", "aviso_texto",
                      "aviso_plantilla", "aviso_idioma", "aviso_horas", "bot_activo", "bot_texto_visa", "bot_texto_pais",
                      "bot_texto_gracias", "rec_activo", "rec_texto", "rec_plantilla", "rec_idioma",
@@ -322,7 +326,7 @@ class ConfiguracionForm(Bootstrap, forms.Form):
                 max_length=1000, required=False, label="Mensaje",
                 widget=forms.Textarea(attrs={"rows": 2, "class": "form-control",
                                              "placeholder": "{nombre}, {asesor}, {documentos} y {cita} se completan solos"}))
-        for campo in ("bot_activo", "rec_activo"):
+        for campo in ("bot_activo", "rec_activo", "lead_manual_asignar"):
             self.fields[campo].widget.attrs["class"] = "form-check-input"
 
     @property
@@ -351,6 +355,7 @@ class ConfiguracionForm(Bootstrap, forms.Form):
             if clave in config:
                 inicial[clave] = config[clave]
         inicial.setdefault("max_intentos_por_lead", 9)
+        inicial["lead_manual_asignar"] = (config.get("lead_manual") or {}).get("asignar_a_quien_registra", True)
         aviso = config.get("aviso_no_contesta") or {}
         inicial.update({"aviso_activo": aviso.get("activo", True), "aviso_texto": aviso.get("texto", ""),
                         "aviso_plantilla": aviso.get("plantilla", ""), "aviso_idioma": aviso.get("idioma", "es"),
@@ -429,6 +434,7 @@ class ConfiguracionForm(Bootstrap, forms.Form):
         if d.get("texto_privacidad", "").strip():
             cambios["texto_privacidad"] = d["texto_privacidad"].strip()
         cambios["max_intentos_por_lead"] = d["max_intentos_por_lead"]
+        cambios["lead_manual"] = {"asignar_a_quien_registra": bool(d.get("lead_manual_asignar"))}
         cambios["aviso_no_contesta"] = {"activo": bool(d.get("aviso_activo")), "texto": d["aviso_texto"].strip(),
                                         "plantilla": d.get("aviso_plantilla", ""), "idioma": d["aviso_idioma"],
                                         "horas_entre": d["aviso_horas"]}
@@ -453,3 +459,47 @@ class ConfiguracionForm(Bootstrap, forms.Form):
         if d.get("comision_tipo"):
             cambios["comision"] = {"tipo": d["comision_tipo"], "valor": float(d.get("comision_valor") or 0)}
         return cambios
+
+
+# ─────────────────────────────── SCRUM-53 · Registro manual de leads (RF-07) ───────────────────────────────
+
+CANALES_MANUALES = [("llamada", "Llamada entrante"), ("referido", "Referido"), ("visita", "Visita a la oficina"),
+                    ("otro", "Otro canal")]
+ORIGENES = {"whatsapp": "WhatsApp", "manual": "Registro manual", **dict(CANALES_MANUALES)}
+
+
+def normalizar_telefono(texto):
+    """Número escrito como lo dicta el cliente → E.164. Ecuador por defecto:
+    0991234567 → +593991234567 · 593991234567 → +593991234567 · +1 305 555 0100 → +13055550100."""
+    texto = (texto or "").strip()
+    digitos = re.sub(r"\D", "", texto)
+    if texto.startswith("+"):
+        numero = "+" + digitos
+    elif texto.startswith("00"):
+        numero = "+" + digitos[2:]
+    elif digitos.startswith("593"):
+        numero = "+" + digitos
+    elif digitos.startswith("0") and len(digitos) in (9, 10):          # celular (10) o fijo con código de área (9)
+        numero = "+593" + digitos[1:]
+    elif len(digitos) == 9 and digitos.startswith("9"):                # celular sin el 0
+        numero = "+593" + digitos
+    else:
+        numero = "+" + digitos
+    if not re.fullmatch(r"\+[1-9][0-9]{7,14}", numero):
+        raise forms.ValidationError("Número inválido. Escríbalo como 0991234567 o con el código del país (+1 305…).")
+    return numero
+
+
+class LeadManualForm(Bootstrap, forms.Form):
+    telefono = forms.CharField(max_length=30, label="Teléfono",
+                               help_text="Celular de Ecuador (0991234567) o con código de país (+1 305 555 0100).",
+                               widget=forms.TextInput(attrs={"inputmode": "tel", "autocomplete": "off"}))
+    nombre = forms.CharField(max_length=200, required=False, label="Nombre del cliente")
+    origen = forms.ChoiceField(choices=CANALES_MANUALES, label="¿Por dónde llegó?")
+    tipo_visa = forms.ChoiceField(choices=[("", "—")] + [(v, v) for v in TIPOS_VISA], required=False, label="Tipo de visa")
+    pais_interes = forms.ChoiceField(choices=[("", "—")] + [(p, p) for p in PAISES], required=False, label="País de interés")
+    nota = forms.CharField(max_length=4000, required=False, label="Nota",
+                           widget=forms.Textarea(attrs={"rows": 3, "placeholder": "Qué necesita, quién lo refirió…"}))
+
+    def clean_telefono(self):
+        return normalizar_telefono(self.cleaned_data["telefono"])

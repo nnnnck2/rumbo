@@ -677,3 +677,17 @@ def avance_total(metas):
         return None
     return {"pct": round(sum(m["pct"] for m in metas) / len(metas)), "cumplidas": all(m["cumplida"] for m in metas),
             "resumen": " · ".join(f"{m['hecho']}/{m['meta']} {m['nombre']}" for m in metas)}
+
+
+# ─────────────────────────────── SCRUM-53 · Registro manual (RF-07) ───────────────────────────────
+
+def registrar_lead_manual(telefono, nombre, origen, tipo_visa=None, pais=None, nota=None):
+    """Alta de un cliente que llegó por llamada, referido o visita. Devuelve (lead_id, nuevo, asesor_id):
+    si el número ya existía no crea nada y devuelve el existente (nuevo=False)."""
+    try:
+        with transaction.atomic(), connection.cursor() as cursor:
+            cursor.execute("SELECT * FROM rumbo.registrar_lead_manual(%s, %s, %s, %s, %s, %s)",
+                           [telefono, nombre or None, origen, tipo_visa or None, pais or None, nota or None])
+            return cursor.fetchone()
+    except DatabaseError as exc:
+        raise traducir(exc) from exc

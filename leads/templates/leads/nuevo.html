@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block titulo %}Registrar cliente{% endblock %}
+{% block contenido %}
+  <a href="{% url 'leads:lista' %}" class="enlace-volver"><i class="bi bi-arrow-left" aria-hidden="true"></i> Volver a la lista</a>
+  <div class="encabezado-pagina">
+    <div>
+      <h1 class="titulo-pagina">Registrar cliente</h1>
+      <p class="ayuda-pagina">Para clientes que llegan por llamada, referido o visita. Se gestionan igual que los de WhatsApp.
+        {% if rumbo.asesor_id %}Queda asignado a usted o entra al reparto, según la configuración.{% else %}Entra al reparto entre los asesores en turno.{% endif %}</p>
+    </div>
+  </div>
+  {% include "leads/_mensajes.html" %}
+  {% for e in form.non_field_errors %}<div class="alert alert-danger py-2">{{ e }}</div>{% endfor %}
+  <form method="post" class="tarjeta-rumbo row g-3 mx-0" style="max-width: 44rem" novalidate>
+    {% csrf_token %}
+    <div class="col-md-6">{% include "leads/_campo.html" with campo=form.telefono %}</div>
+    <div class="col-md-6">{% include "leads/_campo.html" with campo=form.nombre %}</div>
+    <div class="col-md-6">{% include "leads/_campo.html" with campo=form.origen %}</div>
+    <div class="col-md-6"></div>
+    <div class="col-md-6">{% include "leads/_campo.html" with campo=form.tipo_visa %}</div>
+    <div class="col-md-6">{% include "leads/_campo.html" with campo=form.pais_interes %}</div>
+    <div class="col-12">{% include "leads/_campo.html" with campo=form.nota %}</div>
+    <p class="col-12 small text-body-secondary mb-0"><i class="bi bi-shield-lock" aria-hidden="true"></i>
+      Cuéntele al cliente que sus datos se usan solo para asesorarlo con su visa (Ley de Protección de Datos Personales).</p>
+    <div class="col-12">
+      <button class="btn btn-primary btn-lg">Registrar</button>
+      <a class="btn btn-link" href="{% url 'leads:lista' %}">Cancelar</a>
+    </div>
+  </form>
+{% endblock %}

@@ -6,6 +6,9 @@
       <h1 class="titulo-pagina">{% if rumbo.es_supervisor %}Leads{% else %}Mis leads{% endif %}</h1>
       <p class="ayuda-pagina">{% if activa == "pendientes" %}Primero los clientes nuevos; después las llamadas agendadas y los reintentos que ya tocan. Se actualiza sola. Abra uno, llame y registre el resultado.{% else %}Toque un cliente para ver su ficha y registrar llamadas.{% endif %}</p>
     </div>
+    <div class="d-flex flex-wrap gap-2">
+    {# SCRUM-53 · Clientes que llegan por llamada, referido o visita. #}
+    <a class="btn btn-primary" href="{% url 'leads:nuevo' %}"><i class="bi bi-person-plus" aria-hidden="true"></i> Registrar cliente</a>
     {% if rumbo.es_supervisor %}
     {# SCRUM-93 · Descarga lo que se está viendo (pestaña, búsqueda y filtros). #}
     <div class="dropdown">
@@ -21,6 +24,7 @@
       </ul>
     </div>
     {% endif %}
+    </div>
   </div>
   {% include "leads/_mensajes.html" %}
   {% if mi_asesor and activa == "pendientes" and pagina.paginator.count %}

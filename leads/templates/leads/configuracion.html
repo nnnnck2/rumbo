@@ -51,6 +51,12 @@
           {% include "leads/_campo.html" with campo=form.minutos_entre_reintentos %}
           {% include "leads/_campo.html" with campo=form.minutos_alerta_supervisor %}
         </div>
+        {# SCRUM-53 · Clientes registrados a mano (llamada, referido, visita) #}
+        <div class="col-12">
+          <div class="form-check">{{ form.lead_manual_asignar }}
+            <label class="form-check-label" for="{{ form.lead_manual_asignar.id_for_label }}">{{ form.lead_manual_asignar.label }}</label>
+            <div class="form-text">{{ form.lead_manual_asignar.help_text }}</div></div>
+        </div>
       </div>
     </section>
 

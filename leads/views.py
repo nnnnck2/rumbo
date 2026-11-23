@@ -26,8 +26,8 @@ from django.views.decorators.http import require_http_methods, require_POST
 from cuentas.permisos import SUPERVISION, TODOS, con_rol
 
 from . import operacion, servicios, zonas
-from .forms import (PAISES, TIPOS_VISA, AgendarForm, ConfiguracionForm, DatosLeadForm, EtapaForm, IntentoForm,
-                    NotaForm, ReasignarForm, ReasignarLoteForm, asesores_activos)
+from .forms import (ORIGENES, PAISES, TIPOS_VISA, AgendarForm, ConfiguracionForm, DatosLeadForm, EtapaForm,
+                    IntentoForm, LeadManualForm, NotaForm, ReasignarForm, ReasignarLoteForm, asesores_activos)
 from .models import (Anuncio, Asesor, Asignacion, Etapa, EstadoAsignacion, Lead, LeadEtapaHistorial, LeadOrigen,
                      Usuario)
 
@@ -61,6 +61,7 @@ def _contexto_ficha(request, lead, intento_form=None, etapa_form=None, reasignar
         **_extras_ficha(request, lead, config),                                          # SCRUM-114 a 126
         "hoy": timezone.localdate(),
         "ahora": timezone.now(),                                                          # SCRUM-29
+        "origen_texto": ORIGENES.get(lead.origen, lead.origen),                           # SCRUM-53
         **_modo_siguiente(request),
         "datos_form": (datos_form or DatosLeadForm(initial={"version": lead.version, "tipo_visa": lead.tipo_visa,
                                                             "pais_interes": lead.pais_interes,
@@ -327,6 +328,43 @@ def siguiente(request):
                          f"Terminó la ronda. Quedan {omitidos} cliente{'s' if omitidos != 1 else ''} que saltó.")
         return redirect("inicio")
     return redirect(f"{reverse('leads:ficha', args=[lead.pk])}?siguiente=1")
+
+
+# ─────────────────────────────── SCRUM-53 · Registro manual de leads (RF-07) ───────────────────────────────
+
+@require_http_methods(["GET", "POST"])
+@con_rol(*TODOS)
+def lead_nuevo(request):
+    """Cliente que llegó por llamada, referido o visita: se gestiona igual que uno de WhatsApp."""
+    form = LeadManualForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        d = form.cleaned_data
+        try:
+            lead_id, nuevo, asesor_id = servicios.registrar_lead_manual(
+                d["telefono"], d["nombre"].strip(), d["origen"], d["tipo_visa"], d["pais_interes"], d["nota"].strip())
+        except servicios.ErrorNegocio as e:
+            messages.error(request, e.mensaje)
+        else:
+            lead = _lead(lead_id)                  # RLS: None si lo atiende otro asesor
+            if not nuevo:
+                if lead is None:
+                    form.add_error("telefono", "Ese número ya está registrado y lo atiende otro asesor. "
+                                               "Si necesita gestionarlo, pídaselo al supervisor.")
+                else:
+                    messages.warning(request, f"Ese número ya estaba registrado: {nombre_cliente(lead)}. "
+                                              "No se creó otro; esta es su ficha.")
+                    return redirect("leads:ficha", lead.pk)
+            elif lead is not None and asesor_id and asesor_id == request.rumbo.asesor_id:
+                messages.success(request, f"Cliente registrado y asignado a usted: {nombre_cliente(lead)}.")
+                return redirect("leads:ficha", lead.pk)
+            elif lead is not None:
+                asesor = lead.asesor.usuario.nombre if lead.asesor else None
+                messages.success(request, f"Cliente registrado. {'Lo recibió ' + asesor if asesor else 'Quedó en cola hasta que haya un asesor en turno'}.")
+                return redirect("leads:ficha", lead.pk)
+            else:
+                messages.success(request, "Cliente registrado. Entró al reparto y lo recibió otro asesor.")
+                return redirect("leads:lista")
+    return render(request, "leads/nuevo.html", {"form": form, "rumbo": request.rumbo})
 
 
 # ─────────────────────────────── SCRUM-114 · Responder por WhatsApp ───────────────────────────────

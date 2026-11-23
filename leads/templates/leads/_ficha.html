@@ -87,6 +87,7 @@
         </ol>
       </details>
       {% endif %}
+    {% elif lead.origen != "whatsapp" %}<span class="origen-anuncio"><i class="bi bi-person-plus" aria-hidden="true"></i>{{ origen_texto }}</span>{# SCRUM-53 #}
     {% else %}<span class="text-body-secondary">WhatsApp directo</span>{% endif %}</dd></div>
   </dl>
 

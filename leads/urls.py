@@ -7,6 +7,7 @@ app_name = "leads"
 urlpatterns = [
     path("", views.lista, name="lista"),
     path("siguiente/", views.siguiente, name="siguiente"),
+    path("nuevo/", views.lead_nuevo, name="nuevo"),                      # SCRUM-53
     path("tablero/", views.tablero, name="tablero"),
     path("campanas/", views.campanas, name="campanas"),
     path("reasignar/", views.reasignar_lote, name="reasignar_lote"),

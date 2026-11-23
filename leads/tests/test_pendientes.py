@@ -47,3 +47,39 @@ class FichaClicParaLlamarTests(SimpleTestCase):
             ficha = f.read()
         self.assertIn('href="tel:{{ lead.telefono }}"', ficha)
         self.assertIn("Etapa · próxima acción", ficha)
+
+
+class TelefonoManualTests(SimpleTestCase):
+    """SCRUM-53 · Número dictado por el cliente → E.164."""
+
+    def test_formatos_de_ecuador(self):
+        from leads.forms import normalizar_telefono
+
+        for texto in ("0991234567", "099 123 4567", "991234567", "593991234567", "+593 99 123 4567", "00593991234567"):
+            with self.subTest(texto=texto):
+                self.assertEqual(normalizar_telefono(texto), "+593991234567")
+
+    def test_fijo_y_extranjero(self):
+        from leads.forms import normalizar_telefono
+
+        self.assertEqual(normalizar_telefono("02 245 6789"), "+59322456789")
+        self.assertEqual(normalizar_telefono("+1 (305) 555-0100"), "+13055550100")
+
+    def test_invalidos(self):
+        from django.forms import ValidationError
+
+        from leads.forms import normalizar_telefono
+
+        for texto in ("", "12", "abc", "+0123456789"):
+            with self.subTest(texto=texto), self.assertRaises(ValidationError):
+                normalizar_telefono(texto)
+
+
+class LeadManualConfigTests(SimpleTestCase):
+    def test_desde_y_hacia_la_configuracion(self):
+        from leads.forms import ConfiguracionForm
+
+        self.assertTrue(ConfiguracionForm.desde_configuracion({})["lead_manual_asignar"])
+        self.assertFalse(ConfiguracionForm.desde_configuracion(
+            {"lead_manual": {"asignar_a_quien_registra": False}})["lead_manual_asignar"])
+        self.assertIn("lead_manual_asignar", ConfiguracionForm.PESTANAS["reparto"])
