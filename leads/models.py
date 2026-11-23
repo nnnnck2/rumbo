@@ -348,12 +348,13 @@ class Notificacion(ModeloRumbo):
         "lead_quitado": ("box-arrow-right", "gris"), "cliente_escribio": ("whatsapp", "verde"),
         "plazo_por_vencer": ("stopwatch", "amarillo"), "hora_de_llamar": ("telephone-forward", "azul"),
         "llamada_atrasada": ("alarm", "rojo"), "sin_gestionar_vuelta": ("arrow-repeat", "rojo"),
-        "anuncio_sin_pais": ("megaphone", "morado"),
+        "anuncio_sin_pais": ("megaphone", "morado"), "alerta_sistema": ("exclamation-octagon", "rojo"),   # 021
     }
     TIPOS = {
         "lead_nuevo": "Cliente nuevo", "lead_reasignado": "Cliente reasignado", "lead_quitado": "Cliente que pasó a otro",
         "cliente_escribio": "Mensaje de WhatsApp", "plazo_por_vencer": "Plazo por vencer", "hora_de_llamar": "Hora de llamar",
         "llamada_atrasada": "Llamada atrasada", "sin_gestionar_vuelta": "Sin gestionar", "anuncio_sin_pais": "Campañas",
+        "alerta_sistema": "Alerta del sistema",
     }
 
     id = models.BigAutoField(primary_key=True)

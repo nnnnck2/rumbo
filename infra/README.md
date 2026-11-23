@@ -82,3 +82,24 @@ DB_PASSWORD=<RUMBO_APP_PASSWORD de db/.env>
 | Logs de nginx | `docker compose logs -f nginx` |
 | Forzar renovación (prueba) | `docker compose run --rm certbot renew --dry-run` |
 | Log de respaldos | `tail -f /var/log/rumbo/respaldos.log` |
+
+## Monitoreo y registro de errores (SCRUM-41)
+
+| Qué | Cómo | Dónde se ve |
+|---|---|---|
+| Registro centralizado de errores | Todos los procesos escriben en la salida estándar (logs de Docker, `docker compose logs -f web worker beat`). Con `SENTRY_DSN` en `.env` los errores de Django y Celery llegan además a **Sentry** (sin datos personales: `send_default_pii=False`). | Sentry / `docker compose logs` |
+| Alerta si el webhook falla | Celery beat corre `core.vigilar_webhook` cada 5 min (`core/monitoreo.py`). Avisa si hay mensajes sin procesar hace más de 5 min, mensajes que agotaron los 10 reintentos, o 20+ firmas inválidas en 1 h. | Campana de los administradores, log `rumbo.monitoreo` (ERROR → Sentry) y correo a `RUMBO_ALERTAS_CORREO` |
+| Alerta si deja de recibir mensajes | Misma tarea: en horario de atención, si no llega nada hace más de `WEBHOOK_MINUTOS_SILENCIO` minutos (180 por defecto; cuenta desde la apertura del turno). | Igual que arriba |
+| Chequeo de salud (uptime) | `GET /salud/` → 200 si la app y la base responden (lo usa Docker). `GET /salud/?completo=1` → además exige que la vigilancia haya corrido en los últimos 15 min (worker, beat y Redis vivos) y que no haya mensajes atascados; si no, **503** con la lista de problemas. | Monitor externo |
+
+Cada alerta se repite como mucho una vez por hora.
+
+### Monitor de disponibilidad externo
+
+El servidor no puede avisar si él mismo se cae, por eso el chequeo lo hace un servicio externo gratuito (UptimeRobot o Better Stack):
+
+1. Crear un monitor **HTTP(s)** a `https://<DOMINIO>/salud/?completo=1`, cada **5 minutos**, que alerte si la respuesta no es 200.
+2. Contactos de alerta: correo y/o app del administrador.
+3. Opcional: un segundo monitor a `https://<DOMINIO>/salud/` (solo app + base) para distinguir "servidor caído" de "Celery caído".
+
+Probar sin Meta: `docker compose exec web python manage.py shell -c "from core import monitoreo; print(monitoreo.vigilar())"`.

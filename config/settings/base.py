@@ -142,6 +142,26 @@ EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
 EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Rumbo <no-responder@multivisa.ec>")
 
+# ── Monitoreo (SCRUM-41) ──────────────────────────────────────────────────────────────
+# Minutos sin mensajes de WhatsApp, en horario de atención, para avisar a los administradores.
+WEBHOOK_MINUTOS_SILENCIO = env.int("WEBHOOK_MINUTOS_SILENCIO", default=180)
+# Correos que reciben las alertas del sistema (además de la campana de los administradores).
+RUMBO_ALERTAS_CORREO = env.list("RUMBO_ALERTAS_CORREO", default=[])
+# Registro centralizado de errores: si hay SENTRY_DSN (y sentry-sdk instalado), los errores van a Sentry.
+SENTRY_DSN = env("SENTRY_DSN", default="")
+if SENTRY_DSN:
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.celery import CeleryIntegration
+        from sentry_sdk.integrations.django import DjangoIntegration
+
+        sentry_sdk.init(dsn=SENTRY_DSN, integrations=[DjangoIntegration(), CeleryIntegration()],
+                        environment=env("SENTRY_ENTORNO", default="produccion"),
+                        send_default_pii=False,          # LOPDP: sin datos personales de clientes ni usuarios
+                        traces_sample_rate=0.0)
+    except ImportError:                                  # pragma: no cover
+        pass
+
 # ── Celery + Redis (SCRUM-17) ─────────────────────────────────────────────────────
 REDIS_URL = env("REDIS_URL", default="redis://127.0.0.1:6379/0")
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", default=REDIS_URL)
@@ -173,6 +193,8 @@ CELERY_BEAT_SCHEDULE = {
     "recordatorios-cita": {"task": "whatsapp.recordatorios_cita", "schedule": crontab(minute="*/5")},
     # SCRUM-122: notificaciones push
     "enviar-push": {"task": "core.enviar_push", "schedule": 20.0},
+    # SCRUM-41: vigilancia del webhook (atascos, silencio, firmas inválidas) y latido para /salud/?completo=1
+    "vigilar-webhook": {"task": "core.vigilar_webhook", "schedule": crontab(minute="*/5")},
     # SCRUM-121: reporte semanal (lunes 08:00, hora de Ecuador)
     "reporte-semanal": {"task": "core.enviar_reporte_semanal", "schedule": crontab(minute=0, hour=8, day_of_week=1)},
 }

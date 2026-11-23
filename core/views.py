@@ -93,14 +93,44 @@ def ayuda(request):
 
 @require_GET
 def salud(request):
-    """Healthcheck para Docker y el proxy: la app responde y llega a la base."""
+    """Healthcheck para Docker y el proxy: la app responde y llega a la base.
+
+    SCRUM-41 · ?completo=1 (para el monitor de disponibilidad externo): además exige que la vigilancia de
+    Celery haya corrido hace poco (worker y beat vivos) y que no haya mensajes de WhatsApp atascados.
+    Responde 503 si algo falla. No muestra datos personales, solo cifras."""
     try:
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
             cursor.fetchone()
     except Exception:  # noqa: BLE001
         return JsonResponse({"estado": "error", "base": False}, status=503)
-    return JsonResponse({"estado": "ok", "base": True})
+    if not request.GET.get("completo"):
+        return JsonResponse({"estado": "ok", "base": True})
+
+    from . import monitoreo
+    from .db import como_sistema
+
+    ahora = timezone.now()
+    latido = monitoreo.ultimo_latido()
+    respuesta = {"estado": "ok", "base": True, "vigilancia": latido.isoformat() if latido else None}
+    problemas = []
+    if latido is None or ahora - latido > monitoreo.LATIDO_VENCE:
+        problemas.append("la vigilancia no corre (worker, beat o Redis caídos)")
+    try:
+        with como_sistema() as cursor:
+            estado = monitoreo.leer_estado(cursor)
+    except Exception:  # noqa: BLE001
+        problemas.append("no se pudo leer la bandeja del webhook")
+    else:
+        respuesta["webhook"] = {"ultimo_mensaje": estado["ultimo_valido_en"].isoformat() if estado["ultimo_valido_en"] else None,
+                                "recibidos_1h": estado["recibidos_1h"], "atascados": estado["atascados"],
+                                "agotados_24h": estado["agotados_24h"]}
+        if estado["atascados"]:
+            problemas.append(f"{estado['atascados']} mensaje(s) de WhatsApp sin procesar")
+    if problemas:
+        respuesta.update(estado="error", problemas=problemas)
+        return JsonResponse(respuesta, status=503)
+    return JsonResponse(respuesta)
 
 
 # ─────────────────────────────── 017 · Notificaciones (como CALLFLOW) ───────────────────────────────

@@ -65,3 +65,11 @@ def enviar_reporte_semanal():
     from . import reporte
 
     return reporte.enviar()
+
+
+@shared_task(name="core.vigilar_webhook")
+def vigilar_webhook():
+    """SCRUM-41: avisa si el webhook de WhatsApp falla o deja de recibir mensajes."""
+    from . import monitoreo
+
+    return monitoreo.vigilar()
