@@ -16,3 +16,6 @@ media/
 .vscode/
 .idea/
 .DS_Store
+
+# Informes de la prueba de restauración (SCRUM-42)
+db/logs/

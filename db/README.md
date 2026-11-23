@@ -86,3 +86,46 @@ Restaurar a un momento exacto: `./scripts/restaurar_pitr.sh "2027-01-15 10:42:00
 - **Certificado TLS real.** Hay que montarlo en `/etc/postgresql/ssl`; el de la imagen es autofirmado.
 - **Guardar fuera del servidor la clave `PGBACKREST_REPO1_CIPHER_PASS`.** Sin ella los respaldos no se pueden leer.
 - **Confirmar con el área los valores pendientes** de `010_datos_iniciales.sql`: días de atención y minutos máximos.
+
+## Prueba de restauración (SCRUM-42)
+
+Un respaldo solo sirve si se puede restaurar. `scripts/probar_restauracion.sh` lo comprueba en un **entorno
+aparte**, sin tocar la base en uso ni escribir en el repositorio de respaldos:
+
+```bash
+cd db
+bash scripts/probar_restauracion.sh                  # último respaldo + WAL archivado hasta ahora
+NUEVO_RESPALDO=full bash scripts/probar_restauracion.sh   # toma antes un respaldo completo
+CONSERVAR=1 bash scripts/probar_restauracion.sh      # deja la copia para revisarla (docker exec -it rumbo-restauracion-prueba psql -U postgres -d rumbo)
+```
+
+Paso a paso (lo que hace el script, y lo que habría que hacer a mano en una emergencia):
+
+1. **Cifras de control** de la base en uso: conteos de leads, mensajes, asignaciones, intentos, ventas (y su
+   total), usuarios, último id de auditoría y migraciones. Fuerza el archivado del WAL (`pg_switch_wal` +
+   `pgbackrest check`) para que el respaldo cubra hasta ese momento.
+2. **Entorno aparte**: volumen nuevo `rumbo_restauracion_prueba` y contenedor `rumbo-restauracion-prueba`
+   **sin red**, con el repositorio `rumbo_respaldos` montado en **solo lectura**.
+3. **Restaurar**: `pgbackrest --stanza=rumbo restore` (descifra con `PGBACKREST_REPO1_CIPHER_PASS` de `db/.env`;
+   sin esa clave los respaldos no se pueden leer) y abrir PostgreSQL con `archive_mode=off`, para que la copia
+   nunca escriba en el repositorio. PostgreSQL reaplica el WAL archivado y se abre.
+4. **Verificar**: las cifras de control de la copia deben ser idénticas a las del paso 1, y se leen todas las
+   páginas de las tablas principales (con `data_checksums` una página dañada da error).
+5. **Medir**: cada paso se cronometra. El informe queda en `db/logs/restauracion-AAAAMMDD-HHMM.txt`.
+
+En producción corre sola el **primer domingo de cada mes a las 05:00** (`infra/scripts/instalar_cron.sh`); si
+falla, `/var/log/rumbo/respaldos.log` dice `FALLO prueba de restauración`. Para restaurar de verdad sobre la base en
+uso (a un segundo exacto) se usa `scripts/restaurar_pitr.sh`, que también se prueba en `pruebas/probar.sh`.
+
+### Resultado de la prueba (23/11/2026, entorno de desarrollo)
+
+| Paso | Tiempo |
+|---|---|
+| Restaurar archivos (respaldo completo de 31,6 MB, 3,7 MB cifrado y comprimido) | 3,8 s |
+| Reaplicar el WAL posterior al respaldo (≈ 30 min de cambios) y abrir la base | 5,1 s |
+| **Total** | **8,9 s** |
+
+Cifras de control idénticas (10 leads, 8 mensajes, 10 asignaciones, 4 intentos, 3 ventas por 950,49, 6 usuarios,
+auditoría hasta el id 79, 25 migraciones) y páginas sin errores de checksum. El tiempo crece con el tamaño de la base
+y con el WAL acumulado desde el último completo (en producción, como mucho una semana): repetir la medición en el VPS
+cuando esté listo (SCRUM-12) y con la copia fuera del servidor (repo2).

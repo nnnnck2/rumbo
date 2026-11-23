@@ -3,6 +3,7 @@
 #   Domingo 03:00      respaldo completo
 #   Lunes–sábado 03:00 respaldo diferencial
 #   Todos los días 04:30 verificación (check + verify); si falla queda en el log con "FALLO"
+#   Primer domingo del mes 05:00: prueba de restauración en un entorno aparte (SCRUM-42)
 # El WAL se archiva de forma continua (cada 60 s como máximo) entre respaldos.
 # Hora del servidor: America/Guayaquil (la fija aprovisionar_vps.sh).
 set -euo pipefail
@@ -23,6 +24,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 0  3 * * 0    $USUARIO  { date; $EXEC /scripts/respaldo.sh full || echo "FALLO respaldo full"; } >> $LOG 2>&1
 0  3 * * 1-6  $USUARIO  { date; $EXEC /scripts/respaldo.sh diff || echo "FALLO respaldo diff"; } >> $LOG 2>&1
 30 4 * * *    $USUARIO  { date; $EXEC /scripts/verificar_respaldos.sh || echo "FALLO verificación"; } >> $LOG 2>&1
+# SCRUM-42: el día 1–7 que cae domingo (después del respaldo completo de las 03:00). Informe en db/logs/.
+0  5 1-7 * *  $USUARIO  [ "\$(date +\%u)" = 7 ] && { date; cd $RAIZ/db && bash scripts/probar_restauracion.sh || echo "FALLO prueba de restauración"; } >> $LOG 2>&1
 CRON
 chmod 644 /etc/cron.d/rumbo
 
