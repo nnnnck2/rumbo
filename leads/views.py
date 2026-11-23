@@ -62,6 +62,10 @@ def _contexto_ficha(request, lead, intento_form=None, etapa_form=None, reasignar
         "hoy": timezone.localdate(),
         "ahora": timezone.now(),                                                          # SCRUM-29
         "origen_texto": ORIGENES.get(lead.origen, lead.origen),                           # SCRUM-53
+        # SCRUM-43 · LOPDP: aviso de privacidad y consentimiento
+        "aviso_privacidad_en": servicios.aviso_privacidad_enviado(lead.pk),
+        "consentimiento": (lead.datos or {}).get("consentimiento") or {},
+        "medios_consentimiento": servicios.MEDIOS_CONSENTIMIENTO,
         **_modo_siguiente(request),
         "datos_form": (datos_form or DatosLeadForm(initial={"version": lead.version, "tipo_visa": lead.tipo_visa,
                                                             "pais_interes": lead.pais_interes,
@@ -344,7 +348,8 @@ def lead_nuevo(request):
         d = form.cleaned_data
         try:
             lead_id, nuevo, asesor_id = servicios.registrar_lead_manual(
-                d["telefono"], d["nombre"].strip(), d["origen"], d["tipo_visa"], d["pais_interes"], d["nota"].strip())
+                d["telefono"], d["nombre"].strip(), d["origen"], d["tipo_visa"], d["pais_interes"], d["nota"].strip(),
+                d.get("consentimiento"))
         except servicios.ErrorNegocio as e:
             messages.error(request, e.mensaje)
         else:
@@ -411,6 +416,28 @@ def enviar_plantilla(request, pk):
         messages.error(request, e.mensaje)
     else:
         messages.success(request, "Plantilla enviada por WhatsApp.")
+    return _responder_ficha(request, _lead(pk) or lead)
+
+
+# ─────────────────────────────── SCRUM-43 · LOPDP: consentimiento ───────────────────────────────
+
+@require_POST
+@con_rol(*TODOS)
+def registrar_consentimiento(request, pk):
+    lead = _lead(pk)
+    if lead is None:
+        raise PermissionDenied
+    medio = request.POST.get("medio", "")
+    if medio not in dict(servicios.MEDIOS_CONSENTIMIENTO):
+        messages.error(request, "Elija cómo dio su consentimiento el cliente.")
+        return _responder_ficha(request, lead)
+    try:
+        nuevo = servicios.registrar_consentimiento(lead.pk, medio)
+    except servicios.ErrorNegocio as e:
+        messages.error(request, e.mensaje)
+    else:
+        (messages.success if nuevo else messages.info)(
+            request, "Consentimiento registrado." if nuevo else "El consentimiento ya estaba registrado.")
     return _responder_ficha(request, _lead(pk) or lead)
 
 

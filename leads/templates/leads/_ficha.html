@@ -257,6 +257,29 @@
     <section class="tarjeta-rumbo">
       {% include "leads/_notas.html" %}
     </section>
+    {# SCRUM-43 · LOPDP: aviso de privacidad y consentimiento del titular #}
+    <section class="tarjeta-rumbo">
+      <h2 class="titulo-tarjeta"><i class="bi bi-shield-lock" aria-hidden="true"></i> Datos personales</h2>
+      <dl class="small mb-2">
+        <dt>Aviso de privacidad</dt>
+        <dd>{% if aviso_privacidad_en %}Enviado por WhatsApp el {{ aviso_privacidad_en|date:"d/m/Y H:i" }}{% else %}<span class="text-body-secondary">No se le envió por WhatsApp</span>{% endif %}</dd>
+        <dt>Consentimiento</dt>
+        <dd>{% if lead.consentimiento_en %}<span class="text-success"><i class="bi bi-check-circle" aria-hidden="true"></i> Aceptó el {{ lead.consentimiento_en|date:"d/m/Y H:i" }}</span>
+          {% for clave, nombre in medios_consentimiento %}{% if clave == consentimiento.medio %} · {{ nombre|lower }}{% endif %}{% endfor %}
+          {% else %}<span class="text-warning-emphasis">Sin registrar</span>{% endif %}</dd>
+      </dl>
+      {% if not lead.consentimiento_en and not lead.anonimizado_en %}{% if rumbo.es_supervisor or lead.asesor_id == rumbo.asesor_id %}
+      <form method="post" action="{% url 'leads:consentimiento' lead.pk %}" hx-post="{% url 'leads:consentimiento' lead.pk %}"
+            hx-target="#ficha" hx-swap="innerHTML" class="d-flex gap-2 align-items-end">
+        {% csrf_token %}
+        <div class="flex-grow-1"><label class="form-label small mb-1" for="medio-consentimiento">El cliente aceptó</label>
+          <select id="medio-consentimiento" name="medio" class="form-select form-select-sm">
+            {% for clave, nombre in medios_consentimiento %}<option value="{{ clave }}">{{ nombre }}</option>{% endfor %}</select></div>
+        <button class="btn btn-sm btn-outline-primary">Registrar</button>
+      </form>
+      <p class="small text-body-secondary mt-2 mb-0">Pregúntele en la llamada si acepta que Multivisa use sus datos solo para asesorarlo con su visa.</p>
+      {% endif %}{% endif %}
+    </section>
   </div>
 </div>
 

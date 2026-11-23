@@ -681,13 +681,30 @@ def avance_total(metas):
 
 # ─────────────────────────────── SCRUM-53 · Registro manual (RF-07) ───────────────────────────────
 
-def registrar_lead_manual(telefono, nombre, origen, tipo_visa=None, pais=None, nota=None):
+def registrar_lead_manual(telefono, nombre, origen, tipo_visa=None, pais=None, nota=None, consentimiento=False):
     """Alta de un cliente que llegó por llamada, referido o visita. Devuelve (lead_id, nuevo, asesor_id):
     si el número ya existía no crea nada y devuelve el existente (nuevo=False)."""
     try:
         with transaction.atomic(), connection.cursor() as cursor:
-            cursor.execute("SELECT * FROM rumbo.registrar_lead_manual(%s, %s, %s, %s, %s, %s)",
-                           [telefono, nombre or None, origen, tipo_visa or None, pais or None, nota or None])
+            cursor.execute("SELECT * FROM rumbo.registrar_lead_manual(%s, %s, %s, %s, %s, %s, %s)",
+                           [telefono, nombre or None, origen, tipo_visa or None, pais or None, nota or None,
+                            bool(consentimiento)])
             return cursor.fetchone()
     except DatabaseError as exc:
         raise traducir(exc) from exc
+
+
+# ─────────────────────────────── SCRUM-43 · LOPDP: consentimiento ───────────────────────────────
+
+MEDIOS_CONSENTIMIENTO = [("llamada", "Por teléfono"), ("whatsapp", "Por WhatsApp"), ("presencial", "En la oficina"),
+                         ("formulario", "Formulario firmado")]
+
+
+def registrar_consentimiento(lead_id, medio):
+    """Constancia de que el cliente aceptó el tratamiento de sus datos. False si ya estaba registrado."""
+    return _ejecutar("SELECT rumbo.registrar_consentimiento(%s, %s)", [lead_id, medio])
+
+
+def aviso_privacidad_enviado(lead_id):
+    """Cuándo recibió el aviso de privacidad en la respuesta automática (None si no lo recibió)."""
+    return _ejecutar("SELECT rumbo.aviso_privacidad_enviado(%s)", [lead_id])

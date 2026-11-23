@@ -540,6 +540,9 @@ class LeadManualForm(Bootstrap, forms.Form):
     pais_interes = forms.ChoiceField(choices=[("", "—")] + [(p, p) for p in PAISES], required=False, label="País de interés")
     nota = forms.CharField(max_length=4000, required=False, label="Nota",
                            widget=forms.Textarea(attrs={"rows": 3, "placeholder": "Qué necesita, quién lo refirió…"}))
+    # SCRUM-43 · LOPDP
+    consentimiento = forms.BooleanField(required=False, label="El cliente aceptó que usemos sus datos para asesorarlo",
+                                        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}))
 
     def clean_telefono(self):
         return normalizar_telefono(self.cleaned_data["telefono"])

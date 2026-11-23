@@ -20,8 +20,13 @@
     <div class="col-md-6">{% include "leads/_campo.html" with campo=form.tipo_visa %}</div>
     <div class="col-md-6">{% include "leads/_campo.html" with campo=form.pais_interes %}</div>
     <div class="col-12">{% include "leads/_campo.html" with campo=form.nota %}</div>
-    <p class="col-12 small text-body-secondary mb-0"><i class="bi bi-shield-lock" aria-hidden="true"></i>
-      Cuéntele al cliente que sus datos se usan solo para asesorarlo con su visa (Ley de Protección de Datos Personales).</p>
+    <div class="col-12">
+      <p class="small text-body-secondary mb-1"><i class="bi bi-shield-lock" aria-hidden="true"></i>
+        Antes de registrarlo, dígale: «Multivisa usará sus datos solo para asesorarlo con su visa; puede pedir verlos,
+        corregirlos o eliminarlos cuando quiera» (Ley Orgánica de Protección de Datos Personales).</p>
+      <div class="form-check">{{ form.consentimiento }}
+        <label class="form-check-label" for="{{ form.consentimiento.id_for_label }}">{{ form.consentimiento.label }}</label></div>
+    </div>
     <div class="col-12">
       <button class="btn btn-primary btn-lg">Registrar</button>
       <a class="btn btn-link" href="{% url 'leads:lista' %}">Cancelar</a>

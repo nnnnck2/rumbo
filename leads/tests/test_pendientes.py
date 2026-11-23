@@ -83,3 +83,25 @@ class LeadManualConfigTests(SimpleTestCase):
         self.assertFalse(ConfiguracionForm.desde_configuracion(
             {"lead_manual": {"asignar_a_quien_registra": False}})["lead_manual_asignar"])
         self.assertIn("lead_manual_asignar", ConfiguracionForm.PESTANAS["reparto"])
+
+
+class ConsentimientoTests(SimpleTestCase):
+    """SCRUM-43 · LOPDP."""
+
+    def test_medios_validos(self):
+        from leads import servicios
+
+        self.assertEqual([m for m, _ in servicios.MEDIOS_CONSENTIMIENTO], ["llamada", "whatsapp", "presencial", "formulario"])
+
+    def test_alta_manual_con_casilla(self):
+        from leads.forms import LeadManualForm
+
+        f = LeadManualForm(data={"telefono": "0991234567", "origen": "llamada", "consentimiento": "on"})
+        self.assertTrue(f.is_valid(), f.errors)
+        self.assertTrue(f.cleaned_data["consentimiento"])
+
+    def test_ficha_muestra_aviso_y_consentimiento(self):
+        with open("leads/templates/leads/_ficha.html", encoding="utf-8") as fh:
+            ficha = fh.read()
+        self.assertIn("Aviso de privacidad", ficha)
+        self.assertIn("leads:consentimiento", ficha)
