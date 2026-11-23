@@ -126,3 +126,24 @@ class ConfiguracionNuevaTests(SimpleTestCase):
     def test_todos_los_campos_estan_en_una_pestana(self):
         en_pestanas = {c for campos in ConfiguracionForm.PESTANAS.values() for c in campos}
         self.assertEqual(set(ConfiguracionForm().fields), en_pestanas)
+
+
+class MejoresHorasTests(SimpleTestCase):
+    """SCRUM-128 · el resumen en palabras solo usa horas con al menos 5 llamadas."""
+
+    def celda(self, dia, hora, llamadas, contactos):
+        return {"dia": dia, "hora": hora, "llamadas": llamadas, "contactos": contactos,
+                "pct": round(100 * contactos / llamadas) if llamadas else None}
+
+    def test_mejor_y_peor_momento(self):
+        filas = [{"celdas": [self.celda("jueves", 9, 10, 8), self.celda("jueves", 10, 2, 2),
+                             self.celda("miércoles", 14, 7, 2), self.celda("lunes", 11, 0, 0)]}]
+        resumen = operacion.resumen_mapa(filas)
+        self.assertEqual((resumen["mejor"]["dia"], resumen["mejor"]["hora"]), ("jueves", 9))   # 100 % con 2 llamadas no cuenta
+        self.assertEqual((resumen["peor"]["dia"], resumen["peor"]["hora"]), ("miércoles", 14))
+
+    def test_pocas_llamadas_no_recomienda(self):
+        self.assertIsNone(operacion.resumen_mapa([{"celdas": [self.celda("jueves", 9, 4, 4)]}]))
+
+    def test_una_sola_hora_confiable_no_tiene_peor(self):
+        self.assertIsNone(operacion.resumen_mapa([{"celdas": [self.celda("jueves", 9, 6, 3)]}])["peor"])

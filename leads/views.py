@@ -802,6 +802,8 @@ def metricas(request):
     datos["por_campana"] = servicios.metricas_por_campana(inicio, fin)
     datos["embudo"] = servicios.embudo_por_anuncio(inicio, fin)          # SCRUM-99
     datos["horas_calor"], datos["mapa_calor"] = operacion.mapa_de_calor(inicio, fin, servicios.RESULTADOS_CONTACTO)
+    datos["resumen_calor"] = operacion.resumen_mapa(datos["mapa_calor"])
+    datos["hay_llamadas_calor"] = any(f["llamadas"] for f in datos["mapa_calor"])
     datos["alertas_calidad"] = operacion.alertas_calidad(servicios.RESULTADOS_CONTACTO)        # SCRUM-129
     return render(request, "leads/metricas.html", {
         **datos, "desde": desde, "hasta": hasta, "rumbo": request.rumbo,

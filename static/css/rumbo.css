@@ -1041,18 +1041,26 @@ a.dato-rapido:hover { border-color: #c5cce0; box-shadow: 0 2px 8px rgba(20, 37, 
 .plazo-lopdp { flex: none; font-size: .78rem; font-weight: 700; }
 .tono-rojo .plazo-lopdp { color: #b4232f; } .tono-amarillo .plazo-lopdp { color: #7a5300; } .tono-verde .plazo-lopdp { color: #136b48; }
 
-/* SCRUM-128 · Mapa de calor */
-.mapa-calor { border-collapse: separate; border-spacing: 3px; font-size: .72rem; margin: 0 auto; }
-.mapa-calor th { padding: 0 .25rem; color: #6b7491; font-weight: 600; text-align: center; }
+/* SCRUM-128 · Mapa de calor: un solo color (verde), más intenso = se habló con más clientes */
+.resumen-calor { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: .75rem; }
+.resumen-calor > div { display: flex; flex-direction: column; padding: .75rem 1rem; border-radius: 10px; background: #f4f6fb; }
+.resumen-calor .etiqueta { font-size: .75rem; color: #6b7491; }
+.resumen-calor strong { font-size: 1.05rem; }
+.mapa-calor { border-collapse: separate; border-spacing: 4px; font-size: .75rem; margin: 0 auto; }
+.mapa-calor th { padding: 0 .25rem; color: #6b7491; font-weight: 500; text-align: center; white-space: nowrap; }
 .mapa-calor tbody th { text-align: right; }
-.mapa-calor td { width: 2.4rem; height: 1.9rem; border-radius: 6px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
-.mapa-calor td.sin-datos { background: #f4f6fb; }
-.mapa-calor td.nivel-0 { background: #fde8ea; color: #b4232f; }
-.mapa-calor td.nivel-1 { background: #fff1cc; color: #7a5300; }
-.mapa-calor td.nivel-2 { background: #d8efe3; color: #136b48; }
-.mapa-calor td.nivel-3 { background: #8fd3b2; color: #0c4a31; }
-.mapa-calor td.nivel-4 { background: #1f9d6b; color: #fff; }
-.mapa-calor td.poco { outline: 1px dashed #9aa3bb; outline-offset: -2px; font-weight: 500; }
+.mapa-calor td { min-width: 3rem; height: 2rem; border-radius: 6px; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
+.mapa-calor td.sin-datos { background: transparent; box-shadow: inset 0 0 0 1px #e6e9f2; }
+.mapa-calor td.poco { background: #f4f6fb; color: #9aa3bb; font-weight: 500; }
+.mapa-calor td.nivel-0 { background: #e6f4ed; color: #136b48; }
+.mapa-calor td.nivel-1 { background: #b9e2cd; color: #0f5a3c; }
+.mapa-calor td.nivel-2 { background: #5fbf92; color: #08311f; }
+.mapa-calor td.nivel-3 { background: #1f8a5e; color: #fff; }
+.leyenda-calor { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .5rem; margin-top: .75rem; font-size: .75rem; color: #6b7491; }
+.leyenda-calor .muestra { display: inline-block; width: 1rem; height: .75rem; border-radius: 3px; margin-left: .35rem; }
+.leyenda-calor .muestra.nivel-0 { background: #e6f4ed; } .leyenda-calor .muestra.nivel-1 { background: #b9e2cd; }
+.leyenda-calor .muestra.nivel-2 { background: #5fbf92; } .leyenda-calor .muestra.nivel-3 { background: #1f8a5e; }
+.leyenda-calor .muestra.poco { background: #f4f6fb; box-shadow: inset 0 0 0 1px #d5d9e6; }
 
 /* SCRUM-129 · Alertas de calidad · SCRUM-130 · Comisión */
 .alertas-calidad { border-left: 4px solid #f0a500; }
@@ -1221,11 +1229,14 @@ html[data-bs-theme="dark"] .relleno-meta { background: var(--rb-primario-fondo);
 html[data-bs-theme="dark"] .tramo-leads { background: #2f3a58; }
 html[data-bs-theme="dark"] .tramo-contacto { background: #3f5a99; }
 html[data-bs-theme="dark"] .tramo-cita { background: #6c8fe0; }
-html[data-bs-theme="dark"] .mapa-calor td.nivel-0 { background: var(--t-rojo-bg); color: var(--t-rojo); }
-html[data-bs-theme="dark"] .mapa-calor td.nivel-1 { background: var(--t-amarillo-bg); color: var(--t-amarillo); }
-html[data-bs-theme="dark"] .mapa-calor td.nivel-2 { background: rgba(46, 196, 138, .2); color: #9fe9c8; }
-html[data-bs-theme="dark"] .mapa-calor td.nivel-3 { background: rgba(46, 196, 138, .42); color: #e6fbf1; }
-html[data-bs-theme="dark"] .mapa-calor td.nivel-4 { background: #1f9d6b; color: #fff; }
+html[data-bs-theme="dark"] .mapa-calor td.nivel-0, html[data-bs-theme="dark"] .leyenda-calor .muestra.nivel-0 { background: rgba(46, 196, 138, .14); color: #9fe9c8; }
+html[data-bs-theme="dark"] .mapa-calor td.nivel-1, html[data-bs-theme="dark"] .leyenda-calor .muestra.nivel-1 { background: rgba(46, 196, 138, .3); color: #d4f6e6; }
+html[data-bs-theme="dark"] .mapa-calor td.nivel-2, html[data-bs-theme="dark"] .leyenda-calor .muestra.nivel-2 { background: rgba(46, 196, 138, .55); color: #fff; }
+html[data-bs-theme="dark"] .mapa-calor td.nivel-3, html[data-bs-theme="dark"] .leyenda-calor .muestra.nivel-3 { background: #1f9d6b; color: #fff; }
+html[data-bs-theme="dark"] .mapa-calor td.poco, html[data-bs-theme="dark"] .leyenda-calor .muestra.poco { background: var(--rb-superficie-2); color: #8b93ab; }
+html[data-bs-theme="dark"] .resumen-calor > div { background: var(--rb-superficie-2); }
+html[data-bs-theme="dark"] .resumen-calor .etiqueta { color: #8b93ab; }
+html[data-bs-theme="dark"] .mapa-calor td.sin-datos { background: transparent; box-shadow: inset 0 0 0 1px var(--rb-borde); }
 
 /* Agenda, WhatsApp de ejemplo y configuración */
 html[data-bs-theme="dark"] .evento-agenda { background: var(--t-azul-bg); }
