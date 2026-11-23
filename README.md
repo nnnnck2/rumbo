@@ -138,6 +138,27 @@ El asesor cambia su estado con un clic en la barra superior: **Disponible**, **P
 - La configuración rige desde la siguiente operación: las funciones de la base la leen en cada llamada.
 - Tareas automáticas (Celery beat): reasignar leads sin primera llamada (cada minuto, RF-14; solo cuenta el tiempo dentro del turno) y repartir la cola de fuera de horario (cada 5 minutos, RF-13).
 
+## Lista de llamadas, seguridad, monitoreo e integraciones (SCRUM-28 a 59)
+
+| Tarea | Qué hay | Dónde |
+|---|---|---|
+| SCRUM-28 · Lista de llamadas | "Por llamar ahora" y "Llamar al siguiente": nuevos primero, después agendadas y reintentos vencidos; tipo y tiempo de espera de cada cliente; se actualiza sola cada 10 s | `leads/operacion.py` (`orden_lista_llamadas`), `lista.html` |
+| SCRUM-29 · Ficha | Botón `tel:`, datos de WhatsApp, mensajes, intentos, etapa y próxima acción | `_ficha.html` |
+| SCRUM-34 · Celular | Sin desborde a 360 px, botones de llamar y resultado de 44 px | `static/css/rumbo.css` |
+| SCRUM-35 · Seguridad de acceso | Contraseñas robustas, bloqueo tras 5 fallos (15 min), registro de ingresos y pantalla **Auditoría** (admin) | migración 020, `cuentas/acceso.py` |
+| SCRUM-41 · Monitoreo | Vigilancia del webhook cada 5 min con alertas, Sentry opcional, `/salud/?completo=1` | migración 021, `core/monitoreo.py`, `infra/README.md` |
+| SCRUM-42 · Restauración | Prueba en entorno aparte, medida y mensual | `db/scripts/probar_restauracion.sh`, `db/README.md` |
+| SCRUM-43 · LOPDP | Aviso de privacidad, consentimiento registrado con evidencia, finalidad documentada | migración 025, `docs/lopdp.md` |
+| SCRUM-51 · Exportar | Leads y métricas a Excel (.xlsx) o CSV con filtros de fecha, asesor, campaña y etapa | `leads/excel.py` |
+| SCRUM-53 · Registro manual | "Registrar cliente" (llamada, referido, visita) con duplicados por número | migración 023 |
+| SCRUM-54 · Carga del asesor | Límite de clientes por llamar y parte del reparto (peso) por asesor | migración 022 |
+| SCRUM-55 · Plantillas | Plantillas de Meta desde la ficha (desactivadas hasta confirmar tarifas) | migración 023, `whatsapp/envio_asesor.py` |
+| SCRUM-57 · API CALLFLOW | `GET /api/callflow/v1/ventas/` y `/asesores/` con token | migración 024, `docs/callflow/` |
+| SCRUM-59 · Número del asesor | Los mensajes salen por el número asignado al asesor; la ficha lo muestra | `whatsapp/envio_asesor.py` |
+
+Migraciones nuevas (020 a 025): aplicar con `cd db && docker compose up -d --build && docker compose exec -u postgres db bash /scripts/migrar.sh`
+y después `python manage.py verificar_modelos`. Dependencias nuevas: `openpyxl` y `sentry-sdk` (`pip install -r requirements.txt`).
+
 ## Número de prueba de Meta (SCRUM-9)
 
 Para probar con WhatsApp real antes de tener el VPS:
